@@ -1,0 +1,407 @@
+import React, { useState, useEffect } from 'react';
+import { 
+  Building2, 
+  Warehouse, 
+  Package, 
+  Users, 
+  Search, 
+  Plus, 
+  Edit3, 
+  Trash2, 
+  Eye, 
+  Filter,
+  Download,
+  Upload,
+  BarChart3,
+  Settings,
+  User,
+  LogOut,
+  Menu,
+  X,
+  ChevronRight,
+  Calendar,
+  DollarSign,
+  TrendingUp,
+  AlertCircle,
+  Bell
+} from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { useAuth } from '../contexts/AuthContext';
+import apiClient from '../utils/api';
+import { toast } from 'sonner';
+import AssetManagement from './AssetManagement';
+import WarehouseManagement from './WarehouseManagement';
+import BranchManagement from './BranchManagement';
+import UserManagement from './UserManagement';
+import ErrorBoundary from './ErrorBoundary';
+
+const Dashboard = () => {
+  const { user, logout } = useAuth();
+  const [activeTab, setActiveTab] = useState('dashboard');
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [loading, setLoading] = useState(true);
+
+  // Dashboard stats from API
+  const [dashboardStats, setDashboardStats] = useState({
+    totalAssets: 0,
+    totalValue: 0,
+    activeAssets: 0,
+    warehouses: 0,
+    branches: 0,
+    users: 0,
+    recentAssets: []
+  });
+
+  useEffect(() => {
+    loadDashboardStats();
+  }, []);
+
+  const loadDashboardStats = async () => {
+    try {
+      setLoading(true);
+      
+      // Load statistics from the statistics endpoint
+      const statsResponse = await apiClient.getStatistics();
+      
+      setDashboardStats({
+        totalAssets: statsResponse.total_assets || 0,
+        totalValue: statsResponse.total_value || 0,
+        activeAssets: statsResponse.active_assets || 0,
+        warehouses: statsResponse.total_warehouses || 0,
+        branches: statsResponse.total_branches || 0,
+        users: statsResponse.total_users || 0,
+        recentAssets: statsResponse.recent_assets || []
+      });
+    } catch (error) {
+      console.error('Error loading dashboard stats:', error);
+      toast.error('Failed to load dashboard statistics');
+      
+      // Fallback to empty state on error
+      setDashboardStats({
+        totalAssets: 0,
+        totalValue: 0,
+        activeAssets: 0,
+        warehouses: 0,
+        branches: 0,
+        users: 0,
+        recentAssets: []
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const menuItems = [
+    { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
+    { id: 'assets', label: 'Fixed Assets', icon: Package },
+    { id: 'warehouses', label: 'Warehouses', icon: Warehouse },
+    { id: 'branches', label: 'Branches', icon: Building2 },
+    { id: 'users', label: 'Users', icon: Users },
+    { id: 'settings', label: 'Settings', icon: Settings },
+  ];
+
+  const StatCard = ({ title, value, icon: Icon, color, subtitle, trend }) => (
+    <Card className="glass-card hover:shadow-primary transition-smooth">
+      <CardContent className="p-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-muted-foreground mb-1">{title}</p>
+            <p className="text-2xl font-bold text-foreground">{value}</p>
+            {subtitle && <p className="text-sm text-muted-foreground mt-1">{subtitle}</p>}
+          </div>
+          <div className={`p-3 rounded-lg ${color}`}>
+            <Icon className="h-6 w-6 text-white" />
+          </div>
+        </div>
+        {trend && (
+          <div className="flex items-center mt-4 text-sm">
+            <TrendingUp className="h-4 w-4 text-success mr-1" />
+            <span className="text-success font-medium">{trend}</span>
+            <span className="text-muted-foreground ml-1">from last month</span>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+
+  const DashboardView = () => (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
+          <p className="text-muted-foreground">Welcome back, {user?.name}</p>
+        </div>
+        <div className="flex items-center space-x-3">
+          <Button variant="outline" size="sm">
+            <Download className="h-4 w-4 mr-2" />
+            Export Report
+          </Button>
+          <Button className="btn-primary">
+            <Plus className="h-4 w-4 mr-2" />
+            Add Asset
+          </Button>
+        </div>
+      </div>
+
+      {/* Stats Grid */}
+      {/* Stats Cards */}
+      {loading ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {[...Array(4)].map((_, i) => (
+            <Card key={i} className="animate-pulse">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-2">
+                    <div className="h-4 bg-gray-200 rounded w-20"></div>
+                    <div className="h-8 bg-gray-200 rounded w-16"></div>
+                  </div>
+                  <div className="h-12 w-12 bg-gray-200 rounded-lg"></div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <StatCard 
+            title="Total Assets" 
+            value={dashboardStats.totalAssets.toLocaleString()} 
+            icon={Package} 
+            color="gradient-primary"
+            subtitle={`${dashboardStats.activeAssets} active`}
+          />
+          <StatCard 
+            title="Asset Value" 
+            value={dashboardStats.totalValue > 0 ? `$${(dashboardStats.totalValue / 1000000).toFixed(1)}M` : '$0'} 
+            icon={DollarSign} 
+            color="gradient-success"
+            subtitle="Total portfolio"
+          />
+          <StatCard 
+            title="Warehouses" 
+            value={dashboardStats.warehouses} 
+            icon={Warehouse} 
+            color="bg-purple-500"
+            subtitle={`${dashboardStats.branches} branches`}
+          />
+          <StatCard 
+            title="Active Users" 
+            value={dashboardStats.users} 
+            icon={Users} 
+            color="bg-orange-500"
+            subtitle="System users"
+          />
+        </div>
+      )}
+
+      {/* Recent Assets and Quick Actions */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <Package className="h-5 w-5 mr-2" />
+              Recent Assets
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {loading ? (
+              <div className="space-y-4">
+                {[...Array(4)].map((_, i) => (
+                  <div key={i} className="flex items-center justify-between p-4 rounded-lg animate-pulse">
+                    <div className="flex items-center space-x-4">
+                      <div className="h-10 w-10 bg-gray-200 rounded-lg"></div>
+                      <div className="space-y-2">
+                        <div className="h-4 bg-gray-200 rounded w-32"></div>
+                        <div className="h-3 bg-gray-200 rounded w-24"></div>
+                      </div>
+                    </div>
+                    <div className="h-6 bg-gray-200 rounded w-16"></div>
+                  </div>
+                ))}
+              </div>
+            ) : dashboardStats.recentAssets.length > 0 ? (
+              <div className="space-y-4">
+                {dashboardStats.recentAssets.map(asset => (
+                  <div key={asset.id} className="flex items-center justify-between p-4 rounded-lg hover:bg-secondary transition-smooth">
+                    <div className="flex items-center space-x-4">
+                      <div className="p-2 bg-primary/10 rounded-lg">
+                        <Package className="h-5 w-5 text-primary" />
+                      </div>
+                      <div>
+                        <p className="font-medium">{asset.name_en || asset.name}</p>
+                        <p className="text-sm text-muted-foreground">{asset.category || 'Uncategorized'}</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-semibold">${asset.value?.toLocaleString() || '0'}</p>
+                      <Badge variant={asset.status === 'Active' ? 'default' : 'secondary'} className="text-xs">
+                        {asset.status || 'Unknown'}
+                      </Badge>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <Package className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <p className="text-muted-foreground">No recent assets found</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="glass-card">
+          <CardHeader>
+            <CardTitle>Quick Actions</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Button className="w-full btn-primary" onClick={() => setActiveTab('assets')}>
+              <Plus className="h-4 w-4 mr-2" />
+              Add New Asset
+            </Button>
+            <Button className="w-full btn-secondary" onClick={() => setActiveTab('warehouses')}>
+              <Warehouse className="h-4 w-4 mr-2" />
+              Manage Warehouses
+            </Button>
+            <Button className="w-full btn-secondary" onClick={() => setActiveTab('branches')}>
+              <Building2 className="h-4 w-4 mr-2" />
+              Manage Branches
+            </Button>
+            <Button variant="outline" className="w-full">
+              <Download className="h-4 w-4 mr-2" />
+              Generate Report
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+
+  const renderContent = () => {
+    switch (activeTab) {
+      case 'dashboard':
+        return <DashboardView />;
+      case 'assets':
+        return <ErrorBoundary><AssetManagement /></ErrorBoundary>;
+      case 'warehouses':
+        return <ErrorBoundary><WarehouseManagement /></ErrorBoundary>;
+      case 'branches':
+        return <ErrorBoundary><BranchManagement /></ErrorBoundary>;
+      case 'users':
+        return <ErrorBoundary><UserManagement /></ErrorBoundary>;
+      case 'settings':
+        return (
+          <div className="text-center py-12">
+            <Settings className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+            <h3 className="text-xl font-semibold text-foreground mb-2">Settings</h3>
+            <p className="text-muted-foreground">Settings page coming soon...</p>
+          </div>
+        );
+      default:
+        return <DashboardView />;
+    }
+  };
+
+  return (
+    <div className="flex h-screen bg-background">
+      {/* Sidebar */}
+      <div className={`${sidebarOpen ? 'w-64' : 'w-16'} transition-smooth bg-card border-r border-border flex flex-col`}>
+        <div className="p-4 border-b border-border">
+          <div className="flex items-center justify-between">
+            {sidebarOpen && (
+              <div>
+                <h2 className="text-lg font-bold text-foreground">Assets Pro</h2>
+                <p className="text-xs text-muted-foreground">Management System</p>
+              </div>
+            )}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+            >
+              <Menu className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+
+        <nav className="flex-1 p-4 space-y-2">
+          {menuItems.map(item => {
+            const Icon = item.icon;
+            return (
+              <Button
+                key={item.id}
+                variant={activeTab === item.id ? "default" : "ghost"}
+                className={`w-full justify-start transition-smooth ${
+                  activeTab === item.id ? 'gradient-primary text-primary-foreground shadow-primary' : ''
+                }`}
+                onClick={() => setActiveTab(item.id)}
+              >
+                <Icon className="h-4 w-4" />
+                {sidebarOpen && <span className="ml-3">{item.label}</span>}
+              </Button>
+            );
+          })}
+        </nav>
+
+        <div className="p-4 border-t border-border">
+          <div className={`flex items-center ${sidebarOpen ? 'space-x-3' : 'justify-center'}`}>
+            <div className="p-2 bg-primary/10 rounded-lg">
+              <User className="h-4 w-4 text-primary" />
+            </div>
+            {sidebarOpen && (
+              <div className="flex-1">
+                <p className="text-sm font-medium text-foreground">{user?.name}</p>
+                <p className="text-xs text-muted-foreground">{user?.email}</p>
+              </div>
+            )}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={logout}
+              title="Logout"
+            >
+              <LogOut className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <header className="bg-card border-b border-border px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search assets, warehouses, users..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10 w-80"
+                />
+              </div>
+            </div>
+            <div className="flex items-center space-x-3">
+              <Button variant="ghost" size="sm">
+                <Bell className="h-4 w-4" />
+              </Button>
+              <Button variant="ghost" size="sm">
+                <Settings className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        </header>
+
+        <main className="flex-1 overflow-y-auto p-6">
+          {renderContent()}
+        </main>
+      </div>
+    </div>
+  );
+};
+
+export default Dashboard;

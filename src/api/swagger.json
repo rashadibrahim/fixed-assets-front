@@ -1,0 +1,2371 @@
+{
+    "swagger": "2.0",
+    "basePath": "/",
+    "paths": {
+        "/assets/": {
+            "post": {
+                "responses": {
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "201": {
+                        "description": "Successfully created asset",
+                        "schema": {
+                            "$ref": "#/definitions/FixedAsset"
+                        }
+                    }
+                },
+                "summary": "Create a new fixed asset",
+                "operationId": "create_asset",
+                "parameters": [
+                    {
+                        "name": "payload",
+                        "required": true,
+                        "in": "body",
+                        "schema": {
+                            "$ref": "#/definitions/FixedAssetInput"
+                        }
+                    },
+                    {
+                        "name": "X-Fields",
+                        "in": "header",
+                        "type": "string",
+                        "format": "mask",
+                        "description": "An optional fields mask"
+                    }
+                ],
+                "security": [
+                    {
+                        "Bearer Auth": []
+                    }
+                ],
+                "tags": [
+                    "assets"
+                ]
+            },
+            "get": {
+                "responses": {
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "200": {
+                        "description": "Successfully retrieved assets",
+                        "schema": {
+                            "$ref": "#/definitions/PaginationResponse"
+                        }
+                    }
+                },
+                "summary": "Get all fixed assets with pagination and optional category filtering",
+                "operationId": "list_assets",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "in": "query",
+                        "description": "Filter assets by category",
+                        "name": "category"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 10,
+                        "in": "query",
+                        "description": "Number of items per page",
+                        "name": "per_page"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "in": "query",
+                        "description": "Page number for pagination",
+                        "name": "page"
+                    },
+                    {
+                        "name": "X-Fields",
+                        "in": "header",
+                        "type": "string",
+                        "format": "mask",
+                        "description": "An optional fields mask"
+                    }
+                ],
+                "security": [
+                    {
+                        "Bearer Auth": []
+                    }
+                ],
+                "tags": [
+                    "assets"
+                ]
+            }
+        },
+        "/assets/files/{file_id}": {
+            "parameters": [
+                {
+                    "in": "path",
+                    "description": "The file identifier",
+                    "name": "file_id",
+                    "required": true,
+                    "type": "integer"
+                }
+            ],
+            "get": {
+                "responses": {
+                    "500": {
+                        "description": "Server error",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "File not found",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "200": {
+                        "description": "File download successful"
+                    }
+                },
+                "summary": "Download a file attachment by ID only",
+                "description": "Download a file attachment by ID only",
+                "operationId": "get_file_by_id",
+                "produces": [
+                    "application/octet-stream"
+                ],
+                "tags": [
+                    "assets"
+                ]
+            }
+        },
+        "/assets/{asset_id}": {
+            "parameters": [
+                {
+                    "name": "asset_id",
+                    "in": "path",
+                    "required": true,
+                    "type": "integer"
+                }
+            ],
+            "put": {
+                "responses": {
+                    "404": {
+                        "description": "Asset not found",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "200": {
+                        "description": "Successfully updated asset",
+                        "schema": {
+                            "$ref": "#/definitions/FixedAsset"
+                        }
+                    }
+                },
+                "summary": "Update a specific asset by ID",
+                "operationId": "update_asset",
+                "parameters": [
+                    {
+                        "name": "payload",
+                        "required": true,
+                        "in": "body",
+                        "schema": {
+                            "$ref": "#/definitions/FixedAssetInput"
+                        }
+                    },
+                    {
+                        "name": "X-Fields",
+                        "in": "header",
+                        "type": "string",
+                        "format": "mask",
+                        "description": "An optional fields mask"
+                    }
+                ],
+                "security": [
+                    {
+                        "Bearer Auth": []
+                    }
+                ],
+                "tags": [
+                    "assets"
+                ]
+            },
+            "delete": {
+                "responses": {
+                    "404": {
+                        "description": "Asset not found",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "200": {
+                        "description": "Successfully deleted asset",
+                        "schema": {
+                            "$ref": "#/definitions/SuccessResponse"
+                        }
+                    }
+                },
+                "summary": "Delete a specific asset by ID",
+                "operationId": "delete_asset",
+                "parameters": [
+                    {
+                        "name": "X-Fields",
+                        "in": "header",
+                        "type": "string",
+                        "format": "mask",
+                        "description": "An optional fields mask"
+                    }
+                ],
+                "tags": [
+                    "assets"
+                ]
+            },
+            "get": {
+                "responses": {
+                    "404": {
+                        "description": "Asset not found",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "200": {
+                        "description": "Successfully retrieved asset",
+                        "schema": {
+                            "$ref": "#/definitions/FixedAsset"
+                        }
+                    }
+                },
+                "summary": "Get a specific asset by ID",
+                "operationId": "get_asset",
+                "parameters": [
+                    {
+                        "name": "X-Fields",
+                        "in": "header",
+                        "type": "string",
+                        "format": "mask",
+                        "description": "An optional fields mask"
+                    }
+                ],
+                "security": [
+                    {
+                        "Bearer Auth": []
+                    }
+                ],
+                "tags": [
+                    "assets"
+                ]
+            }
+        },
+        "/assets/{asset_id}/barcode": {
+            "parameters": [
+                {
+                    "name": "asset_id",
+                    "in": "path",
+                    "required": true,
+                    "type": "integer"
+                }
+            ],
+            "get": {
+                "responses": {
+                    "404": {
+                        "description": "Asset not found",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "200": {
+                        "description": "Successfully generated barcode",
+                        "schema": {
+                            "$ref": "#/definitions/BarcodeResponse"
+                        }
+                    }
+                },
+                "summary": "Generate a barcode for a specific asset",
+                "operationId": "get_asset_barcode",
+                "parameters": [
+                    {
+                        "name": "X-Fields",
+                        "in": "header",
+                        "type": "string",
+                        "format": "mask",
+                        "description": "An optional fields mask"
+                    }
+                ],
+                "security": [
+                    {
+                        "Bearer Auth": []
+                    }
+                ],
+                "tags": [
+                    "assets"
+                ]
+            }
+        },
+        "/assets/{asset_id}/files": {
+            "parameters": [
+                {
+                    "in": "path",
+                    "description": "The asset identifier",
+                    "name": "asset_id",
+                    "required": true,
+                    "type": "integer"
+                }
+            ],
+            "post": {
+                "responses": {
+                    "404": {
+                        "description": "Asset not found",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "201": {
+                        "description": "Successfully uploaded file",
+                        "schema": {
+                            "$ref": "#/definitions/FileUploadResponse"
+                        }
+                    }
+                },
+                "summary": "Upload a file attachment for a specific asset",
+                "operationId": "upload_asset_file",
+                "parameters": [
+                    {
+                        "name": "file",
+                        "in": "formData",
+                        "type": "file",
+                        "required": true,
+                        "description": "File to upload"
+                    },
+                    {
+                        "name": "X-Fields",
+                        "in": "header",
+                        "type": "string",
+                        "format": "mask",
+                        "description": "An optional fields mask"
+                    }
+                ],
+                "security": [
+                    {
+                        "Bearer Auth": []
+                    }
+                ],
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "tags": [
+                    "assets"
+                ]
+            },
+            "get": {
+                "responses": {
+                    "404": {
+                        "description": "Asset not found",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "200": {
+                        "description": "Successfully retrieved files",
+                        "schema": {
+                            "$ref": "#/definitions/PaginationResponse"
+                        }
+                    }
+                },
+                "summary": "Get all files attached to a specific asset",
+                "operationId": "get_asset_files",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "default": 10,
+                        "in": "query",
+                        "description": "Number of items per page",
+                        "name": "per_page"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "in": "query",
+                        "description": "Page number for pagination",
+                        "name": "page"
+                    },
+                    {
+                        "name": "X-Fields",
+                        "in": "header",
+                        "type": "string",
+                        "format": "mask",
+                        "description": "An optional fields mask"
+                    }
+                ],
+                "security": [
+                    {
+                        "Bearer Auth": []
+                    }
+                ],
+                "tags": [
+                    "assets"
+                ]
+            }
+        },
+        "/auth/login": {
+            "post": {
+                "responses": {
+                    "401": {
+                        "description": "Invalid credentials",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "200": {
+                        "description": "Successfully logged in",
+                        "schema": {
+                            "$ref": "#/definitions/AuthResponse"
+                        }
+                    }
+                },
+                "summary": "Login user and get access token",
+                "operationId": "login",
+                "parameters": [
+                    {
+                        "name": "payload",
+                        "required": true,
+                        "in": "body",
+                        "schema": {
+                            "$ref": "#/definitions/Login"
+                        }
+                    },
+                    {
+                        "name": "X-Fields",
+                        "in": "header",
+                        "type": "string",
+                        "format": "mask",
+                        "description": "An optional fields mask"
+                    }
+                ],
+                "tags": [
+                    "auth"
+                ]
+            }
+        },
+        "/auth/me": {
+            "get": {
+                "responses": {
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "200": {
+                        "description": "Successfully retrieved current user",
+                        "schema": {
+                            "$ref": "#/definitions/User"
+                        }
+                    }
+                },
+                "summary": "Get current user information",
+                "operationId": "get_current_user",
+                "parameters": [
+                    {
+                        "name": "X-Fields",
+                        "in": "header",
+                        "type": "string",
+                        "format": "mask",
+                        "description": "An optional fields mask"
+                    }
+                ],
+                "security": [
+                    {
+                        "Bearer Auth": []
+                    }
+                ],
+                "tags": [
+                    "auth"
+                ]
+            }
+        },
+        "/auth/signup": {
+            "post": {
+                "responses": {
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "201": {
+                        "description": "Successfully created user",
+                        "schema": {
+                            "$ref": "#/definitions/User"
+                        }
+                    }
+                },
+                "summary": "Register a new user",
+                "operationId": "signup",
+                "parameters": [
+                    {
+                        "name": "payload",
+                        "required": true,
+                        "in": "body",
+                        "schema": {
+                            "$ref": "#/definitions/UserInput"
+                        }
+                    },
+                    {
+                        "name": "X-Fields",
+                        "in": "header",
+                        "type": "string",
+                        "format": "mask",
+                        "description": "An optional fields mask"
+                    }
+                ],
+                "tags": [
+                    "auth"
+                ]
+            }
+        },
+        "/auth/stats": {
+            "get": {
+                "responses": {
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "200": {
+                        "description": "Successfully retrieved statistics",
+                        "schema": {
+                            "$ref": "#/definitions/Statistics"
+                        }
+                    }
+                },
+                "summary": "Get system statistics (Admin only)",
+                "operationId": "get_statistics",
+                "parameters": [
+                    {
+                        "name": "X-Fields",
+                        "in": "header",
+                        "type": "string",
+                        "format": "mask",
+                        "description": "An optional fields mask"
+                    }
+                ],
+                "tags": [
+                    "auth"
+                ]
+            }
+        },
+        "/auth/users": {
+            "get": {
+                "responses": {
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "200": {
+                        "description": "Successfully retrieved users",
+                        "schema": {
+                            "$ref": "#/definitions/PaginationResponse"
+                        }
+                    }
+                },
+                "summary": "Get all users with pagination + optional search by id or name (Admin only)",
+                "operationId": "list_users",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "in": "query",
+                        "description": "Filter by user name (partial match)",
+                        "name": "name"
+                    },
+                    {
+                        "type": "integer",
+                        "in": "query",
+                        "description": "Filter by user ID",
+                        "name": "id"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 10,
+                        "in": "query",
+                        "description": "Number of items per page",
+                        "name": "per_page"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "in": "query",
+                        "description": "Page number for pagination",
+                        "name": "page"
+                    },
+                    {
+                        "name": "X-Fields",
+                        "in": "header",
+                        "type": "string",
+                        "format": "mask",
+                        "description": "An optional fields mask"
+                    }
+                ],
+                "security": [
+                    {
+                        "Bearer Auth": []
+                    }
+                ],
+                "tags": [
+                    "auth"
+                ]
+            }
+        },
+        "/auth/{user_id}": {
+            "parameters": [
+                {
+                    "name": "user_id",
+                    "in": "path",
+                    "required": true,
+                    "type": "integer"
+                }
+            ],
+            "put": {
+                "responses": {
+                    "404": {
+                        "description": "User not found",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "200": {
+                        "description": "Successfully updated user",
+                        "schema": {
+                            "$ref": "#/definitions/User"
+                        }
+                    }
+                },
+                "summary": "Update a specific user by ID (Admin only)",
+                "operationId": "update_user",
+                "parameters": [
+                    {
+                        "name": "payload",
+                        "required": true,
+                        "in": "body",
+                        "schema": {
+                            "$ref": "#/definitions/UserUpdate"
+                        }
+                    },
+                    {
+                        "name": "X-Fields",
+                        "in": "header",
+                        "type": "string",
+                        "format": "mask",
+                        "description": "An optional fields mask"
+                    }
+                ],
+                "security": [
+                    {
+                        "Bearer Auth": []
+                    }
+                ],
+                "tags": [
+                    "auth"
+                ]
+            },
+            "delete": {
+                "responses": {
+                    "404": {
+                        "description": "User not found",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "200": {
+                        "description": "Successfully deleted user",
+                        "schema": {
+                            "$ref": "#/definitions/SuccessResponse"
+                        }
+                    }
+                },
+                "summary": "Delete a specific user by ID (Admin only)",
+                "operationId": "delete_user",
+                "parameters": [
+                    {
+                        "name": "X-Fields",
+                        "in": "header",
+                        "type": "string",
+                        "format": "mask",
+                        "description": "An optional fields mask"
+                    }
+                ],
+                "security": [
+                    {
+                        "Bearer Auth": []
+                    }
+                ],
+                "tags": [
+                    "auth"
+                ]
+            }
+        },
+        "/branches/": {
+            "post": {
+                "responses": {
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "201": {
+                        "description": "Successfully created branch",
+                        "schema": {
+                            "$ref": "#/definitions/Branch"
+                        }
+                    }
+                },
+                "summary": "Create a new branch",
+                "operationId": "create_branch",
+                "parameters": [
+                    {
+                        "name": "payload",
+                        "required": true,
+                        "in": "body",
+                        "schema": {
+                            "$ref": "#/definitions/BranchInput"
+                        }
+                    },
+                    {
+                        "name": "X-Fields",
+                        "in": "header",
+                        "type": "string",
+                        "format": "mask",
+                        "description": "An optional fields mask"
+                    }
+                ],
+                "tags": [
+                    "branches"
+                ]
+            },
+            "get": {
+                "responses": {
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "200": {
+                        "description": "Successfully retrieved branches",
+                        "schema": {
+                            "$ref": "#/definitions/PaginationResponse"
+                        }
+                    }
+                },
+                "summary": "Get all branches with pagination, including warehouses count and assets count",
+                "operationId": "list_branches",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "default": 10,
+                        "in": "query",
+                        "description": "Number of items per page",
+                        "name": "per_page"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "in": "query",
+                        "description": "Page number for pagination",
+                        "name": "page"
+                    },
+                    {
+                        "name": "X-Fields",
+                        "in": "header",
+                        "type": "string",
+                        "format": "mask",
+                        "description": "An optional fields mask"
+                    }
+                ],
+                "tags": [
+                    "branches"
+                ]
+            }
+        },
+        "/branches/{branch_id}": {
+            "parameters": [
+                {
+                    "name": "branch_id",
+                    "in": "path",
+                    "required": true,
+                    "type": "integer"
+                }
+            ],
+            "put": {
+                "responses": {
+                    "404": {
+                        "description": "Branch not found",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "200": {
+                        "description": "Successfully updated branch",
+                        "schema": {
+                            "$ref": "#/definitions/Branch"
+                        }
+                    }
+                },
+                "summary": "Update a specific branch by ID",
+                "operationId": "update_branch",
+                "parameters": [
+                    {
+                        "name": "payload",
+                        "required": true,
+                        "in": "body",
+                        "schema": {
+                            "$ref": "#/definitions/BranchInput"
+                        }
+                    },
+                    {
+                        "name": "X-Fields",
+                        "in": "header",
+                        "type": "string",
+                        "format": "mask",
+                        "description": "An optional fields mask"
+                    }
+                ],
+                "tags": [
+                    "branches"
+                ]
+            },
+            "delete": {
+                "responses": {
+                    "404": {
+                        "description": "Branch not found",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "200": {
+                        "description": "Successfully deleted branch",
+                        "schema": {
+                            "$ref": "#/definitions/SuccessResponse"
+                        }
+                    }
+                },
+                "summary": "Delete a specific branch by ID",
+                "operationId": "delete_branch",
+                "parameters": [
+                    {
+                        "name": "X-Fields",
+                        "in": "header",
+                        "type": "string",
+                        "format": "mask",
+                        "description": "An optional fields mask"
+                    }
+                ],
+                "tags": [
+                    "branches"
+                ]
+            },
+            "get": {
+                "responses": {
+                    "404": {
+                        "description": "Branch not found",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "200": {
+                        "description": "Successfully retrieved branch",
+                        "schema": {
+                            "$ref": "#/definitions/Branch"
+                        }
+                    }
+                },
+                "summary": "Get a specific branch by ID",
+                "operationId": "get_branch",
+                "parameters": [
+                    {
+                        "name": "X-Fields",
+                        "in": "header",
+                        "type": "string",
+                        "format": "mask",
+                        "description": "An optional fields mask"
+                    }
+                ],
+                "tags": [
+                    "branches"
+                ]
+            }
+        },
+        "/jobroles/": {
+            "post": {
+                "responses": {
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "201": {
+                        "description": "Successfully created job role",
+                        "schema": {
+                            "$ref": "#/definitions/JobRole"
+                        }
+                    }
+                },
+                "summary": "Create a new job role (Admin only)",
+                "operationId": "create_job_role",
+                "parameters": [
+                    {
+                        "name": "payload",
+                        "required": true,
+                        "in": "body",
+                        "schema": {
+                            "$ref": "#/definitions/JobRoleInput"
+                        }
+                    },
+                    {
+                        "name": "X-Fields",
+                        "in": "header",
+                        "type": "string",
+                        "format": "mask",
+                        "description": "An optional fields mask"
+                    }
+                ],
+                "tags": [
+                    "jobroles"
+                ]
+            },
+            "get": {
+                "responses": {
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "200": {
+                        "description": "Successfully retrieved job roles",
+                        "schema": {
+                            "$ref": "#/definitions/PaginationResponse"
+                        }
+                    }
+                },
+                "summary": "Get all job roles with pagination",
+                "operationId": "list_job_roles",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "default": 10,
+                        "in": "query",
+                        "description": "Number of items per page",
+                        "name": "per_page"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "in": "query",
+                        "description": "Page number for pagination",
+                        "name": "page"
+                    },
+                    {
+                        "name": "X-Fields",
+                        "in": "header",
+                        "type": "string",
+                        "format": "mask",
+                        "description": "An optional fields mask"
+                    }
+                ],
+                "tags": [
+                    "jobroles"
+                ]
+            }
+        },
+        "/jobroles/{role_id}": {
+            "parameters": [
+                {
+                    "name": "role_id",
+                    "in": "path",
+                    "required": true,
+                    "type": "integer"
+                }
+            ],
+            "put": {
+                "responses": {
+                    "404": {
+                        "description": "Job role not found",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "200": {
+                        "description": "Successfully updated job role",
+                        "schema": {
+                            "$ref": "#/definitions/JobRole"
+                        }
+                    }
+                },
+                "summary": "Update a specific job role by ID (Admin only)",
+                "operationId": "update_job_role",
+                "parameters": [
+                    {
+                        "name": "payload",
+                        "required": true,
+                        "in": "body",
+                        "schema": {
+                            "$ref": "#/definitions/JobRoleInput"
+                        }
+                    },
+                    {
+                        "name": "X-Fields",
+                        "in": "header",
+                        "type": "string",
+                        "format": "mask",
+                        "description": "An optional fields mask"
+                    }
+                ],
+                "tags": [
+                    "jobroles"
+                ]
+            },
+            "delete": {
+                "responses": {
+                    "404": {
+                        "description": "Job role not found",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "200": {
+                        "description": "Successfully deleted job role",
+                        "schema": {
+                            "$ref": "#/definitions/SuccessResponse"
+                        }
+                    }
+                },
+                "summary": "Delete a specific job role by ID (Admin only)",
+                "operationId": "delete_job_role",
+                "parameters": [
+                    {
+                        "name": "X-Fields",
+                        "in": "header",
+                        "type": "string",
+                        "format": "mask",
+                        "description": "An optional fields mask"
+                    }
+                ],
+                "tags": [
+                    "jobroles"
+                ]
+            }
+        },
+        "/warehouses/": {
+            "post": {
+                "responses": {
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "201": {
+                        "description": "Successfully created warehouse",
+                        "schema": {
+                            "$ref": "#/definitions/Warehouse"
+                        }
+                    }
+                },
+                "summary": "Create a new warehouse",
+                "operationId": "create_warehouse",
+                "parameters": [
+                    {
+                        "name": "payload",
+                        "required": true,
+                        "in": "body",
+                        "schema": {
+                            "$ref": "#/definitions/WarehouseInput"
+                        }
+                    },
+                    {
+                        "name": "X-Fields",
+                        "in": "header",
+                        "type": "string",
+                        "format": "mask",
+                        "description": "An optional fields mask"
+                    }
+                ],
+                "tags": [
+                    "warehouses"
+                ]
+            },
+            "get": {
+                "responses": {
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "200": {
+                        "description": "Successfully retrieved warehouses",
+                        "schema": {
+                            "$ref": "#/definitions/PaginationResponse"
+                        }
+                    }
+                },
+                "summary": "Get all warehouses with pagination",
+                "operationId": "list_warehouses",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "default": 10,
+                        "in": "query",
+                        "description": "Number of items per page",
+                        "name": "per_page"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "in": "query",
+                        "description": "Page number for pagination",
+                        "name": "page"
+                    },
+                    {
+                        "name": "X-Fields",
+                        "in": "header",
+                        "type": "string",
+                        "format": "mask",
+                        "description": "An optional fields mask"
+                    }
+                ],
+                "tags": [
+                    "warehouses"
+                ]
+            }
+        },
+        "/warehouses/{warehouse_id}": {
+            "parameters": [
+                {
+                    "name": "warehouse_id",
+                    "in": "path",
+                    "required": true,
+                    "type": "integer"
+                }
+            ],
+            "put": {
+                "responses": {
+                    "404": {
+                        "description": "Warehouse not found",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "200": {
+                        "description": "Successfully updated warehouse",
+                        "schema": {
+                            "$ref": "#/definitions/WarehouseWithAssets"
+                        }
+                    }
+                },
+                "summary": "Update a specific warehouse by ID",
+                "operationId": "update_warehouse",
+                "parameters": [
+                    {
+                        "name": "payload",
+                        "required": true,
+                        "in": "body",
+                        "schema": {
+                            "$ref": "#/definitions/WarehouseInput"
+                        }
+                    },
+                    {
+                        "name": "X-Fields",
+                        "in": "header",
+                        "type": "string",
+                        "format": "mask",
+                        "description": "An optional fields mask"
+                    }
+                ],
+                "tags": [
+                    "warehouses"
+                ]
+            },
+            "delete": {
+                "responses": {
+                    "404": {
+                        "description": "Warehouse not found",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "200": {
+                        "description": "Successfully deleted warehouse",
+                        "schema": {
+                            "$ref": "#/definitions/SuccessResponse"
+                        }
+                    }
+                },
+                "summary": "Delete a specific warehouse by ID",
+                "operationId": "delete_warehouse",
+                "parameters": [
+                    {
+                        "name": "X-Fields",
+                        "in": "header",
+                        "type": "string",
+                        "format": "mask",
+                        "description": "An optional fields mask"
+                    }
+                ],
+                "tags": [
+                    "warehouses"
+                ]
+            },
+            "get": {
+                "responses": {
+                    "404": {
+                        "description": "Warehouse not found",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "200": {
+                        "description": "Successfully retrieved warehouse",
+                        "schema": {
+                            "$ref": "#/definitions/Warehouse"
+                        }
+                    }
+                },
+                "summary": "Get a specific warehouse by ID",
+                "operationId": "get_warehouse",
+                "parameters": [
+                    {
+                        "name": "X-Fields",
+                        "in": "header",
+                        "type": "string",
+                        "format": "mask",
+                        "description": "An optional fields mask"
+                    }
+                ],
+                "tags": [
+                    "warehouses"
+                ]
+            }
+        }
+    },
+    "info": {
+        "title": "Fixed Assets Management API",
+        "version": "1.0",
+        "description": "A comprehensive API for managing fixed assets, warehouses, branches, users, and job roles with role-based permissions",
+        "contact": {
+            "name": "API Support",
+            "email": "support@example.com",
+            "url": null
+        },
+        "license": {
+            "name": "MIT",
+            "url": "https://opensource.org/licenses/MIT"
+        }
+    },
+    "produces": [
+        "application/json"
+    ],
+    "consumes": [
+        "application/json"
+    ],
+    "securityDefinitions": {
+        "Bearer Auth": {
+            "type": "apiKey",
+            "in": "header",
+            "name": "Authorization",
+            "description": "JWT Authorization header using the Bearer scheme. Example: \"Authorization: Bearer {token}\""
+        }
+    },
+    "security": [
+        {
+            "Bearer Auth": []
+        }
+    ],
+    "tags": [
+        {
+            "name": "branches",
+            "description": "Branch management operations"
+        },
+        {
+            "name": "warehouses",
+            "description": "Warehouse management operations"
+        },
+        {
+            "name": "assets",
+            "description": "Fixed asset management operations"
+        },
+        {
+            "name": "auth",
+            "description": "Authentication and user management operations"
+        },
+        {
+            "name": "jobroles",
+            "description": "Job role and permissions management operations"
+        }
+    ],
+    "definitions": {
+        "BranchInput": {
+            "required": [
+                "name_ar"
+            ],
+            "properties": {
+                "name_ar": {
+                    "type": "string",
+                    "description": "Branch name in Arabic"
+                },
+                "name_en": {
+                    "type": "string",
+                    "description": "Branch name in English"
+                },
+                "address_ar": {
+                    "type": "string",
+                    "description": "Branch address in Arabic"
+                },
+                "address_en": {
+                    "type": "string",
+                    "description": "Branch address in English"
+                }
+            },
+            "type": "object"
+        },
+        "ErrorResponse": {
+            "properties": {
+                "error": {
+                    "type": "string",
+                    "description": "Error message"
+                },
+                "errors": {
+                    "type": "object",
+                    "description": "Validation errors (object with field names as keys)"
+                }
+            },
+            "type": "object"
+        },
+        "Branch": {
+            "required": [
+                "name_ar"
+            ],
+            "properties": {
+                "id": {
+                    "type": "integer",
+                    "description": "Branch unique identifier",
+                    "readOnly": true
+                },
+                "name_ar": {
+                    "type": "string",
+                    "description": "Branch name in Arabic"
+                },
+                "name_en": {
+                    "type": "string",
+                    "description": "Branch name in English"
+                },
+                "address_ar": {
+                    "type": "string",
+                    "description": "Branch address in Arabic"
+                },
+                "address_en": {
+                    "type": "string",
+                    "description": "Branch address in English"
+                }
+            },
+            "type": "object"
+        },
+        "PaginationResponse": {
+            "properties": {
+                "items": {
+                    "type": "object",
+                    "description": "List of items"
+                },
+                "total": {
+                    "type": "integer",
+                    "description": "Total number of items"
+                },
+                "page": {
+                    "type": "integer",
+                    "description": "Current page number"
+                },
+                "pages": {
+                    "type": "integer",
+                    "description": "Total number of pages"
+                }
+            },
+            "type": "object"
+        },
+        "SuccessResponse": {
+            "properties": {
+                "message": {
+                    "type": "string",
+                    "description": "Success message"
+                }
+            },
+            "type": "object"
+        },
+        "WarehouseInput": {
+            "required": [
+                "name_ar"
+            ],
+            "properties": {
+                "branch_id": {
+                    "type": "integer",
+                    "description": "Branch ID this warehouse belongs to"
+                },
+                "name_ar": {
+                    "type": "string",
+                    "description": "Warehouse name in Arabic"
+                },
+                "name_en": {
+                    "type": "string",
+                    "description": "Warehouse name in English"
+                },
+                "address_ar": {
+                    "type": "string",
+                    "description": "Warehouse address in Arabic"
+                },
+                "address_en": {
+                    "type": "string",
+                    "description": "Warehouse address in English"
+                }
+            },
+            "type": "object"
+        },
+        "Warehouse": {
+            "required": [
+                "name_ar"
+            ],
+            "properties": {
+                "id": {
+                    "type": "integer",
+                    "description": "Warehouse unique identifier",
+                    "readOnly": true
+                },
+                "branch_id": {
+                    "type": "integer",
+                    "description": "Branch ID this warehouse belongs to"
+                },
+                "name_ar": {
+                    "type": "string",
+                    "description": "Warehouse name in Arabic"
+                },
+                "name_en": {
+                    "type": "string",
+                    "description": "Warehouse name in English"
+                },
+                "address_ar": {
+                    "type": "string",
+                    "description": "Warehouse address in Arabic"
+                },
+                "address_en": {
+                    "type": "string",
+                    "description": "Warehouse address in English"
+                }
+            },
+            "type": "object"
+        },
+        "WarehouseWithAssets": {
+            "required": [
+                "name_ar"
+            ],
+            "properties": {
+                "id": {
+                    "type": "integer",
+                    "description": "Warehouse unique identifier",
+                    "readOnly": true
+                },
+                "branch_id": {
+                    "type": "integer",
+                    "description": "Branch ID this warehouse belongs to"
+                },
+                "name_ar": {
+                    "type": "string",
+                    "description": "Warehouse name in Arabic"
+                },
+                "name_en": {
+                    "type": "string",
+                    "description": "Warehouse name in English"
+                },
+                "address_ar": {
+                    "type": "string",
+                    "description": "Warehouse address in Arabic"
+                },
+                "address_en": {
+                    "type": "string",
+                    "description": "Warehouse address in English"
+                },
+                "asset_count": {
+                    "type": "integer",
+                    "description": "Number of assets in this warehouse"
+                }
+            },
+            "type": "object"
+        },
+        "FixedAssetInput": {
+            "required": [
+                "category",
+                "name_ar",
+                "name_en",
+                "product_code",
+                "purchase_date",
+                "purchase_invoice",
+                "subcategory",
+                "warehouse_id"
+            ],
+            "properties": {
+                "name_ar": {
+                    "type": "string",
+                    "description": "Asset name in Arabic"
+                },
+                "name_en": {
+                    "type": "string",
+                    "description": "Asset name in English"
+                },
+                "purchase_date": {
+                    "type": "string",
+                    "format": "date",
+                    "description": "Date of purchase"
+                },
+                "warehouse_id": {
+                    "type": "integer",
+                    "description": "Warehouse ID this asset belongs to"
+                },
+                "value": {
+                    "type": "number",
+                    "description": "Asset value"
+                },
+                "quantity": {
+                    "type": "integer",
+                    "description": "Asset quantity",
+                    "default": 1
+                },
+                "purchase_invoice": {
+                    "type": "string",
+                    "description": "Purchase invoice reference"
+                },
+                "product_code": {
+                    "type": "string",
+                    "description": "Product code or serial number"
+                },
+                "category": {
+                    "type": "string",
+                    "description": "Asset category"
+                },
+                "subcategory": {
+                    "type": "string",
+                    "description": "Asset subcategory"
+                },
+                "is_active": {
+                    "type": "boolean",
+                    "description": "Whether the asset is active",
+                    "default": true
+                }
+            },
+            "type": "object"
+        },
+        "FixedAsset": {
+            "required": [
+                "category",
+                "is_active",
+                "name_ar",
+                "name_en",
+                "product_code",
+                "purchase_date",
+                "purchase_invoice",
+                "quantity",
+                "subcategory",
+                "warehouse_id"
+            ],
+            "properties": {
+                "id": {
+                    "type": "integer",
+                    "description": "Asset unique identifier",
+                    "readOnly": true
+                },
+                "name_ar": {
+                    "type": "string",
+                    "description": "Asset name in Arabic"
+                },
+                "name_en": {
+                    "type": "string",
+                    "description": "Asset name in English"
+                },
+                "purchase_date": {
+                    "type": "string",
+                    "format": "date",
+                    "description": "Date of purchase"
+                },
+                "warehouse_id": {
+                    "type": "integer",
+                    "description": "Warehouse ID this asset belongs to"
+                },
+                "value": {
+                    "type": "number",
+                    "description": "Asset value"
+                },
+                "quantity": {
+                    "type": "integer",
+                    "description": "Asset quantity",
+                    "default": 1
+                },
+                "purchase_invoice": {
+                    "type": "string",
+                    "description": "Purchase invoice reference"
+                },
+                "product_code": {
+                    "type": "string",
+                    "description": "Product code or serial number (used for barcode)"
+                },
+                "category": {
+                    "type": "string",
+                    "description": "Asset category"
+                },
+                "subcategory": {
+                    "type": "string",
+                    "description": "Asset subcategory"
+                },
+                "is_active": {
+                    "type": "boolean",
+                    "description": "Whether the asset is active"
+                },
+                "created_at": {
+                    "type": "string",
+                    "format": "date-time",
+                    "description": "Asset creation timestamp",
+                    "readOnly": true
+                },
+                "attached_files": {
+                    "type": "array",
+                    "description": "List of attached files",
+                    "readOnly": true,
+                    "items": {
+                        "$ref": "#/definitions/AttachedFile"
+                    }
+                }
+            },
+            "type": "object"
+        },
+        "AttachedFile": {
+            "properties": {
+                "id": {
+                    "type": "integer",
+                    "description": "File ID"
+                },
+                "file_path": {
+                    "type": "string",
+                    "description": "File path"
+                }
+            },
+            "type": "object"
+        },
+        "BarcodeResponse": {
+            "properties": {
+                "product_code": {
+                    "type": "string",
+                    "description": "Product code used for the barcode"
+                },
+                "barcode_image": {
+                    "type": "string",
+                    "description": "Base64 encoded barcode image"
+                }
+            },
+            "type": "object"
+        },
+        "FileUploadResponse": {
+            "properties": {
+                "id": {
+                    "type": "integer",
+                    "description": "File ID"
+                },
+                "asset_id": {
+                    "type": "integer",
+                    "description": "Asset ID"
+                },
+                "file_path": {
+                    "type": "string",
+                    "description": "File path"
+                }
+            },
+            "type": "object"
+        },
+        "UserInput": {
+            "required": [
+                "email",
+                "full_name",
+                "password",
+                "role"
+            ],
+            "properties": {
+                "full_name": {
+                    "type": "string",
+                    "description": "User full name"
+                },
+                "email": {
+                    "type": "string",
+                    "description": "User email address"
+                },
+                "password": {
+                    "type": "string",
+                    "description": "User password"
+                },
+                "role": {
+                    "type": "string",
+                    "description": "User role"
+                }
+            },
+            "type": "object"
+        },
+        "User": {
+            "required": [
+                "email",
+                "full_name",
+                "role"
+            ],
+            "properties": {
+                "id": {
+                    "type": "integer",
+                    "description": "User unique identifier",
+                    "readOnly": true
+                },
+                "full_name": {
+                    "type": "string",
+                    "description": "User full name"
+                },
+                "email": {
+                    "type": "string",
+                    "description": "User email address"
+                },
+                "role": {
+                    "type": "string",
+                    "description": "User role"
+                },
+                "can_read_branch": {
+                    "type": "boolean",
+                    "description": "Permission to read branches"
+                },
+                "can_edit_branch": {
+                    "type": "boolean",
+                    "description": "Permission to edit branches"
+                },
+                "can_delete_branch": {
+                    "type": "boolean",
+                    "description": "Permission to delete branches"
+                },
+                "can_read_warehouse": {
+                    "type": "boolean",
+                    "description": "Permission to read warehouses"
+                },
+                "can_edit_warehouse": {
+                    "type": "boolean",
+                    "description": "Permission to edit warehouses"
+                },
+                "can_delete_warehouse": {
+                    "type": "boolean",
+                    "description": "Permission to delete warehouses"
+                },
+                "can_read_asset": {
+                    "type": "boolean",
+                    "description": "Permission to read assets"
+                },
+                "can_edit_asset": {
+                    "type": "boolean",
+                    "description": "Permission to edit assets"
+                },
+                "can_delete_asset": {
+                    "type": "boolean",
+                    "description": "Permission to delete assets"
+                },
+                "can_print_barcode": {
+                    "type": "boolean",
+                    "description": "Permission to print barcodes"
+                }
+            },
+            "type": "object"
+        },
+        "Login": {
+            "required": [
+                "email",
+                "password"
+            ],
+            "properties": {
+                "email": {
+                    "type": "string",
+                    "description": "User email address"
+                },
+                "password": {
+                    "type": "string",
+                    "description": "User password"
+                }
+            },
+            "type": "object"
+        },
+        "AuthResponse": {
+            "properties": {
+                "access_token": {
+                    "type": "string",
+                    "description": "JWT access token"
+                },
+                "user": {
+                    "description": "User information",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/User"
+                        }
+                    ]
+                }
+            },
+            "type": "object"
+        },
+        "UserUpdate": {
+            "properties": {
+                "username": {
+                    "type": "string",
+                    "description": "Username"
+                },
+                "email": {
+                    "type": "string",
+                    "description": "User email address"
+                },
+                "role": {
+                    "type": "string",
+                    "description": "User role"
+                },
+                "permissions": {
+                    "description": "User permissions",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/UserPermissions"
+                        }
+                    ]
+                }
+            },
+            "type": "object"
+        },
+        "UserPermissions": {
+            "properties": {
+                "can_read_branch": {
+                    "type": "boolean",
+                    "description": "Permission to read branches"
+                },
+                "can_edit_branch": {
+                    "type": "boolean",
+                    "description": "Permission to edit branches"
+                },
+                "can_delete_branch": {
+                    "type": "boolean",
+                    "description": "Permission to delete branches"
+                },
+                "can_read_warehouse": {
+                    "type": "boolean",
+                    "description": "Permission to read warehouses"
+                },
+                "can_edit_warehouse": {
+                    "type": "boolean",
+                    "description": "Permission to edit warehouses"
+                },
+                "can_delete_warehouse": {
+                    "type": "boolean",
+                    "description": "Permission to delete warehouses"
+                },
+                "can_read_asset": {
+                    "type": "boolean",
+                    "description": "Permission to read assets"
+                },
+                "can_edit_asset": {
+                    "type": "boolean",
+                    "description": "Permission to edit assets"
+                },
+                "can_delete_asset": {
+                    "type": "boolean",
+                    "description": "Permission to delete assets"
+                },
+                "can_print_barcode": {
+                    "type": "boolean",
+                    "description": "Permission to print barcodes"
+                }
+            },
+            "type": "object"
+        },
+        "Statistics": {
+            "properties": {
+                "total_branches": {
+                    "type": "integer",
+                    "description": "Total number of branches"
+                },
+                "total_warehouses": {
+                    "type": "integer",
+                    "description": "Total number of warehouses"
+                },
+                "total_assets": {
+                    "type": "integer",
+                    "description": "Total number of assets"
+                },
+                "active_assets": {
+                    "type": "integer",
+                    "description": "Number of active assets"
+                },
+                "inactive_assets": {
+                    "type": "integer",
+                    "description": "Number of inactive assets"
+                },
+                "total_users": {
+                    "type": "integer",
+                    "description": "Total number of users"
+                },
+                "job_roles_count": {
+                    "type": "integer",
+                    "description": "Number of job roles"
+                }
+            },
+            "type": "object"
+        },
+        "JobRoleInput": {
+            "required": [
+                "name"
+            ],
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "description": "Job role name"
+                },
+                "can_read_branch": {
+                    "type": "boolean",
+                    "description": "Permission to read branches",
+                    "default": false
+                },
+                "can_edit_branch": {
+                    "type": "boolean",
+                    "description": "Permission to edit branches",
+                    "default": false
+                },
+                "can_delete_branch": {
+                    "type": "boolean",
+                    "description": "Permission to delete branches",
+                    "default": false
+                },
+                "can_read_warehouse": {
+                    "type": "boolean",
+                    "description": "Permission to read warehouses",
+                    "default": false
+                },
+                "can_edit_warehouse": {
+                    "type": "boolean",
+                    "description": "Permission to edit warehouses",
+                    "default": false
+                },
+                "can_delete_warehouse": {
+                    "type": "boolean",
+                    "description": "Permission to delete warehouses",
+                    "default": false
+                },
+                "can_read_asset": {
+                    "type": "boolean",
+                    "description": "Permission to read assets",
+                    "default": false
+                },
+                "can_edit_asset": {
+                    "type": "boolean",
+                    "description": "Permission to edit assets",
+                    "default": false
+                },
+                "can_delete_asset": {
+                    "type": "boolean",
+                    "description": "Permission to delete assets",
+                    "default": false
+                },
+                "can_print_barcode": {
+                    "type": "boolean",
+                    "description": "Permission to print barcodes",
+                    "default": false
+                }
+            },
+            "type": "object"
+        },
+        "JobRole": {
+            "required": [
+                "can_delete_asset",
+                "can_delete_branch",
+                "can_delete_warehouse",
+                "can_edit_asset",
+                "can_edit_branch",
+                "can_edit_warehouse",
+                "can_print_barcode",
+                "can_read_asset",
+                "can_read_branch",
+                "can_read_warehouse",
+                "name"
+            ],
+            "properties": {
+                "id": {
+                    "type": "integer",
+                    "description": "Job role unique identifier",
+                    "readOnly": true
+                },
+                "name": {
+                    "type": "string",
+                    "description": "Job role name"
+                },
+                "can_read_branch": {
+                    "type": "boolean",
+                    "description": "Permission to read branches"
+                },
+                "can_edit_branch": {
+                    "type": "boolean",
+                    "description": "Permission to edit branches"
+                },
+                "can_delete_branch": {
+                    "type": "boolean",
+                    "description": "Permission to delete branches"
+                },
+                "can_read_warehouse": {
+                    "type": "boolean",
+                    "description": "Permission to read warehouses"
+                },
+                "can_edit_warehouse": {
+                    "type": "boolean",
+                    "description": "Permission to edit warehouses"
+                },
+                "can_delete_warehouse": {
+                    "type": "boolean",
+                    "description": "Permission to delete warehouses"
+                },
+                "can_read_asset": {
+                    "type": "boolean",
+                    "description": "Permission to read assets"
+                },
+                "can_edit_asset": {
+                    "type": "boolean",
+                    "description": "Permission to edit assets"
+                },
+                "can_delete_asset": {
+                    "type": "boolean",
+                    "description": "Permission to delete assets"
+                },
+                "can_print_barcode": {
+                    "type": "boolean",
+                    "description": "Permission to print barcodes"
+                }
+            },
+            "type": "object"
+        }
+    },
+    "responses": {
+        "ParseError": {
+            "description": "When a mask can't be parsed"
+        },
+        "MaskError": {
+            "description": "When any error occurs on mask"
+        }
+    }
+}
