@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { 
   Users, 
   Plus, 
@@ -21,6 +21,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
+import { Pagination, PaginationContent, PaginationEllipsis, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
 import { toast } from 'sonner';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import apiClient from '../utils/api';
@@ -34,24 +35,46 @@ const UserManagement = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
   const [error, setError] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalUsers, setTotalUsers] = useState(0);
+  const [perPage, setPerPage] = useState(10);
 
   const [formData, setFormData] = useState({
     full_name: '',
     email: '',
     password: '',
-    job_role_id: '',
-    can_read_asset: true,
+    role: '',
+    can_read_branch: false,
+    can_edit_branch: false,
+    can_delete_branch: false,
+    can_read_warehouse: false,
+    can_edit_warehouse: false,
+    can_delete_warehouse: false,
+    can_read_asset: false,
     can_edit_asset: false,
     can_delete_asset: false,
+    can_print_barcode: false,
     is_active: true
   });
 
   useEffect(() => {
     console.log('UserManagement component mounted');
-    loadData();
+    loadData(1, ''); // Load first page with no search
   }, []);
 
-  const loadData = async () => {
+  // Debounced search effect
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (searchTerm !== '' || currentPage !== 1) {
+        loadData(1, searchTerm); // Reset to page 1 when searching
+      }
+    }, 500); // 500ms debounce
+
+    return () => clearTimeout(timeoutId);
+  }, [searchTerm]);
+
+  const loadData = async (page = currentPage, search = searchTerm) => {
     try {
       setLoading(true);
       setError(null);
@@ -61,10 +84,21 @@ const UserManagement = () => {
       setUsers([]);
       setJobRoles([]);
       
+      // Prepare API parameters
+      const params = {
+        page: page,
+        per_page: perPage
+      };
+      
+      // Add search parameter if provided
+      if (search && search.trim()) {
+        params.name = search.trim();
+      }
+      
       const [usersResponse, rolesResponse] = await Promise.all([
-        apiClient.getUsers().catch(err => {
+        apiClient.getUsers(params).catch(err => {
           console.warn('Failed to load users:', err);
-          return { data: [] };
+          return { data: [], items: [], total: 0, pages: 1 };
         }),
         apiClient.getJobRoles().catch(err => {
           console.warn('Failed to load job roles:', err);
@@ -78,6 +112,11 @@ const UserManagement = () => {
       
       setUsers(Array.isArray(usersData) ? usersData : []);
       setJobRoles(Array.isArray(rolesData) ? rolesData : []);
+      
+      // Handle pagination info
+      setTotalUsers(usersResponse?.total || usersData.length);
+      setTotalPages(usersResponse?.pages || Math.ceil((usersResponse?.total || usersData.length) / perPage));
+      setCurrentPage(page);
       
       console.log('Successfully loaded users:', usersData.length, 'roles:', rolesData.length);
     } catch (error) {
@@ -103,10 +142,17 @@ const UserManagement = () => {
       full_name: '',
       email: '',
       password: '',
-      job_role_id: '',
-      can_read_asset: true,
+      role: '',
+      can_read_branch: false,
+      can_edit_branch: false,
+      can_delete_branch: false,
+      can_read_warehouse: false,
+      can_edit_warehouse: false,
+      can_delete_warehouse: false,
+      can_read_asset: false,
       can_edit_asset: false,
       can_delete_asset: false,
+      can_print_barcode: false,
       is_active: true
     });
     setDialogOpen(true);
@@ -118,31 +164,35 @@ const UserManagement = () => {
       full_name: user.full_name || '',
       email: user.email || '',
       password: '',
-      job_role_id: user.job_role_id || '',
-      can_read_asset: user.can_read_asset ?? true,
+      role: user.role || '',
+      can_read_branch: user.can_read_branch ?? false,
+      can_edit_branch: user.can_edit_branch ?? false,
+      can_delete_branch: user.can_delete_branch ?? false,
+      can_read_warehouse: user.can_read_warehouse ?? false,
+      can_edit_warehouse: user.can_edit_warehouse ?? false,
+      can_delete_warehouse: user.can_delete_warehouse ?? false,
+      can_read_asset: user.can_read_asset ?? false,
       can_edit_asset: user.can_edit_asset ?? false,
       can_delete_asset: user.can_delete_asset ?? false,
+      can_print_barcode: user.can_print_barcode ?? false,
       is_active: user.is_active ?? true
     });
     setDialogOpen(true);
   };
 
-  const filteredUsers = (users || []).filter(user => {
-    if (!user) return false;
-    
-    const matchesSearch = !searchTerm || 
-      user.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.email?.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesRole = !roleFilter || roleFilter === 'all' || user.job_role_id === roleFilter;
-    
-    return matchesSearch && matchesRole;
-  });
+  // Filter users by role (client-side for role filter)
+  const filteredUsers = useMemo(() => {
+    return (users || []).filter(user => {
+      if (!user) return false;
+      const matchesRole = !roleFilter || roleFilter === 'all' || user.role === roleFilter;
+      return matchesRole;
+    });
+  }, [users, roleFilter]);
 
-  const getRoleName = (roleId) => {
-    if (!jobRoles || !Array.isArray(jobRoles)) return 'Unknown Role';
-    const role = jobRoles.find(r => r && r.id === roleId);
-    return role?.name_en || role?.name_ar || 'Unknown Role';
+  const getRoleName = (roleName) => {
+    if (!jobRoles || !Array.isArray(jobRoles)) return roleName || 'Unknown Role';
+    const role = jobRoles.find(r => r && r.name === roleName);
+    return role?.name || roleName || 'Unknown Role';
   };
 
   const handleInputChange = (e) => {
@@ -151,6 +201,30 @@ const UserManagement = () => {
       ...prev, 
       [name]: type === 'checkbox' ? checked : value 
     }));
+  };
+
+  const handleRoleChange = (roleName) => {
+    const selectedRole = jobRoles.find(role => role.name === roleName);
+    
+    if (selectedRole) {
+      // Auto-populate permissions from the selected role
+      setFormData(prev => ({
+        ...prev,
+        role: roleName,
+        can_read_branch: selectedRole.can_read_branch ?? false,
+        can_edit_branch: selectedRole.can_edit_branch ?? false,
+        can_delete_branch: selectedRole.can_delete_branch ?? false,
+        can_read_warehouse: selectedRole.can_read_warehouse ?? false,
+        can_edit_warehouse: selectedRole.can_edit_warehouse ?? false,
+        can_delete_warehouse: selectedRole.can_delete_warehouse ?? false,
+        can_read_asset: selectedRole.can_read_asset ?? false,
+        can_edit_asset: selectedRole.can_edit_asset ?? false,
+        can_delete_asset: selectedRole.can_delete_asset ?? false,
+        can_print_barcode: selectedRole.can_print_barcode ?? false
+      }));
+    } else {
+      setFormData(prev => ({ ...prev, role: roleName }));
+    }
   };
 
   const handleSave = async () => {
@@ -164,7 +238,7 @@ const UserManagement = () => {
         toast.error('Email is required');
         return;
       }
-      if (!formData.job_role_id) {
+      if (!formData.role) {
         toast.error('Job role selection is required');
         return;
       }
@@ -176,16 +250,36 @@ const UserManagement = () => {
       setLoading(true);
 
       if (editingUser) {
-        // Update existing user (don't send password if empty)
-        const updateData = { ...formData };
-        if (!updateData.password) {
-          delete updateData.password;
-        }
+        // Update existing user - try sending full_name instead of username
+        const updateData = {
+          full_name: formData.full_name,
+          email: formData.email,
+          role: formData.role,
+          permissions: {
+            can_read_branch: formData.can_read_branch,
+            can_edit_branch: formData.can_edit_branch,
+            can_delete_branch: formData.can_delete_branch,
+            can_read_warehouse: formData.can_read_warehouse,
+            can_edit_warehouse: formData.can_edit_warehouse,
+            can_delete_warehouse: formData.can_delete_warehouse,
+            can_read_asset: formData.can_read_asset,
+            can_edit_asset: formData.can_edit_asset,
+            can_delete_asset: formData.can_delete_asset,
+            can_print_barcode: formData.can_print_barcode
+          }
+        };
+        console.log('Updating user with data:', updateData);
         await apiClient.updateUser(editingUser.id, updateData);
         toast.success('User updated successfully!');
       } else {
-        // Create new user
-        await apiClient.createUser(formData);
+        // Create new user using UserInput schema
+        const userData = {
+          full_name: formData.full_name,
+          email: formData.email,
+          password: formData.password,
+          role: formData.role
+        };
+        await apiClient.createUser(userData);
         toast.success('User created successfully!');
       }
 
@@ -193,7 +287,22 @@ const UserManagement = () => {
       loadData(); // Reload the data
     } catch (error) {
       console.error('Error saving user:', error);
-      toast.error(`Failed to save user: ${error.message}`);
+      
+      // Try to extract more specific error information
+      let errorMessage = 'Failed to save user';
+      if (error.message) {
+        if (error.message.includes('400')) {
+          errorMessage = 'Invalid data provided. Please check all fields.';
+        } else if (error.message.includes('409')) {
+          errorMessage = 'User with this email already exists.';
+        } else if (error.message.includes('422')) {
+          errorMessage = 'Validation error. Please check required fields.';
+        } else {
+          errorMessage = `Error: ${error.message}`;
+        }
+      }
+      
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -271,9 +380,9 @@ const UserManagement = () => {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Roles</SelectItem>
-            {(jobRoles || []).filter(role => role && role.id).map(role => (
-              <SelectItem key={role.id} value={role.id}>
-                {role.name_en || role.name_ar || 'Unnamed Role'}
+            {(jobRoles || []).filter(role => role && role.name).map(role => (
+              <SelectItem key={role.id} value={role.name}>
+                {role.name}
               </SelectItem>
             ))}
           </SelectContent>
@@ -316,10 +425,10 @@ const UserManagement = () => {
               <div className="space-y-2">
                 <div className="flex items-center space-x-2">
                   <Shield className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm">{getRoleName(user.job_role_id)}</span>
+                  <span className="text-sm">{getRoleName(user.role)}</span>
                 </div>
                 
-                <div className="flex gap-2 flex-wrap">
+                <div className="flex gap-2 flex-wrap items-center">
                   {user.is_active ? (
                     <Badge variant="default" className="text-xs">
                       <UserCheck className="h-3 w-3 mr-1" />
@@ -332,14 +441,39 @@ const UserManagement = () => {
                     </Badge>
                   )}
                   
-                  {user.can_read_asset && (
-                    <Badge variant="outline" className="text-xs">Read</Badge>
+                  {/* Permission badges */}
+                  {(user.can_read_branch || user.can_edit_branch || user.can_delete_branch) && (
+                    <Badge variant="outline" className="text-xs">
+                      Branch: {[
+                        user.can_read_branch && 'R',
+                        user.can_edit_branch && 'E', 
+                        user.can_delete_branch && 'D'
+                      ].filter(Boolean).join('/')}
+                    </Badge>
                   )}
-                  {user.can_edit_asset && (
-                    <Badge variant="outline" className="text-xs">Edit</Badge>
+                  
+                  {(user.can_read_warehouse || user.can_edit_warehouse || user.can_delete_warehouse) && (
+                    <Badge variant="outline" className="text-xs">
+                      Warehouse: {[
+                        user.can_read_warehouse && 'R',
+                        user.can_edit_warehouse && 'E', 
+                        user.can_delete_warehouse && 'D'
+                      ].filter(Boolean).join('/')}
+                    </Badge>
                   )}
-                  {user.can_delete_asset && (
-                    <Badge variant="outline" className="text-xs">Delete</Badge>
+                  
+                  {(user.can_read_asset || user.can_edit_asset || user.can_delete_asset) && (
+                    <Badge variant="outline" className="text-xs">
+                      Asset: {[
+                        user.can_read_asset && 'R',
+                        user.can_edit_asset && 'E', 
+                        user.can_delete_asset && 'D'
+                      ].filter(Boolean).join('/')}
+                    </Badge>
+                  )}
+                  
+                  {user.can_print_barcode && (
+                    <Badge variant="outline" className="text-xs">Barcode</Badge>
                   )}
                 </div>
               </div>
@@ -365,24 +499,81 @@ const UserManagement = () => {
         </div>
       )}
 
+      {/* Pagination */}
+      {!loading && filteredUsers.length > 0 && totalPages > 1 && (
+        <div className="flex items-center justify-between">
+          <div className="text-sm text-muted-foreground">
+            Showing {((currentPage - 1) * perPage) + 1} to {Math.min(currentPage * perPage, totalUsers)} of {totalUsers} users
+          </div>
+          <Pagination>
+            <PaginationContent>
+              <PaginationItem>
+                <PaginationPrevious 
+                  onClick={() => currentPage > 1 && loadData(currentPage - 1, searchTerm)}
+                  className={currentPage <= 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                />
+              </PaginationItem>
+              
+              {[...Array(Math.min(5, totalPages))].map((_, i) => {
+                const pageNum = Math.max(1, Math.min(totalPages - 4, currentPage - 2)) + i;
+                if (pageNum > totalPages) return null;
+                
+                return (
+                  <PaginationItem key={pageNum}>
+                    <PaginationLink
+                      onClick={() => loadData(pageNum, searchTerm)}
+                      isActive={currentPage === pageNum}
+                      className="cursor-pointer"
+                    >
+                      {pageNum}
+                    </PaginationLink>
+                  </PaginationItem>
+                );
+              })}
+              
+              {totalPages > 5 && currentPage < totalPages - 2 && (
+                <PaginationItem>
+                  <PaginationEllipsis />
+                </PaginationItem>
+              )}
+              
+              <PaginationItem>
+                <PaginationNext 
+                  onClick={() => currentPage < totalPages && loadData(currentPage + 1, searchTerm)}
+                  className={currentPage >= totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                />
+              </PaginationItem>
+            </PaginationContent>
+          </Pagination>
+        </div>
+      )}
+
       {/* Add/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               {editingUser ? 'Edit User' : 'Add New User'}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            <div>
-              <Label htmlFor="full_name">Full Name *</Label>
-              <Input
-                id="full_name"
-                name="full_name"
-                value={formData.full_name}
-                onChange={handleInputChange}
-                required
-              />
+            <div className="grid grid-cols-1 gap-4">
+              <div>
+                <Label htmlFor="full_name">Full Name *</Label>
+                <Input
+                  id="full_name"
+                  name="full_name"
+                  value={formData.full_name}
+                  onChange={handleInputChange}
+                  required
+                  placeholder="Enter user's full name"
+                />
+                {editingUser && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    This will update the username field in the system
+                  </p>
+                )}
+              </div>
             </div>
 
             <div>
@@ -412,62 +603,141 @@ const UserManagement = () => {
             )}
 
             <div>
-              <Label htmlFor="job_role_id">Role *</Label>
-              <Select value={formData.job_role_id} onValueChange={(value) => setFormData(prev => ({ ...prev, job_role_id: value }))}>
+              <Label htmlFor="role">Role *</Label>
+              <Select value={formData.role} onValueChange={handleRoleChange}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select role" />
                 </SelectTrigger>
                 <SelectContent>
-                  {(jobRoles || []).filter(role => role && role.id).map(role => (
-                    <SelectItem key={role.id} value={role.id}>
-                      {role.name_en || role.name_ar || 'Unnamed Role'}
+                  {(jobRoles || []).filter(role => role && role.name).map(role => (
+                    <SelectItem key={role.id} value={role.name}>
+                      {role.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+              <p className="text-sm text-muted-foreground mt-1">
+                Selecting a role will auto-populate permissions below, which you can then customize.
+              </p>
             </div>
 
-            <div className="space-y-3">
-              <Label>Permissions</Label>
+            {/* Permissions Section */}
+            <div className="space-y-4">
+              <Label className="text-base font-semibold">Permissions</Label>
               
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id="can_read_asset"
-                  checked={formData.can_read_asset}
-                  onCheckedChange={(checked) => setFormData(prev => ({ ...prev, can_read_asset: checked }))}
-                />
-                <Label htmlFor="can_read_asset">Can Read Assets</Label>
+              {/* Branch Permissions */}
+              <div>
+                <Label className="text-sm font-medium text-muted-foreground">Branch Permissions</Label>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-2">
+                  <div className="flex items-center space-x-2">
+                    <Switch
+                      id="can_read_branch"
+                      checked={formData.can_read_branch}
+                      onCheckedChange={(checked) => setFormData(prev => ({ ...prev, can_read_branch: checked }))}
+                    />
+                    <Label htmlFor="can_read_branch" className="text-sm">Read Branches</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Switch
+                      id="can_edit_branch"
+                      checked={formData.can_edit_branch}
+                      onCheckedChange={(checked) => setFormData(prev => ({ ...prev, can_edit_branch: checked }))}
+                    />
+                    <Label htmlFor="can_edit_branch" className="text-sm">Edit Branches</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Switch
+                      id="can_delete_branch"
+                      checked={formData.can_delete_branch}
+                      onCheckedChange={(checked) => setFormData(prev => ({ ...prev, can_delete_branch: checked }))}
+                    />
+                    <Label htmlFor="can_delete_branch" className="text-sm">Delete Branches</Label>
+                  </div>
+                </div>
               </div>
-              
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id="can_edit_asset"
-                  checked={formData.can_edit_asset}
-                  onCheckedChange={(checked) => setFormData(prev => ({ ...prev, can_edit_asset: checked }))}
-                />
-                <Label htmlFor="can_edit_asset">Can Edit Assets</Label>
+
+              {/* Warehouse Permissions */}
+              <div>
+                <Label className="text-sm font-medium text-muted-foreground">Warehouse Permissions</Label>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-2">
+                  <div className="flex items-center space-x-2">
+                    <Switch
+                      id="can_read_warehouse"
+                      checked={formData.can_read_warehouse}
+                      onCheckedChange={(checked) => setFormData(prev => ({ ...prev, can_read_warehouse: checked }))}
+                    />
+                    <Label htmlFor="can_read_warehouse" className="text-sm">Read Warehouses</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Switch
+                      id="can_edit_warehouse"
+                      checked={formData.can_edit_warehouse}
+                      onCheckedChange={(checked) => setFormData(prev => ({ ...prev, can_edit_warehouse: checked }))}
+                    />
+                    <Label htmlFor="can_edit_warehouse" className="text-sm">Edit Warehouses</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Switch
+                      id="can_delete_warehouse"
+                      checked={formData.can_delete_warehouse}
+                      onCheckedChange={(checked) => setFormData(prev => ({ ...prev, can_delete_warehouse: checked }))}
+                    />
+                    <Label htmlFor="can_delete_warehouse" className="text-sm">Delete Warehouses</Label>
+                  </div>
+                </div>
               </div>
-              
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id="can_delete_asset"
-                  checked={formData.can_delete_asset}
-                  onCheckedChange={(checked) => setFormData(prev => ({ ...prev, can_delete_asset: checked }))}
-                />
-                <Label htmlFor="can_delete_asset">Can Delete Assets</Label>
+
+              {/* Asset Permissions */}
+              <div>
+                <Label className="text-sm font-medium text-muted-foreground">Asset Permissions</Label>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mt-2">
+                  <div className="flex items-center space-x-2">
+                    <Switch
+                      id="can_read_asset"
+                      checked={formData.can_read_asset}
+                      onCheckedChange={(checked) => setFormData(prev => ({ ...prev, can_read_asset: checked }))}
+                    />
+                    <Label htmlFor="can_read_asset" className="text-sm">Read Assets</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Switch
+                      id="can_edit_asset"
+                      checked={formData.can_edit_asset}
+                      onCheckedChange={(checked) => setFormData(prev => ({ ...prev, can_edit_asset: checked }))}
+                    />
+                    <Label htmlFor="can_edit_asset" className="text-sm">Edit Assets</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Switch
+                      id="can_delete_asset"
+                      checked={formData.can_delete_asset}
+                      onCheckedChange={(checked) => setFormData(prev => ({ ...prev, can_delete_asset: checked }))}
+                    />
+                    <Label htmlFor="can_delete_asset" className="text-sm">Delete Assets</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Switch
+                      id="can_print_barcode"
+                      checked={formData.can_print_barcode}
+                      onCheckedChange={(checked) => setFormData(prev => ({ ...prev, can_print_barcode: checked }))}
+                    />
+                    <Label htmlFor="can_print_barcode" className="text-sm">Print Barcodes</Label>
+                  </div>
+                </div>
               </div>
-              
-              <div className="flex items-center space-x-2">
+
+              {/* User Status */}
+              <div className="flex items-center space-x-2 pt-4 border-t">
                 <Switch
                   id="is_active"
                   checked={formData.is_active}
                   onCheckedChange={(checked) => setFormData(prev => ({ ...prev, is_active: checked }))}
                 />
-                <Label htmlFor="is_active">Active</Label>
+                <Label htmlFor="is_active">Active User</Label>
               </div>
             </div>
 
-            <div className="flex justify-end space-x-2">
+            <div className="flex justify-end space-x-2 pt-4 border-t">
               <Button variant="outline" onClick={() => setDialogOpen(false)}>
                 Cancel
               </Button>

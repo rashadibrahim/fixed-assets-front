@@ -37,9 +37,7 @@ const WarehouseManagement = () => {
     name_ar: '',
     address_en: '',
     address_ar: '',
-    branch_id: '',
-    description_en: '',
-    description_ar: ''
+    branch_id: ''
   });
 
   useEffect(() => {
@@ -100,9 +98,7 @@ const WarehouseManagement = () => {
       name_ar: '',
       address_en: '',
       address_ar: '',
-      branch_id: '',
-      description_en: '',
-      description_ar: ''
+      branch_id: ''
     });
     setDialogOpen(true);
   };
@@ -114,23 +110,25 @@ const WarehouseManagement = () => {
       name_ar: warehouse.name_ar || '',
       address_en: warehouse.address_en || '',
       address_ar: warehouse.address_ar || '',
-      branch_id: warehouse.branch_id || '',
-      description_en: warehouse.description_en || '',
-      description_ar: warehouse.description_ar || ''
+      branch_id: warehouse.branch_id ? warehouse.branch_id.toString() : ''
     });
     setDialogOpen(true);
   };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
+    console.log('Input changed:', name, '=', value);
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
   const handleSave = async () => {
     try {
-      // Validate required fields
-      if (!formData.name_en.trim()) {
-        toast.error('English name is required');
+      // Debug: Log current form data
+      console.log('Current form data:', formData);
+      
+      // Validate required fields according to API (name_ar is required)
+      if (!formData.name_ar.trim()) {
+        toast.error('Arabic name is required');
         return;
       }
       if (!formData.branch_id) {
@@ -140,17 +138,45 @@ const WarehouseManagement = () => {
 
       setLoading(true);
 
+      // Prepare the data according to API schema - only send non-empty values
+      const warehouseData = {
+        name_ar: formData.name_ar.trim(), // Required field
+        branch_id: parseInt(formData.branch_id) // Required as integer
+      };
+
+      // Add optional fields only if they have values
+      if (formData.name_en.trim()) {
+        warehouseData.name_en = formData.name_en.trim();
+      }
+      if (formData.address_ar.trim()) {
+        warehouseData.address_ar = formData.address_ar.trim();
+      }
+      if (formData.address_en.trim()) {
+        warehouseData.address_en = formData.address_en.trim();
+      }
+
+      console.log('Sending warehouse data:', warehouseData);
+
       if (editingWarehouse) {
         // Update existing warehouse
-        await apiClient.updateWarehouse(editingWarehouse.id, formData);
+        await apiClient.updateWarehouse(editingWarehouse.id, warehouseData);
         toast.success('Warehouse updated successfully!');
       } else {
         // Create new warehouse
-        await apiClient.createWarehouse(formData);
+        await apiClient.createWarehouse(warehouseData);
         toast.success('Warehouse created successfully!');
       }
 
       setDialogOpen(false);
+      // Reset form
+      setFormData({
+        name_en: '',
+        name_ar: '',
+        address_en: '',
+        address_ar: '',
+        branch_id: ''
+      });
+      setEditingWarehouse(null);
       loadData(); // Reload the data
     } catch (error) {
       console.error('Error saving warehouse:', error);
@@ -358,36 +384,44 @@ const WarehouseManagement = () => {
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="name_en">Name (English) *</Label>
-                <Input
-                  id="name_en"
-                  name="name_en"
-                  value={formData.name_en}
-                  onChange={handleInputChange}
-                  required
-                />
-              </div>
-              <div>
-                <Label htmlFor="name_ar">Name (Arabic)</Label>
+                <Label htmlFor="name_ar">Name (Arabic) *</Label>
                 <Input
                   id="name_ar"
                   name="name_ar"
                   value={formData.name_ar}
                   onChange={handleInputChange}
+                  required
                   dir="rtl"
+                  placeholder="أدخل اسم المستودع"
+                />
+              </div>
+              <div>
+                <Label htmlFor="name_en">Name (English)</Label>
+                <Input
+                  id="name_en"
+                  name="name_en"
+                  value={formData.name_en}
+                  onChange={handleInputChange}
+                  placeholder="Enter warehouse name"
                 />
               </div>
             </div>
 
             <div>
               <Label htmlFor="branch_id">Branch *</Label>
-              <Select value={formData.branch_id} onValueChange={(value) => setFormData(prev => ({ ...prev, branch_id: value }))}>
+              <Select 
+                value={formData.branch_id.toString()} 
+                onValueChange={(value) => {
+                  console.log('Branch selected:', value);
+                  setFormData(prev => ({ ...prev, branch_id: value }));
+                }}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Select branch" />
                 </SelectTrigger>
                 <SelectContent>
                   {(branches || []).filter(branch => branch && branch.id).map(branch => (
-                    <SelectItem key={branch.id} value={branch.id}>
+                    <SelectItem key={branch.id} value={branch.id.toString()}>
                       {branch.name_en || branch.name_ar || 'Unnamed Branch'}
                     </SelectItem>
                   ))}
@@ -397,16 +431,6 @@ const WarehouseManagement = () => {
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="address_en">Address (English)</Label>
-                <Textarea
-                  id="address_en"
-                  name="address_en"
-                  value={formData.address_en}
-                  onChange={handleInputChange}
-                  rows={3}
-                />
-              </div>
-              <div>
                 <Label htmlFor="address_ar">Address (Arabic)</Label>
                 <Textarea
                   id="address_ar"
@@ -415,6 +439,18 @@ const WarehouseManagement = () => {
                   onChange={handleInputChange}
                   rows={3}
                   dir="rtl"
+                  placeholder="أدخل عنوان المستودع"
+                />
+              </div>
+              <div>
+                <Label htmlFor="address_en">Address (English)</Label>
+                <Textarea
+                  id="address_en"
+                  name="address_en"
+                  value={formData.address_en}
+                  onChange={handleInputChange}
+                  rows={3}
+                  placeholder="Enter warehouse address"
                 />
               </div>
             </div>

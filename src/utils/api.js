@@ -74,7 +74,7 @@ class ApiClient {
   }
 
   async getStatistics() {
-    return this.request('/statistics');
+    return this.request('/auth/stats');
   }
 
   // Assets API
