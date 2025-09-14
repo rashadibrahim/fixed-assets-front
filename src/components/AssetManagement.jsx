@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { 
-  Package, 
-  Plus, 
-  Edit3, 
-  Trash2, 
-  Eye, 
+import {
+  Package,
+  Plus,
+  Edit3,
+  Trash2,
+  Eye,
   Filter,
   Download,
   Search,
@@ -64,7 +64,7 @@ const AssetManagement = () => {
         per_page: 10,
         ...(filterCategory !== 'all' && { category: filterCategory })
       };
-      
+
       const response = await apiClient.getAssets(params);
       setAssets(response.items || []);
       setPagination({
@@ -100,8 +100,8 @@ const AssetManagement = () => {
 
   const filteredAssets = assets.filter(asset => {
     const matchesSearch = asset.name_en.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         asset.name_ar.includes(searchTerm) ||
-                         asset.category.toLowerCase().includes(searchTerm.toLowerCase());
+      asset.name_ar.includes(searchTerm) ||
+      asset.category.toLowerCase().includes(searchTerm.toLowerCase());
     return matchesSearch;
   });
 
@@ -134,7 +134,7 @@ const AssetManagement = () => {
 
       // Validate required fields according to API schema
       const requiredFields = [
-        'name_en', 'name_ar', 'category', 'subcategory', 
+        'name_en', 'name_ar', 'category', 'subcategory',
         'product_code', 'purchase_invoice', 'purchase_date', 'warehouse_id'
       ];
 
@@ -177,7 +177,7 @@ const AssetManagement = () => {
         toast.success('Asset created successfully');
         setShowAddModal(false);
       }
-      
+
       loadAssets();
       resetForm();
     } catch (error) {
@@ -489,7 +489,7 @@ const AssetManagement = () => {
                 <h3 className="font-semibold text-foreground text-lg">{asset.name_en}</h3>
                 <p className="text-sm text-muted-foreground">{asset.name_ar}</p>
               </div>
-              
+
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">Category:</span>
@@ -531,8 +531,8 @@ const AssetManagement = () => {
       {/* Pagination */}
       {pagination.pages > 1 && (
         <div className="flex items-center justify-center space-x-2">
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             onClick={() => loadAssets(pagination.page - 1)}
             disabled={pagination.page <= 1}
           >
@@ -541,8 +541,8 @@ const AssetManagement = () => {
           <span className="text-sm text-muted-foreground">
             Page {pagination.page} of {pagination.pages} ({pagination.total} total)
           </span>
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             onClick={() => loadAssets(pagination.page + 1)}
             disabled={pagination.page >= pagination.pages}
           >
@@ -556,8 +556,8 @@ const AssetManagement = () => {
           <Package className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
           <h3 className="text-xl font-semibold text-foreground mb-2">No Assets Found</h3>
           <p className="text-muted-foreground mb-6">
-            {searchTerm || filterCategory !== 'all' 
-              ? 'No assets match your current filters.' 
+            {searchTerm || filterCategory !== 'all'
+              ? 'No assets match your current filters.'
               : 'Start by adding your first asset.'}
           </p>
           <Button className="btn-primary" onClick={() => setShowAddModal(true)}>
