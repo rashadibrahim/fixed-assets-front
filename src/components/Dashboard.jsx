@@ -4,7 +4,6 @@ import {
   Warehouse, 
   Package, 
   Users, 
-  Search, 
   Plus, 
   Edit3, 
   Trash2, 
@@ -23,7 +22,6 @@ import {
   DollarSign,
   TrendingUp,
   AlertCircle,
-  Bell,
   Shield
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -44,7 +42,6 @@ const Dashboard = () => {
   const { user, logout } = useAuth();
   const [activeTab, setActiveTab] = useState('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
 
   // Dashboard stats from API
@@ -453,20 +450,9 @@ const Dashboard = () => {
         <header className="bg-card border-b border-border px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search assets, warehouses, users..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 w-80"
-                />
-              </div>
+              {/* Header content */}
             </div>
             <div className="flex items-center space-x-3">
-              <Button variant="ghost" size="sm">
-                <Bell className="h-4 w-4" />
-              </Button>
               <Button variant="ghost" size="sm">
                 <Settings className="h-4 w-4" />
               </Button>

@@ -12,7 +12,8 @@ import {
   DollarSign,
   AlertCircle,
   Upload,
-  FileText
+  FileText,
+  QrCode
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -24,6 +25,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import apiClient from '../utils/api';
+import FileUpload from './FileUpload';
 
 const AssetManagement = () => {
   const [assets, setAssets] = useState([]);
@@ -35,6 +37,7 @@ const AssetManagement = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedAsset, setSelectedAsset] = useState(null);
   const [pagination, setPagination] = useState({ page: 1, pages: 1, total: 0 });
+  const [assetFiles, setAssetFiles] = useState({});
 
   // Form state matching API structure
   const [formData, setFormData] = useState({
@@ -188,6 +191,70 @@ const AssetManagement = () => {
     }
   };
 
+  // File management functions
+  const loadAssetFiles = async (assetId) => {
+    try {
+      console.log(`Loading files for asset ${assetId}...`);
+      const response = await apiClient.getAssetFiles(assetId);
+      const files = response.items || response.attached_files || response || [];
+      
+      // Also load any locally stored files
+      const storedFiles = JSON.parse(localStorage.getItem(`asset_${assetId}_files`) || '[]');
+      const allFiles = [...files, ...storedFiles];
+      
+      setAssetFiles(prev => ({
+        ...prev,
+        [assetId]: Array.isArray(allFiles) ? allFiles : []
+      }));
+      console.log(`Loaded ${allFiles.length} files for asset ${assetId} (${files.length} from server, ${storedFiles.length} local)`);
+    } catch (error) {
+      console.error('Error loading asset files:', error);
+      
+      // Try to load from localStorage if backend fails
+      const storedFiles = JSON.parse(localStorage.getItem(`asset_${assetId}_files`) || '[]');
+      setAssetFiles(prev => ({
+        ...prev,
+        [assetId]: storedFiles
+      }));
+      console.log(`Loaded ${storedFiles.length} files from localStorage for asset ${assetId}`);
+    }
+  };
+
+  const handleFileUploaded = (assetId, response) => {
+    console.log('File uploaded successfully for asset:', assetId, response);
+    
+    // Update local state immediately
+    setAssetFiles(prev => ({
+      ...prev,
+      [assetId]: [...(prev[assetId] || []), response]
+    }));
+    
+    // Reload files to sync with any backend changes
+    loadAssetFiles(assetId);
+    
+    // Show success message
+    if (response.simulated) {
+      toast.success('File uploaded and stored locally!');
+    } else {
+      toast.success('File attached to asset successfully!');
+    }
+  };
+
+  const handleFileDeleted = (assetId, fileId) => {
+    console.log('File deleted for asset:', assetId, 'file:', fileId);
+    
+    // Remove file from local state immediately
+    setAssetFiles(prev => ({
+      ...prev,
+      [assetId]: (prev[assetId] || []).filter(file => file.id !== fileId)
+    }));
+    
+    // Also remove from localStorage if it exists
+    const storedFiles = JSON.parse(localStorage.getItem(`asset_${assetId}_files`) || '[]');
+    const updatedFiles = storedFiles.filter(file => file.id !== fileId);
+    localStorage.setItem(`asset_${assetId}_files`, JSON.stringify(updatedFiles));
+  };
+
   const handleEdit = (asset) => {
     setSelectedAsset(asset);
     setFormData({
@@ -203,6 +270,10 @@ const AssetManagement = () => {
       warehouse_id: asset.warehouse_id?.toString() || '',
       is_active: asset.is_active !== undefined ? asset.is_active : true
     });
+    
+    // Load files for this asset
+    loadAssetFiles(asset.id);
+    
     setShowEditModal(true);
   };
 
@@ -222,19 +293,102 @@ const AssetManagement = () => {
   const handleGenerateBarcode = async (asset) => {
     try {
       const response = await apiClient.getAssetBarcode(asset.id);
-      // Handle barcode response - could open a new window or download
-      const barcodeWindow = window.open('', '_blank');
+      
+      // Create a new window to display the barcode
+      const barcodeWindow = window.open('', '_blank', 'width=600,height=500');
       barcodeWindow.document.write(`
+        <!DOCTYPE html>
         <html>
-          <head><title>Barcode - ${asset.name_en}</title></head>
-          <body style="text-align: center; padding: 20px;">
-            <h3>${asset.name_en}</h3>
-            <p>Product Code: ${response.product_code}</p>
-            <img src="data:image/png;base64,${response.barcode_image}" alt="Barcode" />
+          <head>
+            <title>Barcode - ${asset.name_en}</title>
+            <style>
+              body {
+                font-family: Arial, sans-serif;
+                text-align: center;
+                padding: 20px;
+                margin: 0;
+                background: white;
+              }
+              .barcode-container {
+                max-width: 500px;
+                margin: 0 auto;
+                border: 2px solid #ddd;
+                padding: 30px;
+                border-radius: 8px;
+                background: white;
+              }
+              .asset-info {
+                margin-bottom: 20px;
+              }
+              .asset-info h2 {
+                margin: 0 0 10px 0;
+                color: #333;
+                font-size: 24px;
+              }
+              .asset-info p {
+                margin: 5px 0;
+                color: #666;
+                font-size: 14px;
+              }
+              .barcode-image {
+                margin: 20px 0;
+              }
+              .barcode-image img {
+                max-width: 100%;
+                height: auto;
+              }
+              .buttons {
+                margin-top: 20px;
+              }
+              .btn {
+                background: #007bff;
+                color: white;
+                border: none;
+                padding: 10px 20px;
+                border-radius: 4px;
+                cursor: pointer;
+                margin: 0 5px;
+                font-size: 14px;
+              }
+              .btn:hover {
+                background: #0056b3;
+              }
+              .btn-secondary {
+                background: #6c757d;
+              }
+              .btn-secondary:hover {
+                background: #545b62;
+              }
+              @media print {
+                .no-print { display: none; }
+                .barcode-container { border: none; }
+                body { padding: 0; }
+              }
+            </style>
+          </head>
+          <body>
+            <div class="barcode-container">
+              <div class="asset-info">
+                <h2>${asset.name_en}</h2>
+                ${asset.name_ar ? `<p><strong>Arabic Name:</strong> ${asset.name_ar}</p>` : ''}
+                <p><strong>Product Code:</strong> ${response.product_code}</p>
+                <p><strong>Category:</strong> ${asset.category}</p>
+                ${asset.subcategory ? `<p><strong>Subcategory:</strong> ${asset.subcategory}</p>` : ''}
+                <p><strong>Purchase Date:</strong> ${new Date(asset.purchase_date).toLocaleDateString()}</p>
+              </div>
+              <div class="barcode-image">
+                <img src="data:image/png;base64,${response.barcode_image}" alt="Barcode" />
+              </div>
+              <div class="buttons no-print">
+                <button class="btn" onclick="window.print()">Print Barcode</button>
+                <button class="btn btn-secondary" onclick="window.close()">Close</button>
+              </div>
+            </div>
           </body>
         </html>
       `);
       barcodeWindow.document.close();
+      toast.success('Barcode generated successfully');
     } catch (error) {
       console.error('Error generating barcode:', error);
       toast.error('Failed to generate barcode');
@@ -515,6 +669,14 @@ const AssetManagement = () => {
                   {new Date(asset.purchase_date).toLocaleDateString()}
                 </div>
                 <div className="flex items-center space-x-2">
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={() => handleGenerateBarcode(asset)}
+                    title="Generate Barcode"
+                  >
+                    <QrCode className="h-4 w-4" />
+                  </Button>
                   <Button variant="ghost" size="sm" onClick={() => handleEdit(asset)}>
                     <Edit3 className="h-4 w-4" />
                   </Button>
@@ -717,6 +879,18 @@ const AssetManagement = () => {
               </Button>
             </div>
           </form>
+
+          {/* File Upload Section - only show when editing an existing asset */}
+          {selectedAsset && (
+            <div className="mt-6 pt-6 border-t border-border">
+              <FileUpload
+                assetId={selectedAsset.id}
+                files={assetFiles[selectedAsset.id] || selectedAsset.attached_files || []}
+                onFileUploaded={(response) => handleFileUploaded(selectedAsset.id, response)}
+                onFileDeleted={(fileId) => handleFileDeleted(selectedAsset.id, fileId)}
+              />
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>
