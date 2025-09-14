@@ -1,6 +1,6 @@
 // API utility functions for the Fixed Assets Management System
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:5000';
 
 class ApiClient {
   constructor() {
@@ -19,7 +19,7 @@ class ApiClient {
 
   async request(endpoint, options = {}) {
     const url = `${this.baseURL}${endpoint}`;
-    
+
     const config = {
       headers: {
         'Content-Type': 'application/json',
@@ -31,7 +31,7 @@ class ApiClient {
 
     try {
       const response = await fetch(url, config);
-      
+
       if (!response.ok) {
         const errorData = await response.text();
         throw new Error(`HTTP error! status: ${response.status}, body: ${errorData}`);
@@ -54,11 +54,11 @@ class ApiClient {
         method: 'POST',
         body: JSON.stringify(credentials),
       });
-      
+
       if (response.access_token) {
         this.setToken(response.access_token);
       }
-      
+
       return response;
     } catch (error) {
       throw error;
@@ -74,7 +74,7 @@ class ApiClient {
   }
 
   async getStatistics() {
-    return this.request('/statistics');
+    return this.request('/auth/stats');
   }
 
   // Assets API
