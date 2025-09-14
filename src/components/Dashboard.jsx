@@ -23,7 +23,8 @@ import {
   DollarSign,
   TrendingUp,
   AlertCircle,
-  Bell
+  Bell,
+  Shield
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -36,6 +37,7 @@ import AssetManagement from './AssetManagement';
 import WarehouseManagement from './WarehouseManagement';
 import BranchManagement from './BranchManagement';
 import UserManagement from './UserManagement';
+import JobRoleManagement from './JobRoleManagement';
 import ErrorBoundary from './ErrorBoundary';
 
 const Dashboard = () => {
@@ -64,18 +66,80 @@ const Dashboard = () => {
     try {
       setLoading(true);
       
-      // Load statistics from the statistics endpoint
-      const statsResponse = await apiClient.getStatistics();
+      // Load both statistics and assets data
+      const [statsResponse, assetsResponse] = await Promise.all([
+        apiClient.getStatistics().catch(err => {
+          console.warn('Failed to load stats:', err);
+          return {};
+        }),
+        apiClient.getAssets().catch(err => {
+          console.warn('Failed to load assets:', err);
+          return { items: [] };
+        })
+      ]);
+      
+      // Process assets data
+      const assetsData = assetsResponse?.items || assetsResponse?.data || assetsResponse || [];
+      const validAssets = Array.isArray(assetsData) ? assetsData : [];
+      
+      // Calculate asset statistics
+      const totalAssets = validAssets.length;
+      
+      // Debug: Log all asset statuses to understand the data
+      if (validAssets.length > 0) {
+        console.log('All asset data found:', validAssets.map(asset => ({
+          id: asset.id,
+          name: asset.name_en || asset.name_ar || asset.name,
+          is_active: asset.is_active,
+          status: asset.status
+        })));
+      }
+      
+      const activeAssets = validAssets.filter(asset => {
+        // Use is_active boolean field instead of status string
+        const isActive = asset.is_active === true || asset.is_active === 1 || asset.is_active === "1";
+        console.log(`Asset ${asset.id}: is_active=${asset.is_active} -> isActive=${isActive}`);
+        return isActive;
+      }).length;
+      const totalValue = validAssets.reduce((sum, asset) => {
+        const value = parseFloat(asset?.value || asset?.price || 0);
+        const quantity = parseInt(asset?.quantity || 1);
+        return sum + (isNaN(value) ? 0 : value * quantity);
+      }, 0);
+      
+      // Get recent assets (last 5, sorted by creation date or ID)
+      const recentAssets = validAssets
+        .sort((a, b) => {
+          // Sort by created_at if available, otherwise by ID
+          const dateA = new Date(a?.created_at || a?.id || 0);
+          const dateB = new Date(b?.created_at || b?.id || 0);
+          return dateB - dateA;
+        })
+        .slice(0, 5);
       
       setDashboardStats({
-        totalAssets: statsResponse.total_assets || 0,
-        totalValue: statsResponse.total_value || 0,
-        activeAssets: statsResponse.active_assets || 0,
+        totalAssets: totalAssets,
+        totalValue: totalValue,
+        activeAssets: activeAssets,
         warehouses: statsResponse.total_warehouses || 0,
         branches: statsResponse.total_branches || 0,
         users: statsResponse.total_users || 0,
-        recentAssets: statsResponse.recent_assets || []
+        recentAssets: recentAssets
       });
+      
+      console.log('Dashboard stats loaded:', {
+        totalAssets,
+        totalValue,
+        activeAssets,
+        recentAssetsCount: recentAssets.length,
+        sampleAsset: validAssets[0] // Log first asset to see structure
+      });
+      
+      // Debug: Log asset statuses to understand the data
+      if (validAssets.length > 0) {
+        console.log('Asset statuses found:', [...new Set(validAssets.map(a => a.status))]);
+        console.log('Sample asset structure:', validAssets[0]);
+      }
     } catch (error) {
       console.error('Error loading dashboard stats:', error);
       toast.error('Failed to load dashboard statistics');
@@ -101,6 +165,7 @@ const Dashboard = () => {
     { id: 'warehouses', label: 'Warehouses', icon: Warehouse },
     { id: 'branches', label: 'Branches', icon: Building2 },
     { id: 'users', label: 'Users', icon: Users },
+    { id: 'jobroles', label: 'Job Roles', icon: Shield },
     { id: 'settings', label: 'Settings', icon: Settings },
   ];
 
@@ -176,7 +241,13 @@ const Dashboard = () => {
           />
           <StatCard 
             title="Asset Value" 
-            value={dashboardStats.totalValue > 0 ? `$${(dashboardStats.totalValue / 1000000).toFixed(1)}M` : '$0'} 
+            value={
+              dashboardStats.totalValue > 1000000 
+                ? `$${(dashboardStats.totalValue / 1000000).toFixed(1)}M`
+                : dashboardStats.totalValue > 1000
+                ? `$${(dashboardStats.totalValue / 1000).toFixed(1)}K`
+                : `$${dashboardStats.totalValue.toLocaleString()}`
+            } 
             icon={DollarSign} 
             color="gradient-success"
             subtitle="Total portfolio"
@@ -232,14 +303,19 @@ const Dashboard = () => {
                         <Package className="h-5 w-5 text-primary" />
                       </div>
                       <div>
-                        <p className="font-medium">{asset.name_en || asset.name}</p>
-                        <p className="text-sm text-muted-foreground">{asset.category || 'Uncategorized'}</p>
+                        <p className="font-medium">{asset.name_en || asset.name_ar || asset.name || 'Unnamed Asset'}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {asset.sub_category || asset.category || asset.asset_category || 'Uncategorized'} • 
+                          {asset.product_code ? ` Code: ${asset.product_code}` : asset.serial_number ? ` SN: ${asset.serial_number}` : ' No code'}
+                        </p>
                       </div>
                     </div>
                     <div className="text-right">
-                      <p className="font-semibold">${asset.value?.toLocaleString() || '0'}</p>
-                      <Badge variant={asset.status === 'Active' ? 'default' : 'secondary'} className="text-xs">
-                        {asset.status || 'Unknown'}
+                      <p className="font-semibold">
+                        ${(parseFloat(asset.value || asset.price || 0) || 0).toLocaleString()} / unit
+                      </p>
+                      <Badge variant="outline" className="text-xs">
+                        Qty: {asset.quantity || 1}
                       </Badge>
                     </div>
                   </div>
@@ -293,6 +369,8 @@ const Dashboard = () => {
         return <ErrorBoundary><BranchManagement /></ErrorBoundary>;
       case 'users':
         return <ErrorBoundary><UserManagement /></ErrorBoundary>;
+      case 'jobroles':
+        return <ErrorBoundary><JobRoleManagement /></ErrorBoundary>;
       case 'settings':
         return (
           <div className="text-center py-12">

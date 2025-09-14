@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Package, 
   Plus, 
@@ -40,8 +40,6 @@ const AssetManagement = () => {
   const [formData, setFormData] = useState({
     name_en: '',
     name_ar: '',
-    description_en: '',
-    description_ar: '',
     category: '',
     subcategory: '',
     value: '',
@@ -94,6 +92,12 @@ const AssetManagement = () => {
 
   const categories = [...new Set(assets.map(asset => asset.category))];
 
+  const getWarehouseName = (warehouseId) => {
+    if (!warehouses || !Array.isArray(warehouses)) return 'N/A';
+    const warehouse = warehouses.find(w => w && w.id === warehouseId);
+    return warehouse?.name_en || warehouse?.name_ar || 'N/A';
+  };
+
   const filteredAssets = assets.filter(asset => {
     const matchesSearch = asset.name_en.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          asset.name_ar.includes(searchTerm) ||
@@ -101,24 +105,68 @@ const AssetManagement = () => {
     return matchesSearch;
   });
 
-  const handleInputChange = (e) => {
+  const handleInputChange = useCallback((e) => {
     const { name, value, type, checked } = e.target;
+    const newValue = type === 'checkbox' ? checked : value;
+    console.log('Input changed:', name, '=', newValue);
     setFormData(prev => ({
       ...prev,
-      [name]: type === 'checkbox' ? checked : value
+      [name]: newValue
     }));
-  };
+  }, []);
+
+  const handleWarehouseChange = useCallback((value) => {
+    console.log('Warehouse selected:', value);
+    setFormData(prev => ({ ...prev, warehouse_id: value }));
+  }, []);
+
+  const handleCancel = useCallback(() => {
+    setShowAddModal(false);
+    setShowEditModal(false);
+    resetForm();
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      // Convert form data to match API requirements
+      // Debug: Log current form data
+      console.log('Current form data:', formData);
+
+      // Validate required fields according to API schema
+      const requiredFields = [
+        'name_en', 'name_ar', 'category', 'subcategory', 
+        'product_code', 'purchase_invoice', 'purchase_date', 'warehouse_id'
+      ];
+
+      for (const field of requiredFields) {
+        if (!formData[field] || formData[field].toString().trim() === '') {
+          toast.error(`${field.replace('_', ' ')} is required`);
+          return;
+        }
+      }
+
+      setLoading(true);
+
+      // Prepare data according to API schema - only include valid fields
       const apiData = {
-        ...formData,
-        value: parseFloat(formData.value) || 0,
+        name_en: formData.name_en.trim(),
+        name_ar: formData.name_ar.trim(),
+        category: formData.category.trim(),
+        subcategory: formData.subcategory.trim(),
+        product_code: formData.product_code.trim(),
+        purchase_invoice: formData.purchase_invoice.trim(),
+        purchase_date: formData.purchase_date,
+        warehouse_id: parseInt(formData.warehouse_id),
         quantity: parseInt(formData.quantity) || 1,
-        warehouse_id: parseInt(formData.warehouse_id)
+        is_active: formData.is_active
       };
+
+      // Add optional value field if provided
+      if (formData.value && formData.value.toString().trim()) {
+        apiData.value = parseFloat(formData.value);
+      }
+
+      console.log('Sending asset data:', apiData);
 
       if (selectedAsset) {
         await apiClient.updateAsset(selectedAsset.id, apiData);
@@ -129,11 +177,14 @@ const AssetManagement = () => {
         toast.success('Asset created successfully');
         setShowAddModal(false);
       }
+      
       loadAssets();
       resetForm();
     } catch (error) {
       console.error('Error saving asset:', error);
-      toast.error('Failed to save asset');
+      toast.error(`Failed to save asset: ${error.message}`);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -142,8 +193,6 @@ const AssetManagement = () => {
     setFormData({
       name_en: asset.name_en || '',
       name_ar: asset.name_ar || '',
-      description_en: asset.description_en || '',
-      description_ar: asset.description_ar || '',
       category: asset.category || '',
       subcategory: asset.subcategory || '',
       value: asset.value?.toString() || '',
@@ -196,8 +245,6 @@ const AssetManagement = () => {
     setFormData({
       name_en: '',
       name_ar: '',
-      description_en: '',
-      description_ar: '',
       category: '',
       subcategory: '',
       value: '',
@@ -210,181 +257,6 @@ const AssetManagement = () => {
     });
     setSelectedAsset(null);
   };
-
-  const AssetForm = () => (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <Label htmlFor="name_en">Name (English) *</Label>
-          <Input
-            id="name_en"
-            name="name_en"
-            value={formData.name_en}
-            onChange={handleInputChange}
-            required
-          />
-        </div>
-        <div>
-          <Label htmlFor="name_ar">Name (Arabic) *</Label>
-          <Input
-            id="name_ar"
-            name="name_ar"
-            value={formData.name_ar}
-            onChange={handleInputChange}
-            dir="rtl"
-            required
-          />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <Label htmlFor="category">Category *</Label>
-          <Input
-            id="category"
-            name="category"
-            value={formData.category}
-            onChange={handleInputChange}
-            required
-          />
-        </div>
-        <div>
-          <Label htmlFor="subcategory">Subcategory *</Label>
-          <Input
-            id="subcategory"
-            name="subcategory"
-            value={formData.subcategory}
-            onChange={handleInputChange}
-            required
-          />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <Label htmlFor="product_code">Product Code *</Label>
-          <Input
-            id="product_code"
-            name="product_code"
-            value={formData.product_code}
-            onChange={handleInputChange}
-            required
-          />
-        </div>
-        <div>
-          <Label htmlFor="purchase_invoice">Purchase Invoice *</Label>
-          <Input
-            id="purchase_invoice"
-            name="purchase_invoice"
-            value={formData.purchase_invoice}
-            onChange={handleInputChange}
-            required
-          />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-3 gap-4">
-        <div>
-          <Label htmlFor="value">Value</Label>
-          <Input
-            id="value"
-            name="value"
-            type="number"
-            step="0.01"
-            value={formData.value}
-            onChange={handleInputChange}
-          />
-        </div>
-        <div>
-          <Label htmlFor="quantity">Quantity</Label>
-          <Input
-            id="quantity"
-            name="quantity"
-            type="number"
-            value={formData.quantity}
-            onChange={handleInputChange}
-            min="1"
-          />
-        </div>
-        <div>
-          <Label htmlFor="purchase_date">Purchase Date *</Label>
-          <Input
-            id="purchase_date"
-            name="purchase_date"
-            type="date"
-            value={formData.purchase_date}
-            onChange={handleInputChange}
-            required
-          />
-        </div>
-      </div>
-
-      <div>
-        <Label htmlFor="warehouse_id">Warehouse *</Label>
-        <Select value={formData.warehouse_id} onValueChange={(value) => setFormData(prev => ({ ...prev, warehouse_id: value }))}>
-          <SelectTrigger>
-            <SelectValue placeholder="Select warehouse" />
-          </SelectTrigger>
-          <SelectContent>
-            {(warehouses || []).filter(warehouse => warehouse && warehouse.id).map(warehouse => (
-              <SelectItem key={warehouse.id} value={warehouse.id.toString()}>
-                {warehouse.name_en || warehouse.name_ar || 'Unnamed Warehouse'}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <Label htmlFor="description_en">Description (English)</Label>
-          <Textarea
-            id="description_en"
-            name="description_en"
-            value={formData.description_en}
-            onChange={handleInputChange}
-            rows={3}
-          />
-        </div>
-        <div>
-          <Label htmlFor="description_ar">Description (Arabic)</Label>
-          <Textarea
-            id="description_ar"
-            name="description_ar"
-            value={formData.description_ar}
-            onChange={handleInputChange}
-            dir="rtl"
-            rows={3}
-          />
-        </div>
-      </div>
-
-      <div className="flex items-center space-x-2">
-        <input
-          type="checkbox"
-          id="is_active"
-          name="is_active"
-          checked={formData.is_active}
-          onChange={handleInputChange}
-          className="rounded"
-        />
-        <Label htmlFor="is_active">Active Asset</Label>
-      </div>
-
-      <div className="flex justify-end space-x-3">
-        <Button type="button" variant="outline" onClick={() => {
-          setShowAddModal(false);
-          setShowEditModal(false);
-          resetForm();
-        }}>
-          Cancel
-        </Button>
-        <Button type="submit" className="btn-primary">
-          {selectedAsset ? 'Update Asset' : 'Create Asset'}
-        </Button>
-      </div>
-    </form>
-  );
 
   if (loading) {
     return (
@@ -420,7 +292,150 @@ const AssetManagement = () => {
               <DialogHeader>
                 <DialogTitle>Add New Asset</DialogTitle>
               </DialogHeader>
-              <AssetForm />
+              <form onSubmit={handleSubmit} className="space-y-6">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="name_en">Name (English) *</Label>
+                    <Input
+                      id="name_en"
+                      name="name_en"
+                      value={formData.name_en}
+                      onChange={handleInputChange}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="name_ar">Name (Arabic) *</Label>
+                    <Input
+                      id="name_ar"
+                      name="name_ar"
+                      value={formData.name_ar}
+                      onChange={handleInputChange}
+                      dir="rtl"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="category">Category *</Label>
+                    <Input
+                      id="category"
+                      name="category"
+                      value={formData.category}
+                      onChange={handleInputChange}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="subcategory">Subcategory *</Label>
+                    <Input
+                      id="subcategory"
+                      name="subcategory"
+                      value={formData.subcategory}
+                      onChange={handleInputChange}
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="product_code">Product Code *</Label>
+                    <Input
+                      id="product_code"
+                      name="product_code"
+                      value={formData.product_code}
+                      onChange={handleInputChange}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="purchase_invoice">Purchase Invoice *</Label>
+                    <Input
+                      id="purchase_invoice"
+                      name="purchase_invoice"
+                      value={formData.purchase_invoice}
+                      onChange={handleInputChange}
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <Label htmlFor="value">Value</Label>
+                    <Input
+                      id="value"
+                      name="value"
+                      type="number"
+                      step="0.01"
+                      value={formData.value}
+                      onChange={handleInputChange}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="quantity">Quantity</Label>
+                    <Input
+                      id="quantity"
+                      name="quantity"
+                      type="number"
+                      value={formData.quantity}
+                      onChange={handleInputChange}
+                      min="1"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="purchase_date">Purchase Date *</Label>
+                    <Input
+                      id="purchase_date"
+                      name="purchase_date"
+                      type="date"
+                      value={formData.purchase_date}
+                      onChange={handleInputChange}
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <Label htmlFor="warehouse_id">Warehouse *</Label>
+                  <Select value={formData.warehouse_id.toString()} onValueChange={handleWarehouseChange}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select warehouse" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(warehouses || []).filter(warehouse => warehouse && warehouse.id).map(warehouse => (
+                        <SelectItem key={warehouse.id} value={warehouse.id.toString()}>
+                          {warehouse.name_en || warehouse.name_ar || 'Unnamed Warehouse'}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id="is_active"
+                    name="is_active"
+                    checked={formData.is_active}
+                    onChange={handleInputChange}
+                    className="rounded"
+                  />
+                  <Label htmlFor="is_active">Active Asset</Label>
+                </div>
+
+                <div className="flex justify-end space-x-3">
+                  <Button type="button" variant="outline" onClick={handleCancel}>
+                    Cancel
+                  </Button>
+                  <Button type="submit" className="btn-primary">
+                    {selectedAsset ? 'Update Asset' : 'Create Asset'}
+                  </Button>
+                </div>
+              </form>
             </DialogContent>
           </Dialog>
         </div>
@@ -490,7 +505,7 @@ const AssetManagement = () => {
                 </div>
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">Warehouse:</span>
-                  <span className="font-medium">{asset.warehouse?.name_en || 'N/A'}</span>
+                  <span className="font-medium">{getWarehouseName(asset.warehouse_id)}</span>
                 </div>
               </div>
 
@@ -558,7 +573,150 @@ const AssetManagement = () => {
           <DialogHeader>
             <DialogTitle>Edit Asset</DialogTitle>
           </DialogHeader>
-          <AssetForm />
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="edit_name_en">Name (English) *</Label>
+                <Input
+                  id="edit_name_en"
+                  name="name_en"
+                  value={formData.name_en}
+                  onChange={handleInputChange}
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit_name_ar">Name (Arabic) *</Label>
+                <Input
+                  id="edit_name_ar"
+                  name="name_ar"
+                  value={formData.name_ar}
+                  onChange={handleInputChange}
+                  dir="rtl"
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="edit_category">Category *</Label>
+                <Input
+                  id="edit_category"
+                  name="category"
+                  value={formData.category}
+                  onChange={handleInputChange}
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit_subcategory">Subcategory *</Label>
+                <Input
+                  id="edit_subcategory"
+                  name="subcategory"
+                  value={formData.subcategory}
+                  onChange={handleInputChange}
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="edit_product_code">Product Code *</Label>
+                <Input
+                  id="edit_product_code"
+                  name="product_code"
+                  value={formData.product_code}
+                  onChange={handleInputChange}
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit_purchase_invoice">Purchase Invoice *</Label>
+                <Input
+                  id="edit_purchase_invoice"
+                  name="purchase_invoice"
+                  value={formData.purchase_invoice}
+                  onChange={handleInputChange}
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <Label htmlFor="edit_value">Value</Label>
+                <Input
+                  id="edit_value"
+                  name="value"
+                  type="number"
+                  step="0.01"
+                  value={formData.value}
+                  onChange={handleInputChange}
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit_quantity">Quantity</Label>
+                <Input
+                  id="edit_quantity"
+                  name="quantity"
+                  type="number"
+                  value={formData.quantity}
+                  onChange={handleInputChange}
+                  min="1"
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit_purchase_date">Purchase Date *</Label>
+                <Input
+                  id="edit_purchase_date"
+                  name="purchase_date"
+                  type="date"
+                  value={formData.purchase_date}
+                  onChange={handleInputChange}
+                  required
+                />
+              </div>
+            </div>
+
+            <div>
+              <Label htmlFor="edit_warehouse_id">Warehouse *</Label>
+              <Select value={formData.warehouse_id.toString()} onValueChange={handleWarehouseChange}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select warehouse" />
+                </SelectTrigger>
+                <SelectContent>
+                  {(warehouses || []).filter(warehouse => warehouse && warehouse.id).map(warehouse => (
+                    <SelectItem key={warehouse.id} value={warehouse.id.toString()}>
+                      {warehouse.name_en || warehouse.name_ar || 'Unnamed Warehouse'}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                id="edit_is_active"
+                name="is_active"
+                checked={formData.is_active}
+                onChange={handleInputChange}
+                className="rounded"
+              />
+              <Label htmlFor="edit_is_active">Active Asset</Label>
+            </div>
+
+            <div className="flex justify-end space-x-3">
+              <Button type="button" variant="outline" onClick={handleCancel}>
+                Cancel
+              </Button>
+              <Button type="submit" className="btn-primary">
+                {selectedAsset ? 'Update Asset' : 'Create Asset'}
+              </Button>
+            </div>
+          </form>
         </DialogContent>
       </Dialog>
     </div>
