@@ -16,6 +16,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { ViewToggle } from '@/components/ui/view-toggle';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import apiClient from '../utils/api';
 
 const CategoryManagement = () => {
@@ -30,6 +32,7 @@ const CategoryManagement = () => {
     pages: 1,
     total: 0
   });
+  const [viewMode, setViewMode] = useState('grid');
 
   const [formData, setFormData] = useState({
     category: '',
@@ -149,6 +152,62 @@ const CategoryManagement = () => {
     setPagination(prev => ({ ...prev, page: newPage }));
   };
 
+  const CategoryListView = () => (
+    <Card className="glass-card">
+      <CardContent className="p-0">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>ID</TableHead>
+              <TableHead>Category</TableHead>
+              <TableHead>Subcategory</TableHead>
+              <TableHead>Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filteredCategories.map(category => (
+              <TableRow key={category.id}>
+                <TableCell>
+                  <span className="font-mono font-medium text-blue-600">#{category.id}</span>
+                </TableCell>
+                <TableCell>
+                  <div className="flex items-center space-x-3">
+                    <div className="p-2 bg-purple-500/10 rounded-lg">
+                      <Tag className="h-4 w-4 text-purple-500" />
+                    </div>
+                    <div className="font-semibold">{category.category}</div>
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <span className="text-muted-foreground">{category.subcategory}</span>
+                </TableCell>
+                <TableCell>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => openEditDialog(category)}
+                    >
+                      <Edit3 className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleDelete(category.id, `${category.category} - ${category.subcategory}`)}
+                      className="text-destructive hover:text-destructive"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
+  );
+
   return (
     <div className="container mx-auto p-6 space-y-6">
       {/* Header */}
@@ -166,7 +225,9 @@ const CategoryManagement = () => {
           )}
         </div>
         
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <div className="flex items-center space-x-3">
+          <ViewToggle view={viewMode} onViewChange={setViewMode} />
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
             <Button onClick={openAddDialog} className="bg-blue-600 hover:bg-blue-700">
               <Plus className="w-4 h-4 mr-2" />
@@ -224,6 +285,7 @@ const CategoryManagement = () => {
             </div>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       {/* Error Display */}
@@ -255,8 +317,10 @@ const CategoryManagement = () => {
       )}
 
       {/* Categories Grid */}
+      {/* Categories Display */}
       {!loading && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        viewMode === 'grid' ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredCategories.length === 0 ? (
             <div className="col-span-full text-center py-12">
               <FolderOpen className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
@@ -314,7 +378,10 @@ const CategoryManagement = () => {
               </Card>
             ))
           )}
-        </div>
+          </div>
+        ) : (
+          <CategoryListView />
+        )
       )}
 
       {/* Pagination */}

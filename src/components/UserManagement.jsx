@@ -22,6 +22,8 @@ import { Switch } from '@/components/ui/switch';
 import { Pagination, PaginationContent, PaginationEllipsis, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
 import { toast } from 'sonner';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { ViewToggle } from '@/components/ui/view-toggle';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import apiClient from '../utils/api';
 
 const UserManagement = () => {
@@ -38,6 +40,7 @@ const UserManagement = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [totalUsers, setTotalUsers] = useState(0);
   const [perPage, setPerPage] = useState(10);
+  const [viewMode, setViewMode] = useState('grid');
 
   const searchInputRef = useRef(null);
 
@@ -340,6 +343,103 @@ const UserManagement = () => {
     }
   };
 
+  const UserListView = () => (
+    <Card className="glass-card">
+      <CardContent className="p-0">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>User</TableHead>
+              <TableHead>Email</TableHead>
+              <TableHead>Role</TableHead>
+              <TableHead>Permissions</TableHead>
+              <TableHead>Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filteredUsers.map(user => (
+              <TableRow key={user.id}>
+                <TableCell>
+                  <div className="flex items-center space-x-3">
+                    <div className="p-2 bg-blue-500/10 rounded-lg">
+                      <User className="h-4 w-4 text-blue-500" />
+                    </div>
+                    <div>
+                      <div className="font-semibold">{user.full_name}</div>
+                      <div className="text-sm text-muted-foreground">ID: {user.id}</div>
+                    </div>
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div className="flex items-center space-x-1">
+                    <Mail className="h-3 w-3 text-muted-foreground" />
+                    <span className="text-sm">{user.email}</span>
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div className="flex items-center space-x-2">
+                    <Shield className="h-4 w-4 text-muted-foreground" />
+                    <span>{getRoleName(user.role)}</span>
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div className="flex gap-1 flex-wrap">
+                    {(user.can_read_branch || user.can_edit_branch || user.can_delete_branch) && (
+                      <Badge variant="outline" className="text-xs">
+                        Branch: {[
+                          user.can_read_branch && 'R',
+                          user.can_edit_branch && 'E', 
+                          user.can_delete_branch && 'D'
+                        ].filter(Boolean).join('/')}
+                      </Badge>
+                    )}
+                    {(user.can_read_warehouse || user.can_edit_warehouse || user.can_delete_warehouse) && (
+                      <Badge variant="outline" className="text-xs">
+                        Warehouse: {[
+                          user.can_read_warehouse && 'R',
+                          user.can_edit_warehouse && 'E', 
+                          user.can_delete_warehouse && 'D'
+                        ].filter(Boolean).join('/')}
+                      </Badge>
+                    )}
+                    {(user.can_read_asset || user.can_edit_asset || user.can_delete_asset) && (
+                      <Badge variant="outline" className="text-xs">
+                        Asset: {[
+                          user.can_read_asset && 'R',
+                          user.can_edit_asset && 'E', 
+                          user.can_delete_asset && 'D'
+                        ].filter(Boolean).join('/')}
+                      </Badge>
+                    )}
+                    {user.can_print_barcode && (
+                      <Badge variant="outline" className="text-xs">Barcode</Badge>
+                    )}
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div className="flex items-center space-x-2">
+                    <Button variant="ghost" size="sm" onClick={() => openEditDialog(user)}>
+                      <Edit3 className="h-4 w-4" />
+                    </Button>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="text-destructive hover:text-destructive"
+                      onClick={() => handleDelete(user.id)}
+                      disabled={loading}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
+  );
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-96">
@@ -358,10 +458,13 @@ const UserManagement = () => {
           <h1 className="text-3xl font-bold text-foreground">Users</h1>
           <p className="text-muted-foreground">Manage system users and permissions</p>
         </div>
-        <Button onClick={openAddDialog}>
-          <Plus className="h-4 w-4 mr-2" />
-          Add User
-        </Button>
+        <div className="flex items-center space-x-3">
+          <ViewToggle view={viewMode} onViewChange={setViewMode} />
+          <Button onClick={openAddDialog}>
+            <Plus className="h-4 w-4 mr-2" />
+            Add User
+          </Button>
+        </div>
       </div>
 
       {error && (
@@ -404,7 +507,9 @@ const UserManagement = () => {
         </Select>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {/* Users Display */}
+      {viewMode === 'grid' ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredUsers.map(user => (
           <Card key={user.id} className="hover:shadow-lg transition-shadow">
             <CardHeader className="pb-4">
@@ -483,7 +588,10 @@ const UserManagement = () => {
             </CardContent>
           </Card>
         ))}
-      </div>
+        </div>
+      ) : (
+        <UserListView />
+      )}
 
       {!loading && filteredUsers.length === 0 && (
         <div className="text-center py-12">
