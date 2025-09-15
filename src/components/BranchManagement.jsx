@@ -346,7 +346,7 @@ const BranchManagement = () => {
 
       {/* Add/Edit Branch Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="flex flex-col">
           <DialogHeader>
             <DialogTitle>
               {editingBranch ? 'Edit Branch' : 'Add New Branch'}

@@ -719,13 +719,13 @@ const UserManagement = () => {
 
       {/* Add/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="flex flex-col">
           <DialogHeader>
             <DialogTitle>
               {editingUser ? 'Edit User' : 'Add New User'}
             </DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
+          <div className="space-y-4 overflow-y-auto p-1">
             <div className="grid grid-cols-1 gap-4">
               <div>
                 <Label htmlFor="full_name">Full Name *</Label>

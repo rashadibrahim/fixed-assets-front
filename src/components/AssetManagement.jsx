@@ -521,11 +521,11 @@ const AssetManagement = () => {
                 Add Asset
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-2xl">
+            <DialogContent className="flex flex-col">
               <DialogHeader>
                 <DialogTitle>Add New Asset</DialogTitle>
               </DialogHeader>
-              <form onSubmit={handleSubmit} className="space-y-6">
+              <form onSubmit={handleSubmit} className="space-y-6 overflow-y-auto p-1">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="name_en">Name (English) *</Label>
@@ -814,166 +814,168 @@ const AssetManagement = () => {
 
       {/* Edit Modal */}
       <Dialog open={showEditModal} onOpenChange={setShowEditModal}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="flex flex-col">
           <DialogHeader>
             <DialogTitle>Edit Asset</DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="edit_name_en">Name (English) *</Label>
-                <Input
-                  id="edit_name_en"
-                  name="name_en"
-                  value={formData.name_en}
-                  onChange={handleInputChange}
-                  required
-                />
+          <div className="flex-1 overflow-y-auto p-1">
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="edit_name_en">Name (English) *</Label>
+                  <Input
+                    id="edit_name_en"
+                    name="name_en"
+                    value={formData.name_en}
+                    onChange={handleInputChange}
+                    required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="edit_name_ar">Name (Arabic) *</Label>
+                  <Input
+                    id="edit_name_ar"
+                    name="name_ar"
+                    value={formData.name_ar}
+                    onChange={handleInputChange}
+                    dir="rtl"
+                    required
+                  />
+                </div>
               </div>
-              <div>
-                <Label htmlFor="edit_name_ar">Name (Arabic) *</Label>
-                <Input
-                  id="edit_name_ar"
-                  name="name_ar"
-                  value={formData.name_ar}
-                  onChange={handleInputChange}
-                  dir="rtl"
-                  required
-                />
-              </div>
-            </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="edit_category">Category *</Label>
-                <Input
-                  id="edit_category"
-                  name="category"
-                  value={formData.category}
-                  onChange={handleInputChange}
-                  required
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="edit_category">Category *</Label>
+                  <Input
+                    id="edit_category"
+                    name="category"
+                    value={formData.category}
+                    onChange={handleInputChange}
+                    required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="edit_subcategory">Subcategory *</Label>
+                  <Input
+                    id="edit_subcategory"
+                    name="subcategory"
+                    value={formData.subcategory}
+                    onChange={handleInputChange}
+                    required
+                  />
+                </div>
               </div>
-              <div>
-                <Label htmlFor="edit_subcategory">Subcategory *</Label>
-                <Input
-                  id="edit_subcategory"
-                  name="subcategory"
-                  value={formData.subcategory}
-                  onChange={handleInputChange}
-                  required
-                />
-              </div>
-            </div>
 
-            <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="edit_product_code">Product Code *</Label>
+                  <Input
+                    id="edit_product_code"
+                    name="product_code"
+                    value={formData.product_code}
+                    onChange={handleInputChange}
+                    required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="edit_purchase_invoice">Purchase Invoice *</Label>
+                  <Input
+                    id="edit_purchase_invoice"
+                    name="purchase_invoice"
+                    value={formData.purchase_invoice}
+                    onChange={handleInputChange}
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <Label htmlFor="edit_value">Value</Label>
+                  <Input
+                    id="edit_value"
+                    name="value"
+                    type="number"
+                    step="0.01"
+                    value={formData.value}
+                    onChange={handleInputChange}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="edit_quantity">Quantity</Label>
+                  <Input
+                    id="edit_quantity"
+                    name="quantity"
+                    type="number"
+                    value={formData.quantity}
+                    onChange={handleInputChange}
+                    min="1"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="edit_purchase_date">Purchase Date *</Label>
+                  <Input
+                    id="edit_purchase_date"
+                    name="purchase_date"
+                    type="date"
+                    value={formData.purchase_date}
+                    onChange={handleInputChange}
+                    required
+                  />
+                </div>
+              </div>
+
               <div>
-                <Label htmlFor="edit_product_code">Product Code *</Label>
-                <Input
-                  id="edit_product_code"
-                  name="product_code"
-                  value={formData.product_code}
+                <Label htmlFor="edit_warehouse_id">Warehouse *</Label>
+                <Select value={formData.warehouse_id.toString()} onValueChange={handleWarehouseChange}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select warehouse" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(warehouses || []).filter(warehouse => warehouse && warehouse.id).map(warehouse => (
+                      <SelectItem key={warehouse.id} value={warehouse.id.toString()}>
+                        {warehouse.name_en || warehouse.name_ar || 'Unnamed Warehouse'}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="edit_is_active"
+                  name="is_active"
+                  checked={formData.is_active}
                   onChange={handleInputChange}
-                  required
+                  className="rounded"
+                />
+                <Label htmlFor="edit_is_active">Active Asset</Label>
+              </div>
+
+              <div className="flex justify-end space-x-3">
+                <Button type="button" variant="outline" onClick={handleCancel}>
+                  Cancel
+                </Button>
+                <Button type="submit" className="btn-primary">
+                  {selectedAsset ? 'Update Asset' : 'Create Asset'}
+                </Button>
+              </div>
+            </form>
+
+            {/* File Upload Section - only show when editing an existing asset */}
+            {selectedAsset && (
+              <div className="mt-6 pt-6 border-t border-border">
+                <FileUpload
+                  assetId={selectedAsset.id}
+                  files={assetFiles[selectedAsset.id] || selectedAsset.attached_files || []}
+                  onFileUploaded={(response) => handleFileUploaded(selectedAsset.id, response)}
+                  onFileDeleted={(fileId) => handleFileDeleted(selectedAsset.id, fileId)}
                 />
               </div>
-              <div>
-                <Label htmlFor="edit_purchase_invoice">Purchase Invoice *</Label>
-                <Input
-                  id="edit_purchase_invoice"
-                  name="purchase_invoice"
-                  value={formData.purchase_invoice}
-                  onChange={handleInputChange}
-                  required
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-3 gap-4">
-              <div>
-                <Label htmlFor="edit_value">Value</Label>
-                <Input
-                  id="edit_value"
-                  name="value"
-                  type="number"
-                  step="0.01"
-                  value={formData.value}
-                  onChange={handleInputChange}
-                />
-              </div>
-              <div>
-                <Label htmlFor="edit_quantity">Quantity</Label>
-                <Input
-                  id="edit_quantity"
-                  name="quantity"
-                  type="number"
-                  value={formData.quantity}
-                  onChange={handleInputChange}
-                  min="1"
-                />
-              </div>
-              <div>
-                <Label htmlFor="edit_purchase_date">Purchase Date *</Label>
-                <Input
-                  id="edit_purchase_date"
-                  name="purchase_date"
-                  type="date"
-                  value={formData.purchase_date}
-                  onChange={handleInputChange}
-                  required
-                />
-              </div>
-            </div>
-
-            <div>
-              <Label htmlFor="edit_warehouse_id">Warehouse *</Label>
-              <Select value={formData.warehouse_id.toString()} onValueChange={handleWarehouseChange}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select warehouse" />
-                </SelectTrigger>
-                <SelectContent>
-                  {(warehouses || []).filter(warehouse => warehouse && warehouse.id).map(warehouse => (
-                    <SelectItem key={warehouse.id} value={warehouse.id.toString()}>
-                      {warehouse.name_en || warehouse.name_ar || 'Unnamed Warehouse'}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="flex items-center space-x-2">
-              <input
-                type="checkbox"
-                id="edit_is_active"
-                name="is_active"
-                checked={formData.is_active}
-                onChange={handleInputChange}
-                className="rounded"
-              />
-              <Label htmlFor="edit_is_active">Active Asset</Label>
-            </div>
-
-            <div className="flex justify-end space-x-3">
-              <Button type="button" variant="outline" onClick={handleCancel}>
-                Cancel
-              </Button>
-              <Button type="submit" className="btn-primary">
-                {selectedAsset ? 'Update Asset' : 'Create Asset'}
-              </Button>
-            </div>
-          </form>
-
-          {/* File Upload Section - only show when editing an existing asset */}
-          {selectedAsset && (
-            <div className="mt-6 pt-6 border-t border-border">
-              <FileUpload
-                assetId={selectedAsset.id}
-                files={assetFiles[selectedAsset.id] || selectedAsset.attached_files || []}
-                onFileUploaded={(response) => handleFileUploaded(selectedAsset.id, response)}
-                onFileDeleted={(fileId) => handleFileDeleted(selectedAsset.id, fileId)}
-              />
-            </div>
-          )}
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </div>

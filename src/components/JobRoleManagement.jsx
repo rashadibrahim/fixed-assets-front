@@ -363,14 +363,14 @@ const JobRoleManagement = () => {
               Add New Role
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogContent className="flex flex-col">
             <DialogHeader>
               <DialogTitle>
                 {editingRole ? 'Edit Job Role' : 'Add New Job Role'}
               </DialogTitle>
             </DialogHeader>
             
-            <div className="space-y-6">
+            <div className="space-y-6 overflow-y-auto p-1">
               {/* Basic Information */}
               <div className="space-y-4">
                 <div>

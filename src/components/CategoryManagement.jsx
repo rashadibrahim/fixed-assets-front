@@ -234,7 +234,7 @@ const CategoryManagement = () => {
               Add New Category
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-md">
+          <DialogContent className="flex flex-col">
             <DialogHeader>
               <DialogTitle>
                 {editingCategory ? 'Edit Category' : 'Add New Category'}
