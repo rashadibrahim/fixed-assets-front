@@ -348,6 +348,36 @@ class ApiClient {
       method: 'DELETE',
     });
   }
+
+  // Categories API
+  async getCategories(params = {}) {
+    const queryString = new URLSearchParams(params).toString();
+    return this.request(`/categories/${queryString ? `?${queryString}` : ''}`);
+  }
+
+  async createCategory(categoryData) {
+    return this.request('/categories/', {
+      method: 'POST',
+      body: JSON.stringify(categoryData),
+    });
+  }
+
+  async updateCategory(categoryId, categoryData) {
+    return this.request(`/categories/${categoryId}`, {
+      method: 'PUT',
+      body: JSON.stringify(categoryData),
+    });
+  }
+
+  async deleteCategory(categoryId) {
+    return this.request(`/categories/${categoryId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async getCategory(categoryId) {
+    return this.request(`/categories/${categoryId}`);
+  }
 }
 
 const apiClient = new ApiClient();

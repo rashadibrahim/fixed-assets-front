@@ -22,7 +22,8 @@ import {
   DollarSign,
   TrendingUp,
   AlertCircle,
-  Shield
+  Shield,
+  FolderOpen
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -36,6 +37,7 @@ import WarehouseManagement from './WarehouseManagement';
 import BranchManagement from './BranchManagement';
 import UserManagement from './UserManagement';
 import JobRoleManagement from './JobRoleManagement';
+import CategoryManagement from './CategoryManagement';
 import ErrorBoundary from './ErrorBoundary';
 
 const Dashboard = () => {
@@ -161,6 +163,7 @@ const Dashboard = () => {
     { id: 'assets', label: 'Fixed Assets', icon: Package },
     { id: 'warehouses', label: 'Warehouses', icon: Warehouse },
     { id: 'branches', label: 'Branches', icon: Building2 },
+    { id: 'categories', label: 'Categories', icon: FolderOpen },
     { id: 'users', label: 'Users', icon: Users },
     { id: 'jobroles', label: 'Job Roles', icon: Shield },
     { id: 'settings', label: 'Settings', icon: Settings },
@@ -364,6 +367,8 @@ const Dashboard = () => {
         return <ErrorBoundary><WarehouseManagement /></ErrorBoundary>;
       case 'branches':
         return <ErrorBoundary><BranchManagement /></ErrorBoundary>;
+      case 'categories':
+        return <ErrorBoundary><CategoryManagement /></ErrorBoundary>;
       case 'users':
         return <ErrorBoundary><UserManagement /></ErrorBoundary>;
       case 'jobroles':
