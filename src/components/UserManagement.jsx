@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useCallback, useMemo } from 'react';
+﻿import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { 
   Users, 
   Plus, 
@@ -7,8 +7,6 @@ import {
   Mail,
   Shield,
   User,
-  UserCheck,
-  UserX,
   Search,
   Loader2,
   AlertCircle
@@ -28,6 +26,7 @@ import apiClient from '../utils/api';
 
 const UserManagement = () => {
   const [users, setUsers] = useState([]);
+  const [allUsers, setAllUsers] = useState([]); // Store all users for filtering
   const [jobRoles, setJobRoles] = useState([]);
   const [loading, setLoading] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -39,6 +38,8 @@ const UserManagement = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [totalUsers, setTotalUsers] = useState(0);
   const [perPage, setPerPage] = useState(10);
+
+  const searchInputRef = useRef(null);
 
   const [formData, setFormData] = useState({
     full_name: '',
@@ -55,26 +56,57 @@ const UserManagement = () => {
     can_edit_asset: false,
     can_delete_asset: false,
     can_print_barcode: false,
-    is_active: true
   });
 
   useEffect(() => {
     console.log('UserManagement component mounted');
-    loadData(1, ''); // Load first page with no search
+    loadData(); // Load all data once
   }, []);
 
-  // Debounced search effect
+  // Real-time filtering of users based on search term and role filter
+  const filteredUsers = useMemo(() => {
+    let filtered = allUsers;
+
+    // Filter by search term
+    if (searchTerm) {
+      const searchLower = searchTerm.toLowerCase();
+      filtered = filtered.filter(user => 
+        user.full_name?.toLowerCase().includes(searchLower) ||
+        user.email?.toLowerCase().includes(searchLower) ||
+        user.role?.toLowerCase().includes(searchLower)
+      );
+    }
+
+    // Filter by role
+    if (roleFilter && roleFilter !== 'all') {
+      filtered = filtered.filter(user => user.role === roleFilter);
+    }
+
+    return filtered;
+  }, [allUsers, searchTerm, roleFilter]);
+
+  // Reset to page 1 when search term or role filter changes
   useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      if (searchTerm !== '' || currentPage !== 1) {
-        loadData(1, searchTerm); // Reset to page 1 when searching
-      }
-    }, 500); // 500ms debounce
+    setCurrentPage(1);
+  }, [searchTerm, roleFilter]);
 
-    return () => clearTimeout(timeoutId);
-  }, [searchTerm]);
+  // Update displayed users and pagination when filtered results change
+  useEffect(() => {
+    const startIndex = (currentPage - 1) * perPage;
+    const endIndex = startIndex + perPage;
+    const paginatedUsers = filteredUsers.slice(startIndex, endIndex);
+    
+    setUsers(paginatedUsers);
+    setTotalUsers(filteredUsers.length);
+    setTotalPages(Math.ceil(filteredUsers.length / perPage));
+    
+    // Reset to page 1 if current page is beyond available pages
+    if (currentPage > Math.ceil(filteredUsers.length / perPage) && filteredUsers.length > 0) {
+      setCurrentPage(1);
+    }
+  }, [filteredUsers, currentPage, perPage]);
 
-  const loadData = async (page = currentPage, search = searchTerm) => {
+  const loadData = async () => {
     try {
       setLoading(true);
       setError(null);
@@ -82,21 +114,12 @@ const UserManagement = () => {
       
       // Initialize with empty arrays to prevent undefined errors
       setUsers([]);
+      setAllUsers([]);
       setJobRoles([]);
       
-      // Prepare API parameters
-      const params = {
-        page: page,
-        per_page: perPage
-      };
-      
-      // Add search parameter if provided
-      if (search && search.trim()) {
-        params.name = search.trim();
-      }
-      
+      // Load all users without pagination for real-time filtering
       const [usersResponse, rolesResponse] = await Promise.all([
-        apiClient.getUsers(params).catch(err => {
+        apiClient.getUsers({ per_page: 1000 }).catch(err => { // Load up to 1000 users
           console.warn('Failed to load users:', err);
           return { data: [], items: [], total: 0, pages: 1 };
         }),
@@ -110,15 +133,16 @@ const UserManagement = () => {
       const usersData = usersResponse?.items || usersResponse?.data || usersResponse || [];
       const rolesData = rolesResponse?.items || rolesResponse?.data || rolesResponse || [];
       
-      setUsers(Array.isArray(usersData) ? usersData : []);
+      const processedUsers = Array.isArray(usersData) ? usersData : [];
+      setAllUsers(processedUsers); // Store all users for filtering
       setJobRoles(Array.isArray(rolesData) ? rolesData : []);
       
-      // Handle pagination info
-      setTotalUsers(usersResponse?.total || usersData.length);
-      setTotalPages(usersResponse?.pages || Math.ceil((usersResponse?.total || usersData.length) / perPage));
-      setCurrentPage(page);
+      // Initialize pagination with all users
+      setTotalUsers(processedUsers.length);
+      setTotalPages(Math.ceil(processedUsers.length / perPage));
+      setCurrentPage(1);
       
-      console.log('Successfully loaded users:', usersData.length, 'roles:', rolesData.length);
+      console.log('Successfully loaded users:', processedUsers.length, 'roles:', rolesData.length);
     } catch (error) {
       console.error('Error loading users and roles:', error);
       
@@ -130,6 +154,7 @@ const UserManagement = () => {
       }
       
       setUsers([]);
+      setAllUsers([]);
       setJobRoles([]);
     } finally {
       setLoading(false);
@@ -153,7 +178,6 @@ const UserManagement = () => {
       can_edit_asset: false,
       can_delete_asset: false,
       can_print_barcode: false,
-      is_active: true
     });
     setDialogOpen(true);
   };
@@ -175,19 +199,9 @@ const UserManagement = () => {
       can_edit_asset: user.can_edit_asset ?? false,
       can_delete_asset: user.can_delete_asset ?? false,
       can_print_barcode: user.can_print_barcode ?? false,
-      is_active: user.is_active ?? true
     });
     setDialogOpen(true);
   };
-
-  // Filter users by role (client-side for role filter)
-  const filteredUsers = useMemo(() => {
-    return (users || []).filter(user => {
-      if (!user) return false;
-      const matchesRole = !roleFilter || roleFilter === 'all' || user.role === roleFilter;
-      return matchesRole;
-    });
-  }, [users, roleFilter]);
 
   const getRoleName = (roleName) => {
     if (!jobRoles || !Array.isArray(jobRoles)) return roleName || 'Unknown Role';
@@ -367,6 +381,7 @@ const UserManagement = () => {
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
             <Input
+              ref={searchInputRef}
               placeholder="Search users..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -429,18 +444,6 @@ const UserManagement = () => {
                 </div>
                 
                 <div className="flex gap-2 flex-wrap items-center">
-                  {user.is_active ? (
-                    <Badge variant="default" className="text-xs">
-                      <UserCheck className="h-3 w-3 mr-1" />
-                      Active
-                    </Badge>
-                  ) : (
-                    <Badge variant="secondary" className="text-xs">
-                      <UserX className="h-3 w-3 mr-1" />
-                      Inactive
-                    </Badge>
-                  )}
-                  
                   {/* Permission badges */}
                   {(user.can_read_branch || user.can_edit_branch || user.can_delete_branch) && (
                     <Badge variant="outline" className="text-xs">
@@ -509,7 +512,7 @@ const UserManagement = () => {
             <PaginationContent>
               <PaginationItem>
                 <PaginationPrevious 
-                  onClick={() => currentPage > 1 && loadData(currentPage - 1, searchTerm)}
+                  onClick={() => currentPage > 1 && setCurrentPage(currentPage - 1)}
                   className={currentPage <= 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
                 />
               </PaginationItem>
@@ -521,7 +524,7 @@ const UserManagement = () => {
                 return (
                   <PaginationItem key={pageNum}>
                     <PaginationLink
-                      onClick={() => loadData(pageNum, searchTerm)}
+                      onClick={() => setCurrentPage(pageNum)}
                       isActive={currentPage === pageNum}
                       className="cursor-pointer"
                     >
@@ -539,7 +542,7 @@ const UserManagement = () => {
               
               <PaginationItem>
                 <PaginationNext 
-                  onClick={() => currentPage < totalPages && loadData(currentPage + 1, searchTerm)}
+                  onClick={() => currentPage < totalPages && setCurrentPage(currentPage + 1)}
                   className={currentPage >= totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
                 />
               </PaginationItem>
@@ -724,16 +727,6 @@ const UserManagement = () => {
                     <Label htmlFor="can_print_barcode" className="text-sm">Print Barcodes</Label>
                   </div>
                 </div>
-              </div>
-
-              {/* User Status */}
-              <div className="flex items-center space-x-2 pt-4 border-t">
-                <Switch
-                  id="is_active"
-                  checked={formData.is_active}
-                  onCheckedChange={(checked) => setFormData(prev => ({ ...prev, is_active: checked }))}
-                />
-                <Label htmlFor="is_active">Active User</Label>
               </div>
             </div>
 
