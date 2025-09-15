@@ -288,23 +288,27 @@ const FileUpload = ({ assetId, files = [], onFileUploaded, onFileDeleted }) => {
                 <div className="flex items-center flex-1 min-w-0">
                   {getFileIcon(file.file_name)}
                   <div className="ml-2 min-w-0 flex-1">
-                    <div className="flex items-center space-x-2">
-                      <p className="text-sm font-medium truncate">
-                        {file.file_name || `File ${file.id}`}
-                      </p>
-                      {file.simulated && (
-                        <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded">
-                          Local
-                        </span>
+                    <div className="flex items-center space-x-4">
+                      <div className="flex items-center space-x-2 min-w-0 flex-shrink-0">
+                        <p className="text-sm font-medium">
+                          {file.file_name || `File ${file.id}`}
+                        </p>
+                        {file.simulated && (
+                          <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded">
+                            Local
+                          </span>
+                        )}
+                      </div>
+                      {file.comment && (
+                        <div className="flex-1">
+                          <p className="text-xs text-muted-foreground italic">
+                            • "{file.comment}"
+                          </p>
+                        </div>
                       )}
                     </div>
-                    {file.comment && (
-                      <p className="text-xs text-muted-foreground truncate">
-                        {file.comment}
-                      </p>
-                    )}
                     {file.file_size && (
-                      <p className="text-xs text-muted-foreground">
+                      <p className="text-xs text-muted-foreground mt-1">
                         {formatFileSize(file.file_size)}
                       </p>
                     )}
