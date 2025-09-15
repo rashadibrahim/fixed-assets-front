@@ -72,7 +72,35 @@ const JobRoleManagement = () => {
   }, []);
 
   const handleCheckboxChange = useCallback((permission) => {
-    setFormData(prev => ({ ...prev, [permission]: !prev[permission] }));
+    setFormData(prev => {
+      const newFormData = { ...prev };
+      
+      // If unchecking a read permission, also uncheck corresponding edit/delete
+      if (permission === 'can_read_branch' && prev[permission]) {
+        newFormData.can_edit_branch = false;
+        newFormData.can_delete_branch = false;
+      } else if (permission === 'can_read_warehouse' && prev[permission]) {
+        newFormData.can_edit_warehouse = false;
+        newFormData.can_delete_warehouse = false;
+      } else if (permission === 'can_read_asset' && prev[permission]) {
+        newFormData.can_edit_asset = false;
+        newFormData.can_delete_asset = false;
+      }
+      
+      // If enabling edit/delete, automatically enable read
+      if (permission === 'can_edit_branch' || permission === 'can_delete_branch') {
+        newFormData.can_read_branch = true;
+      } else if (permission === 'can_edit_warehouse' || permission === 'can_delete_warehouse') {
+        newFormData.can_read_warehouse = true;
+      } else if (permission === 'can_edit_asset' || permission === 'can_delete_asset') {
+        newFormData.can_read_asset = true;
+      }
+      
+      // Toggle the clicked permission
+      newFormData[permission] = !prev[permission];
+      
+      return newFormData;
+    });
   }, []);
 
   const openAddDialog = useCallback(() => {
@@ -111,6 +139,27 @@ const JobRoleManagement = () => {
     setDialogOpen(true);
   }, []);
 
+  const validatePermissions = () => {
+    const errors = [];
+    
+    // Check branch permissions
+    if ((formData.can_edit_branch || formData.can_delete_branch) && !formData.can_read_branch) {
+      errors.push('Read branch permission is required for edit/delete branch permissions');
+    }
+    
+    // Check warehouse permissions
+    if ((formData.can_edit_warehouse || formData.can_delete_warehouse) && !formData.can_read_warehouse) {
+      errors.push('Read warehouse permission is required for edit/delete warehouse permissions');
+    }
+    
+    // Check asset permissions
+    if ((formData.can_edit_asset || formData.can_delete_asset) && !formData.can_read_asset) {
+      errors.push('Read asset permission is required for edit/delete asset permissions');
+    }
+    
+    return errors;
+  };
+
   const handleSubmit = async () => {
     try {
       setLoading(true);
@@ -119,6 +168,13 @@ const JobRoleManagement = () => {
       // Validate required fields
       if (!formData.name.trim()) {
         toast.error('Please provide a job role name');
+        return;
+      }
+
+      // Validate permissions logic
+      const validationErrors = validatePermissions();
+      if (validationErrors.length > 0) {
+        toast.error(validationErrors[0]);
         return;
       }
 
@@ -189,31 +245,31 @@ const JobRoleManagement = () => {
     {
       title: "Branch Permissions",
       permissions: [
-        { key: 'can_read_branch', label: 'Read Branches' },
-        { key: 'can_edit_branch', label: 'Edit Branches' },
-        { key: 'can_delete_branch', label: 'Delete Branches' }
+        { key: 'can_read_branch', label: 'Read Branches', required: false },
+        { key: 'can_edit_branch', label: 'Edit Branches', required: 'can_read_branch' },
+        { key: 'can_delete_branch', label: 'Delete Branches', required: 'can_read_branch' }
       ]
     },
     {
       title: "Warehouse Permissions",
       permissions: [
-        { key: 'can_read_warehouse', label: 'Read Warehouses' },
-        { key: 'can_edit_warehouse', label: 'Edit Warehouses' },
-        { key: 'can_delete_warehouse', label: 'Delete Warehouses' }
+        { key: 'can_read_warehouse', label: 'Read Warehouses', required: false },
+        { key: 'can_edit_warehouse', label: 'Edit Warehouses', required: 'can_read_warehouse' },
+        { key: 'can_delete_warehouse', label: 'Delete Warehouses', required: 'can_read_warehouse' }
       ]
     },
     {
       title: "Asset Permissions",
       permissions: [
-        { key: 'can_read_asset', label: 'Read Assets' },
-        { key: 'can_edit_asset', label: 'Edit Assets' },
-        { key: 'can_delete_asset', label: 'Delete Assets' }
+        { key: 'can_read_asset', label: 'Read Assets', required: false },
+        { key: 'can_edit_asset', label: 'Edit Assets', required: 'can_read_asset' },
+        { key: 'can_delete_asset', label: 'Delete Assets', required: 'can_read_asset' }
       ]
     },
     {
       title: "Other Permissions",
       permissions: [
-        { key: 'can_print_barcode', label: 'Print Barcodes' }
+        { key: 'can_print_barcode', label: 'Print Barcodes', required: false }
       ]
     }
   ];
@@ -343,9 +399,18 @@ const JobRoleManagement = () => {
                             id={permission.key}
                             checked={formData[permission.key]}
                             onCheckedChange={() => handleCheckboxChange(permission.key)}
+                            disabled={permission.required && !formData[permission.required]}
                           />
-                          <Label htmlFor={permission.key} className="text-sm">
+                          <Label 
+                            htmlFor={permission.key} 
+                            className={`text-sm ${permission.required && !formData[permission.required] ? 'text-muted-foreground' : ''}`}
+                          >
                             {permission.label}
+                            {permission.required && (
+                              <span className="text-xs text-muted-foreground ml-1">
+                                (requires {permission.required.replace('can_', '').replace('_', ' ')})
+                              </span>
+                            )}
                           </Label>
                         </div>
                       ))}

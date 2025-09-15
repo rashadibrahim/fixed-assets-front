@@ -244,6 +244,57 @@ const UserManagement = () => {
     }
   };
 
+  const validatePermissions = () => {
+    const errors = [];
+    
+    // Check branch permissions
+    if ((formData.can_edit_branch || formData.can_delete_branch) && !formData.can_read_branch) {
+      errors.push('Read branch permission is required for edit/delete branch permissions');
+    }
+    
+    // Check warehouse permissions
+    if ((formData.can_edit_warehouse || formData.can_delete_warehouse) && !formData.can_read_warehouse) {
+      errors.push('Read warehouse permission is required for edit/delete warehouse permissions');
+    }
+    
+    // Check asset permissions
+    if ((formData.can_edit_asset || formData.can_delete_asset) && !formData.can_read_asset) {
+      errors.push('Read asset permission is required for edit/delete asset permissions');
+    }
+    
+    return errors;
+  };
+
+  const handlePermissionChange = (permission, checked) => {
+    setFormData(prev => {
+      const newFormData = { ...prev };
+      
+      // If unchecking a read permission, also uncheck corresponding edit/delete
+      if (permission === 'can_read_branch' && !checked) {
+        newFormData.can_edit_branch = false;
+        newFormData.can_delete_branch = false;
+      } else if (permission === 'can_read_warehouse' && !checked) {
+        newFormData.can_edit_warehouse = false;
+        newFormData.can_delete_warehouse = false;
+      } else if (permission === 'can_read_asset' && !checked) {
+        newFormData.can_edit_asset = false;
+        newFormData.can_delete_asset = false;
+      }
+      
+      // If enabling edit/delete, automatically enable read
+      if ((permission === 'can_edit_branch' || permission === 'can_delete_branch') && checked) {
+        newFormData.can_read_branch = true;
+      } else if ((permission === 'can_edit_warehouse' || permission === 'can_delete_warehouse') && checked) {
+        newFormData.can_read_warehouse = true;
+      } else if ((permission === 'can_edit_asset' || permission === 'can_delete_asset') && checked) {
+        newFormData.can_read_asset = true;
+      }
+      
+      newFormData[permission] = checked;
+      return newFormData;
+    });
+  };
+
   const handleSave = async () => {
     try {
       // Validate required fields
@@ -261,6 +312,13 @@ const UserManagement = () => {
       }
       if (!editingUser && !formData.password.trim()) {
         toast.error('Password is required for new users');
+        return;
+      }
+
+      // Validate permissions logic
+      const validationErrors = validatePermissions();
+      if (validationErrors.length > 0) {
+        toast.error(validationErrors[0]);
         return;
       }
 
@@ -744,7 +802,7 @@ const UserManagement = () => {
                     <Switch
                       id="can_read_branch"
                       checked={formData.can_read_branch}
-                      onCheckedChange={(checked) => setFormData(prev => ({ ...prev, can_read_branch: checked }))}
+                      onCheckedChange={(checked) => handlePermissionChange('can_read_branch', checked)}
                     />
                     <Label htmlFor="can_read_branch" className="text-sm">Read Branches</Label>
                   </div>
@@ -752,17 +810,23 @@ const UserManagement = () => {
                     <Switch
                       id="can_edit_branch"
                       checked={formData.can_edit_branch}
-                      onCheckedChange={(checked) => setFormData(prev => ({ ...prev, can_edit_branch: checked }))}
+                      onCheckedChange={(checked) => handlePermissionChange('can_edit_branch', checked)}
+                      disabled={!formData.can_read_branch}
                     />
-                    <Label htmlFor="can_edit_branch" className="text-sm">Edit Branches</Label>
+                    <Label htmlFor="can_edit_branch" className={`text-sm ${!formData.can_read_branch ? 'text-muted-foreground' : ''}`}>
+                      Edit Branches {!formData.can_read_branch && <span className="text-xs">(requires read)</span>}
+                    </Label>
                   </div>
                   <div className="flex items-center space-x-2">
                     <Switch
                       id="can_delete_branch"
                       checked={formData.can_delete_branch}
-                      onCheckedChange={(checked) => setFormData(prev => ({ ...prev, can_delete_branch: checked }))}
+                      onCheckedChange={(checked) => handlePermissionChange('can_delete_branch', checked)}
+                      disabled={!formData.can_read_branch}
                     />
-                    <Label htmlFor="can_delete_branch" className="text-sm">Delete Branches</Label>
+                    <Label htmlFor="can_delete_branch" className={`text-sm ${!formData.can_read_branch ? 'text-muted-foreground' : ''}`}>
+                      Delete Branches {!formData.can_read_branch && <span className="text-xs">(requires read)</span>}
+                    </Label>
                   </div>
                 </div>
               </div>
@@ -775,7 +839,7 @@ const UserManagement = () => {
                     <Switch
                       id="can_read_warehouse"
                       checked={formData.can_read_warehouse}
-                      onCheckedChange={(checked) => setFormData(prev => ({ ...prev, can_read_warehouse: checked }))}
+                      onCheckedChange={(checked) => handlePermissionChange('can_read_warehouse', checked)}
                     />
                     <Label htmlFor="can_read_warehouse" className="text-sm">Read Warehouses</Label>
                   </div>
@@ -783,17 +847,23 @@ const UserManagement = () => {
                     <Switch
                       id="can_edit_warehouse"
                       checked={formData.can_edit_warehouse}
-                      onCheckedChange={(checked) => setFormData(prev => ({ ...prev, can_edit_warehouse: checked }))}
+                      onCheckedChange={(checked) => handlePermissionChange('can_edit_warehouse', checked)}
+                      disabled={!formData.can_read_warehouse}
                     />
-                    <Label htmlFor="can_edit_warehouse" className="text-sm">Edit Warehouses</Label>
+                    <Label htmlFor="can_edit_warehouse" className={`text-sm ${!formData.can_read_warehouse ? 'text-muted-foreground' : ''}`}>
+                      Edit Warehouses {!formData.can_read_warehouse && <span className="text-xs">(requires read)</span>}
+                    </Label>
                   </div>
                   <div className="flex items-center space-x-2">
                     <Switch
                       id="can_delete_warehouse"
                       checked={formData.can_delete_warehouse}
-                      onCheckedChange={(checked) => setFormData(prev => ({ ...prev, can_delete_warehouse: checked }))}
+                      onCheckedChange={(checked) => handlePermissionChange('can_delete_warehouse', checked)}
+                      disabled={!formData.can_read_warehouse}
                     />
-                    <Label htmlFor="can_delete_warehouse" className="text-sm">Delete Warehouses</Label>
+                    <Label htmlFor="can_delete_warehouse" className={`text-sm ${!formData.can_read_warehouse ? 'text-muted-foreground' : ''}`}>
+                      Delete Warehouses {!formData.can_read_warehouse && <span className="text-xs">(requires read)</span>}
+                    </Label>
                   </div>
                 </div>
               </div>
@@ -806,7 +876,7 @@ const UserManagement = () => {
                     <Switch
                       id="can_read_asset"
                       checked={formData.can_read_asset}
-                      onCheckedChange={(checked) => setFormData(prev => ({ ...prev, can_read_asset: checked }))}
+                      onCheckedChange={(checked) => handlePermissionChange('can_read_asset', checked)}
                     />
                     <Label htmlFor="can_read_asset" className="text-sm">Read Assets</Label>
                   </div>
@@ -814,23 +884,29 @@ const UserManagement = () => {
                     <Switch
                       id="can_edit_asset"
                       checked={formData.can_edit_asset}
-                      onCheckedChange={(checked) => setFormData(prev => ({ ...prev, can_edit_asset: checked }))}
+                      onCheckedChange={(checked) => handlePermissionChange('can_edit_asset', checked)}
+                      disabled={!formData.can_read_asset}
                     />
-                    <Label htmlFor="can_edit_asset" className="text-sm">Edit Assets</Label>
+                    <Label htmlFor="can_edit_asset" className={`text-sm ${!formData.can_read_asset ? 'text-muted-foreground' : ''}`}>
+                      Edit Assets {!formData.can_read_asset && <span className="text-xs">(requires read)</span>}
+                    </Label>
                   </div>
                   <div className="flex items-center space-x-2">
                     <Switch
                       id="can_delete_asset"
                       checked={formData.can_delete_asset}
-                      onCheckedChange={(checked) => setFormData(prev => ({ ...prev, can_delete_asset: checked }))}
+                      onCheckedChange={(checked) => handlePermissionChange('can_delete_asset', checked)}
+                      disabled={!formData.can_read_asset}
                     />
-                    <Label htmlFor="can_delete_asset" className="text-sm">Delete Assets</Label>
+                    <Label htmlFor="can_delete_asset" className={`text-sm ${!formData.can_read_asset ? 'text-muted-foreground' : ''}`}>
+                      Delete Assets {!formData.can_read_asset && <span className="text-xs">(requires read)</span>}
+                    </Label>
                   </div>
                   <div className="flex items-center space-x-2">
                     <Switch
                       id="can_print_barcode"
                       checked={formData.can_print_barcode}
-                      onCheckedChange={(checked) => setFormData(prev => ({ ...prev, can_print_barcode: checked }))}
+                      onCheckedChange={(checked) => handlePermissionChange('can_print_barcode', checked)}
                     />
                     <Label htmlFor="can_print_barcode" className="text-sm">Print Barcodes</Label>
                   </div>
