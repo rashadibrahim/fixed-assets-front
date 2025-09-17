@@ -12,7 +12,8 @@ import {
   DollarSign,
   AlertCircle,
   Upload,
-  FileText
+  FileText,
+  QrCode
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -97,16 +98,10 @@ const AssetManagement = () => {
 
   const filteredAssets = assets.filter(asset => {
     const matchesSearch = asset.name_en.toLowerCase().includes(searchTerm.toLowerCase()) ||
-<<<<<<< HEAD
       asset.name_ar.includes(searchTerm) ||
-      asset.category.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesSearch;
-=======
-                         asset.name_ar.includes(searchTerm) ||
-                         getCategoryName(asset.category_id).toLowerCase().includes(searchTerm.toLowerCase());
+      getCategoryName(asset.category_id).toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategory = filterCategory === 'all' || asset.category_id?.toString() === filterCategory;
     return matchesSearch && matchesCategory;
->>>>>>> f215cb518f142ad9908c77c6167b5d4028b7be6c
   });
 
   const handleInputChange = useCallback((e) => {
@@ -157,19 +152,14 @@ const AssetManagement = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     try {
       // Debug: Log current form data
       console.log('Current form data:', formData);
 
       // Validate required fields according to API schema
       const requiredFields = [
-<<<<<<< HEAD
-        'name_en', 'name_ar', 'category', 'subcategory',
-        'product_code', 'purchase_invoice', 'purchase_date', 'warehouse_id'
-=======
         'name_en', 'name_ar', 'category_id'
->>>>>>> f215cb518f142ad9908c77c6167b5d4028b7be6c
       ];
 
       for (const field of requiredFields) {
@@ -201,11 +191,11 @@ const AssetManagement = () => {
       if (formData.quantity && parseInt(formData.quantity) > 0) {
         assetData.quantity = parseInt(formData.quantity);
       }
-      
+
       if (formData.product_code && formData.product_code.trim()) {
         assetData.product_code = formData.product_code.trim();
       }
-      
+
       if (formData.is_active !== undefined) {
         assetData.is_active = formData.is_active;
       }
@@ -234,6 +224,70 @@ const AssetManagement = () => {
     }
   };
 
+  // File management functions
+  const loadAssetFiles = async (assetId) => {
+    try {
+      console.log(`Loading files for asset ${assetId}...`);
+      const response = await apiClient.getAssetFiles(assetId);
+      const files = response.items || response.attached_files || response || [];
+
+      // Also load any locally stored files
+      const storedFiles = JSON.parse(localStorage.getItem(`asset_${assetId}_files`) || '[]');
+      const allFiles = [...files, ...storedFiles];
+
+      setAssetFiles(prev => ({
+        ...prev,
+        [assetId]: Array.isArray(allFiles) ? allFiles : []
+      }));
+      console.log(`Loaded ${allFiles.length} files for asset ${assetId} (${files.length} from server, ${storedFiles.length} local)`);
+    } catch (error) {
+      console.error('Error loading asset files:', error);
+
+      // Try to load from localStorage if backend fails
+      const storedFiles = JSON.parse(localStorage.getItem(`asset_${assetId}_files`) || '[]');
+      setAssetFiles(prev => ({
+        ...prev,
+        [assetId]: storedFiles
+      }));
+      console.log(`Loaded ${storedFiles.length} files from localStorage for asset ${assetId}`);
+    }
+  };
+
+  const handleFileUploaded = (assetId, response) => {
+    console.log('File uploaded successfully for asset:', assetId, response);
+
+    // Update local state immediately
+    setAssetFiles(prev => ({
+      ...prev,
+      [assetId]: [...(prev[assetId] || []), response]
+    }));
+
+    // Reload files to sync with any backend changes
+    loadAssetFiles(assetId);
+
+    // Show success message
+    if (response.simulated) {
+      toast.success('File uploaded and stored locally!');
+    } else {
+      toast.success('File attached to asset successfully!');
+    }
+  };
+
+  const handleFileDeleted = (assetId, fileId) => {
+    console.log('File deleted for asset:', assetId, 'file:', fileId);
+
+    // Remove file from local state immediately
+    setAssetFiles(prev => ({
+      ...prev,
+      [assetId]: (prev[assetId] || []).filter(file => file.id !== fileId)
+    }));
+
+    // Also remove from localStorage if it exists
+    const storedFiles = JSON.parse(localStorage.getItem(`asset_${assetId}_files`) || '[]');
+    const updatedFiles = storedFiles.filter(file => file.id !== fileId);
+    localStorage.setItem(`asset_${assetId}_files`, JSON.stringify(updatedFiles));
+  };
+
   const handleEdit = (asset) => {
     setSelectedAsset(asset);
     setFormData({
@@ -244,6 +298,10 @@ const AssetManagement = () => {
       product_code: asset.product_code || '',
       is_active: asset.is_active !== undefined ? asset.is_active : true
     });
+
+    // Load files for this asset
+    loadAssetFiles(asset.id);
+
     setShowEditModal(true);
   };
 
@@ -262,160 +320,144 @@ const AssetManagement = () => {
 
   const handleGenerateBarcode = async (asset) => {
     try {
-<<<<<<< HEAD
-      const response = await apiClient.getAssetBarcode(asset.id);
-      // Handle barcode response - could open a new window or download
-      const barcodeWindow = window.open('', '_blank');
-=======
-      // Ensure product_code is numeric only (6-11 digits)
       let numericCode = asset.product_code?.replace(/\D/g, '') || '';
-      
-      // If no numeric code or invalid length, generate one
+
       if (!numericCode || numericCode.length < 6 || numericCode.length > 11) {
-        // Generate a random 8-digit code as default
         numericCode = Math.floor(10000000 + Math.random() * 90000000).toString();
       }
-      
-      // Pad to ensure consistent length (8 digits for uniform appearance)
+
       const paddedCode = numericCode.padStart(8, '0');
-      
-      const response = await apiClient.getAssetBarcode(asset.id, { 
+
+      const response = await apiClient.getAssetBarcode(asset.id, {
         product_code: paddedCode,
         barcode_type: 'CODE128',
-        width: 300,
-        height: 100
+        width: 400, // Increased width
+        height: 150  // Increased height
       });
-      
-      // Create a new window to display the barcode
-      const barcodeWindow = window.open('', '_blank', 'width=600,height=500');
->>>>>>> f215cb518f142ad9908c77c6167b5d4028b7be6c
+
+      // Increased window size
+      const barcodeWindow = window.open('', '_blank', 'width=800,height=800');
       barcodeWindow.document.write(`
-        <html>
-<<<<<<< HEAD
-          <head><title>Barcode - ${asset.name_en}</title></head>
-          <body style="text-align: center; padding: 20px;">
-            <h3>${asset.name_en}</h3>
-            <p>Product Code: ${response.product_code}</p>
-            <img src="data:image/png;base64,${response.barcode_image}" alt="Barcode" />
-=======
-          <head>
-            <title>Barcode - ${asset.name_en || asset.name_ar}</title>
-            <style>
-              body {
-                font-family: 'Arial', sans-serif;
-                text-align: center;
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Barcode - ${asset.name_en || asset.name_ar}</title>
+          <style>
+            body {
+              font-family: 'Arial', sans-serif;
+              text-align: center;
+              padding: 40px;
+              margin: 0;
+              background: white;
+            }
+            .barcode-container {
+              max-width: 600px;
+              margin: 0 auto;
+              border: 2px solid #333;
+              padding: 50px;
+              border-radius: 12px;
+              background: white;
+            }
+            .asset-name {
+              margin-bottom: 30px;
+              font-size: 24px;
+              font-weight: bold;
+              color: #333;
+              text-transform: uppercase;
+              word-wrap: break-word;
+            }
+            .barcode-image {
+              margin: 30px 0;
+              background: white;
+              padding: 20px;
+              border: 1px solid #ddd;
+              display: flex;
+              justify-content: center;
+              align-items: center;
+            }
+            .barcode-image img {
+              width: 100%;
+              height: auto;
+              max-width: 400px;
+              max-height: 150px;
+            }
+            .barcode-number {
+              font-family: 'Courier New', monospace;
+              font-size: 20px;
+              font-weight: bold;
+              color: #000;
+              margin-top: 20px;
+              letter-spacing: 3px;
+            }
+            .buttons {
+              margin-top: 40px;
+            }
+            .btn {
+              background: #007bff;
+              color: white;
+              border: none;
+              padding: 15px 30px;
+              border-radius: 6px;
+              cursor: pointer;
+              margin: 0 10px;
+              font-size: 16px;
+              font-weight: bold;
+            }
+            .btn:hover {
+              background: #0056b3;
+            }
+            .btn-secondary {
+              background: #6c757d;
+            }
+            .btn-secondary:hover {
+              background: #545b62;
+            }
+            @media print {
+              .no-print { display: none; }
+              .barcode-container { 
+                border: none; 
+                max-width: none;
                 padding: 20px;
-                margin: 0;
-                background: white;
               }
-              .barcode-container {
-                max-width: 400px;
-                margin: 0 auto;
-                border: 2px solid #333;
-                padding: 30px;
-                border-radius: 8px;
-                background: white;
+              body { 
+                padding: 0; 
+                font-size: 14pt;
               }
               .asset-name {
-                margin-bottom: 20px;
-                font-size: 18px;
-                font-weight: bold;
-                color: #333;
-                text-transform: uppercase;
-                word-wrap: break-word;
-              }
-              .barcode-image {
-                margin: 20px 0;
-                background: white;
-                padding: 10px;
-                border: 1px solid #ddd;
-                display: flex;
-                justify-content: center;
-                align-items: center;
-              }
-              .barcode-image img {
-                width: 100%;
-                height: auto;
-                max-width: 300px;
-                max-height: 100px;
+                font-size: 18pt;
+                margin-bottom: 25px;
               }
               .barcode-number {
-                font-family: 'Courier New', monospace;
-                font-size: 16px;
-                font-weight: bold;
-                color: #000;
-                margin-top: 10px;
-                letter-spacing: 2px;
+                font-size: 16pt;
               }
-              .buttons {
-                margin-top: 30px;
-              }
-              .btn {
-                background: #007bff;
-                color: white;
+              .barcode-image {
                 border: none;
-                padding: 12px 24px;
-                border-radius: 4px;
-                cursor: pointer;
-                margin: 0 10px;
-                font-size: 14px;
-                font-weight: bold;
+                padding: 10px;
               }
-              .btn:hover {
-                background: #0056b3;
-              }
-              .btn-secondary {
-                background: #6c757d;
-              }
-              .btn-secondary:hover {
-                background: #545b62;
-              }
-              @media print {
-                .no-print { display: none; }
-                .barcode-container { 
-                  border: none; 
-                  max-width: none;
-                  padding: 10px;
-                }
-                body { 
-                  padding: 0; 
-                  font-size: 12pt;
-                }
-                .asset-name {
-                  font-size: 14pt;
-                  margin-bottom: 15px;
-                }
-                .barcode-number {
-                  font-size: 12pt;
-                }
-                .barcode-image {
-                  border: none;
-                  padding: 5px;
-                }
-              }
-            </style>
-          </head>
-          <body>
-            <div class="barcode-container">
-              <div class="asset-name">
-                ${asset.name_en || asset.name_ar || 'Unnamed Asset'}
-              </div>
-              <div class="barcode-image">
-                <img src="data:image/png;base64,${response.barcode_image}" alt="Barcode" />
-              </div>
-              <div class="barcode-number">
-                ${response.product_code || paddedCode}
-              </div>
-              <div class="buttons no-print">
-                <button class="btn" onclick="window.print()">Print Barcode</button>
-                <button class="btn btn-secondary" onclick="window.close()">Close</button>
-              </div>
+            }
+          </style>
+        </head>
+        <body>
+          <div class="barcode-container">
+            <div class="asset-name">
+              ${asset.name_en || asset.name_ar || 'Unnamed Asset'}
             </div>
->>>>>>> f215cb518f142ad9908c77c6167b5d4028b7be6c
-          </body>
-        </html>
-      `);
+            <div class="barcode-image">
+              <img src="data:image/png;base64,${response.barcode_image}" alt="Barcode" />
+            </div>
+            <div class="barcode-number">
+              ${response.product_code || paddedCode}
+            </div>
+            <div class="buttons no-print">
+              <button class="btn" onclick="window.print()">Print Barcode</button>
+              <button class="btn btn-secondary" onclick="window.close()">Close</button>
+            </div>
+          </div>
+        </body>
+      </html>
+    `);
       barcodeWindow.document.close();
+      toast.success('Barcode generated successfully');
     } catch (error) {
       console.error('Error generating barcode:', error);
       toast.error('Failed to generate barcode');
@@ -533,110 +575,110 @@ const AssetManagement = () => {
                 Add Asset
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col">
+            <DialogContent className="sm:max-w-[100%] h-[100vh] flex flex-col fixed top-0 right-0">
               <DialogHeader>
                 <DialogTitle>Add New Asset</DialogTitle>
               </DialogHeader>
-              <div className="flex-1 overflow-y-auto p-1">
+              <div className="flex-1 overflow-y-auto p-6">
                 <form onSubmit={handleSubmit} className="space-y-6">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="name_en">Name (English) *</Label>
-                    <Input
-                      id="name_en"
-                      name="name_en"
-                      value={formData.name_en}
-                      onChange={handleInputChange}
-                      required
-                    />
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="name_en">Name (English) *</Label>
+                      <Input
+                        id="name_en"
+                        name="name_en"
+                        value={formData.name_en}
+                        onChange={handleInputChange}
+                        required
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="name_ar">Name (Arabic) *</Label>
+                      <Input
+                        id="name_ar"
+                        name="name_ar"
+                        value={formData.name_ar}
+                        onChange={handleInputChange}
+                        dir="rtl"
+                        required
+                      />
+                    </div>
                   </div>
-                  <div>
-                    <Label htmlFor="name_ar">Name (Arabic) *</Label>
-                    <Input
-                      id="name_ar"
-                      name="name_ar"
-                      value={formData.name_ar}
-                      onChange={handleInputChange}
-                      dir="rtl"
-                      required
-                    />
-                  </div>
-                </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <Label htmlFor="category_id">Category *</Label>
-                    <Select 
-                      value={formData.category_id} 
-                      onValueChange={handleCategoryChange}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a category" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {categories.map(category => (
-                          <SelectItem key={category.id} value={category.id.toString()}>
-                            {category.category}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Need a new category? Go to Category Management to add one.
-                    </p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <Label htmlFor="category_id">Category *</Label>
+                      <Select
+                        value={formData.category_id}
+                        onValueChange={handleCategoryChange}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select a category" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {categories.map(category => (
+                            <SelectItem key={category.id} value={category.id.toString()}>
+                              {category.category}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Need a new category? Go to Category Management to add one.
+                      </p>
+                    </div>
+                    <div>
+                      <Label htmlFor="product_code">Product Code (6-11 digits)</Label>
+                      <Input
+                        id="product_code"
+                        name="product_code"
+                        value={formData.product_code}
+                        onChange={handleProductCodeChange}
+                        placeholder="Enter 6-11 digit code"
+                        maxLength="11"
+                        pattern="[0-9]{6,11}"
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Numbers only, 6-11 digits (will be auto-formatted for barcode)
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <Label htmlFor="product_code">Product Code (6-11 digits)</Label>
-                    <Input
-                      id="product_code"
-                      name="product_code"
-                      value={formData.product_code}
-                      onChange={handleProductCodeChange}
-                      placeholder="Enter 6-11 digit code"
-                      maxLength="11"
-                      pattern="[0-9]{6,11}"
-                    />
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Numbers only, 6-11 digits (will be auto-formatted for barcode)
-                    </p>
-                  </div>
-                </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="quantity">Quantity</Label>
-                    <Input
-                      id="quantity"
-                      name="quantity"
-                      type="number"
-                      value={formData.quantity}
-                      onChange={handleInputChange}
-                      min="1"
-                      placeholder="1"
-                    />
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="quantity">Quantity</Label>
+                      <Input
+                        id="quantity"
+                        name="quantity"
+                        type="number"
+                        value={formData.quantity}
+                        onChange={handleInputChange}
+                        min="1"
+                        placeholder="1"
+                      />
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        id="is_active"
+                        name="is_active"
+                        checked={formData.is_active}
+                        onChange={handleInputChange}
+                        className="rounded"
+                      />
+                      <Label htmlFor="is_active">Active Asset</Label>
+                    </div>
                   </div>
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      id="is_active"
-                      name="is_active"
-                      checked={formData.is_active}
-                      onChange={handleInputChange}
-                      className="rounded"
-                    />
-                    <Label htmlFor="is_active">Active Asset</Label>
-                  </div>
-                </div>
 
-                <div className="flex justify-end space-x-3">
-                  <Button type="button" variant="outline" onClick={handleCancel}>
-                    Cancel
-                  </Button>
-                  <Button type="submit" className="btn-primary">
-                    {selectedAsset ? 'Update Asset' : 'Create Asset'}
-                  </Button>
-                </div>
-              </form>
+                  <div className="flex justify-end space-x-3">
+                    <Button type="button" variant="outline" onClick={handleCancel}>
+                      Cancel
+                    </Button>
+                    <Button type="submit" className="btn-primary">
+                      {selectedAsset ? 'Update Asset' : 'Create Asset'}
+                    </Button>
+                  </div>
+                </form>
               </div>
             </DialogContent>
           </Dialog>
@@ -808,8 +850,8 @@ const AssetManagement = () => {
               <div className="grid grid-cols-1 gap-4">
                 <div>
                   <Label htmlFor="edit_category_id">Category *</Label>
-                  <Select 
-                    value={formData.category_id} 
+                  <Select
+                    value={formData.category_id}
                     onValueChange={handleCategoryChange}
                   >
                     <SelectTrigger>
@@ -873,22 +915,10 @@ const AssetManagement = () => {
                   Cancel
                 </Button>
                 <Button type="submit" className="btn-primary">
-                  {selectedAsset ? 'Update Asset' : 'Create Asset'}
+                  Update Asset
                 </Button>
               </div>
             </form>
-
-            {/* File Upload Section - only show when editing an existing asset */}
-            {selectedAsset && (
-              <div className="mt-6 pt-6 border-t border-border">
-                <FileUpload
-                  assetId={selectedAsset.id}
-                  files={assetFiles[selectedAsset.id] || selectedAsset.attached_files || []}
-                  onFileUploaded={(response) => handleFileUploaded(selectedAsset.id, response)}
-                  onFileDeleted={(fileId) => handleFileDeleted(selectedAsset.id, fileId)}
-                />
-              </div>
-            )}
           </div>
         </DialogContent>
       </Dialog>

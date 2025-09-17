@@ -37,7 +37,7 @@ class ApiClient {
         headers: config.headers,
         body: config.body
       });
-      
+
       const response = await fetch(url, config);
 
       if (!response.ok) {
@@ -118,7 +118,7 @@ class ApiClient {
 
   async getAssetBarcode(assetId, options = {}) {
     const params = new URLSearchParams();
-    
+
     // Add barcode customization parameters
     if (options.product_code) params.append('product_code', options.product_code);
     if (options.barcode_type) params.append('barcode_type', options.barcode_type);
@@ -126,10 +126,10 @@ class ApiClient {
     if (options.height) params.append('height', options.height);
     if (options.color) params.append('color', options.color);
     if (options.font_size) params.append('font_size', options.font_size);
-    
+
     const queryString = params.toString();
     const endpoint = `/assets/${assetId}/barcode${queryString ? `?${queryString}` : ''}`;
-    
+
     return this.request(endpoint);
   }
 
@@ -173,7 +173,7 @@ class ApiClient {
             simulated: true
           };
         }
-        
+
         let errorData = {};
         try {
           errorData = JSON.parse(responseText);
@@ -194,7 +194,7 @@ class ApiClient {
       return result;
     } catch (fetchError) {
       console.error('Upload failed:', fetchError);
-      
+
       // Fallback: simulate upload if backend is down
       if (fetchError.message.includes('fetch') || fetchError.message.includes('network')) {
         console.warn('Network error - simulating successful upload');
@@ -207,7 +207,7 @@ class ApiClient {
           simulated: true
         };
       }
-      
+
       throw fetchError;
     }
   }
@@ -220,7 +220,7 @@ class ApiClient {
         console.log(`Found ${asset.attached_files.length} files in asset details`);
         return { items: asset.attached_files, attached_files: asset.attached_files };
       }
-      
+
       // Try direct endpoint
       const queryString = new URLSearchParams(params).toString();
       const endpoint = `/assets/${assetId}/files${queryString ? `?${queryString}` : ''}`;
@@ -228,7 +228,7 @@ class ApiClient {
       return response;
     } catch (error) {
       console.warn('Could not load asset files from backend:', error.message);
-      
+
       // Return simulated files from localStorage if backend fails
       const storedFiles = localStorage.getItem(`asset_${assetId}_files`);
       if (storedFiles) {
@@ -240,7 +240,7 @@ class ApiClient {
           console.warn('Could not parse stored files');
         }
       }
-      
+
       return { items: [], attached_files: [] };
     }
   }
@@ -252,11 +252,11 @@ class ApiClient {
         ...(this.token && { Authorization: `Bearer ${this.token}` }),
       },
     });
-    
+
     if (!response.ok) {
       throw new Error(`Failed to download file: ${response.status}`);
     }
-    
+
     return response.blob();
   }
 
@@ -404,12 +404,12 @@ class ApiClient {
   async getAssetTransactions(assetId = null, params = {}) {
     // Return empty data instead of making request
     console.log('Asset transactions endpoint not ready - showing coming soon message');
-    return { 
-      items: [], 
-      page: 1, 
-      pages: 1, 
+    return {
+      items: [],
+      page: 1,
+      pages: 1,
       total: 0,
-      message: 'Coming soon' 
+      message: 'Coming soon'
     };
   }
 
