@@ -463,14 +463,14 @@ const WarehouseManagement = () => {
 
       {/* Add/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col">
           <DialogHeader>
             <DialogTitle>
               {editingWarehouse ? 'Edit Warehouse' : 'Add New Warehouse'}
             </DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+          <div className="flex-1 overflow-y-auto space-y-6 p-1">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <Label htmlFor="name_ar">Name (Arabic) *</Label>
                 <Input
@@ -517,7 +517,7 @@ const WarehouseManagement = () => {
               </Select>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <Label htmlFor="address_ar">Address (Arabic)</Label>
                 <Textarea
@@ -525,7 +525,7 @@ const WarehouseManagement = () => {
                   name="address_ar"
                   value={formData.address_ar}
                   onChange={handleInputChange}
-                  rows={3}
+                  rows={4}
                   dir="rtl"
                   placeholder="أدخل عنوان المستودع"
                 />
@@ -537,18 +537,18 @@ const WarehouseManagement = () => {
                   name="address_en"
                   value={formData.address_en}
                   onChange={handleInputChange}
-                  rows={3}
+                  rows={4}
                   placeholder="Enter warehouse address"
                 />
               </div>
             </div>
 
-            <div className="flex justify-end space-x-2">
-              <Button variant="outline" onClick={() => setDialogOpen(false)}>
+            <div className="flex justify-end space-x-3 pt-6 border-t">
+              <Button variant="outline" onClick={() => setDialogOpen(false)} disabled={loading}>
                 Cancel
               </Button>
-              <Button onClick={handleSave} disabled={loading}>
-                {loading ? 'Saving...' : editingWarehouse ? 'Update' : 'Create'}
+              <Button onClick={handleSave} disabled={loading} className="btn-primary">
+                {loading ? 'Saving...' : editingWarehouse ? 'Update Warehouse' : 'Create Warehouse'}
               </Button>
             </div>
           </div>
