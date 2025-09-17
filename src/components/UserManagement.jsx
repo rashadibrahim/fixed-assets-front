@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useCallback, useMemo } from 'react';
+﻿import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { 
   Users, 
   Plus, 
@@ -7,8 +7,6 @@ import {
   Mail,
   Shield,
   User,
-  UserCheck,
-  UserX,
   Search,
   Loader2,
   AlertCircle
@@ -24,10 +22,13 @@ import { Switch } from '@/components/ui/switch';
 import { Pagination, PaginationContent, PaginationEllipsis, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
 import { toast } from 'sonner';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { ViewToggle } from '@/components/ui/view-toggle';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import apiClient from '../utils/api';
 
 const UserManagement = () => {
   const [users, setUsers] = useState([]);
+  const [allUsers, setAllUsers] = useState([]); // Store all users for filtering
   const [jobRoles, setJobRoles] = useState([]);
   const [loading, setLoading] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -39,6 +40,9 @@ const UserManagement = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [totalUsers, setTotalUsers] = useState(0);
   const [perPage, setPerPage] = useState(10);
+  const [viewMode, setViewMode] = useState('grid');
+
+  const searchInputRef = useRef(null);
 
   const [formData, setFormData] = useState({
     full_name: '',
@@ -55,26 +59,57 @@ const UserManagement = () => {
     can_edit_asset: false,
     can_delete_asset: false,
     can_print_barcode: false,
-    is_active: true
   });
 
   useEffect(() => {
     console.log('UserManagement component mounted');
-    loadData(1, ''); // Load first page with no search
+    loadData(); // Load all data once
   }, []);
 
-  // Debounced search effect
+  // Real-time filtering of users based on search term and role filter
+  const filteredUsers = useMemo(() => {
+    let filtered = allUsers;
+
+    // Filter by search term
+    if (searchTerm) {
+      const searchLower = searchTerm.toLowerCase();
+      filtered = filtered.filter(user => 
+        user.full_name?.toLowerCase().includes(searchLower) ||
+        user.email?.toLowerCase().includes(searchLower) ||
+        user.role?.toLowerCase().includes(searchLower)
+      );
+    }
+
+    // Filter by role
+    if (roleFilter && roleFilter !== 'all') {
+      filtered = filtered.filter(user => user.role === roleFilter);
+    }
+
+    return filtered;
+  }, [allUsers, searchTerm, roleFilter]);
+
+  // Reset to page 1 when search term or role filter changes
   useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      if (searchTerm !== '' || currentPage !== 1) {
-        loadData(1, searchTerm); // Reset to page 1 when searching
-      }
-    }, 500); // 500ms debounce
+    setCurrentPage(1);
+  }, [searchTerm, roleFilter]);
 
-    return () => clearTimeout(timeoutId);
-  }, [searchTerm]);
+  // Update displayed users and pagination when filtered results change
+  useEffect(() => {
+    const startIndex = (currentPage - 1) * perPage;
+    const endIndex = startIndex + perPage;
+    const paginatedUsers = filteredUsers.slice(startIndex, endIndex);
+    
+    setUsers(paginatedUsers);
+    setTotalUsers(filteredUsers.length);
+    setTotalPages(Math.ceil(filteredUsers.length / perPage));
+    
+    // Reset to page 1 if current page is beyond available pages
+    if (currentPage > Math.ceil(filteredUsers.length / perPage) && filteredUsers.length > 0) {
+      setCurrentPage(1);
+    }
+  }, [filteredUsers, currentPage, perPage]);
 
-  const loadData = async (page = currentPage, search = searchTerm) => {
+  const loadData = async () => {
     try {
       setLoading(true);
       setError(null);
@@ -82,21 +117,12 @@ const UserManagement = () => {
       
       // Initialize with empty arrays to prevent undefined errors
       setUsers([]);
+      setAllUsers([]);
       setJobRoles([]);
       
-      // Prepare API parameters
-      const params = {
-        page: page,
-        per_page: perPage
-      };
-      
-      // Add search parameter if provided
-      if (search && search.trim()) {
-        params.name = search.trim();
-      }
-      
+      // Load all users without pagination for real-time filtering
       const [usersResponse, rolesResponse] = await Promise.all([
-        apiClient.getUsers(params).catch(err => {
+        apiClient.getUsers({ per_page: 1000 }).catch(err => { // Load up to 1000 users
           console.warn('Failed to load users:', err);
           return { data: [], items: [], total: 0, pages: 1 };
         }),
@@ -110,15 +136,16 @@ const UserManagement = () => {
       const usersData = usersResponse?.items || usersResponse?.data || usersResponse || [];
       const rolesData = rolesResponse?.items || rolesResponse?.data || rolesResponse || [];
       
-      setUsers(Array.isArray(usersData) ? usersData : []);
+      const processedUsers = Array.isArray(usersData) ? usersData : [];
+      setAllUsers(processedUsers); // Store all users for filtering
       setJobRoles(Array.isArray(rolesData) ? rolesData : []);
       
-      // Handle pagination info
-      setTotalUsers(usersResponse?.total || usersData.length);
-      setTotalPages(usersResponse?.pages || Math.ceil((usersResponse?.total || usersData.length) / perPage));
-      setCurrentPage(page);
+      // Initialize pagination with all users
+      setTotalUsers(processedUsers.length);
+      setTotalPages(Math.ceil(processedUsers.length / perPage));
+      setCurrentPage(1);
       
-      console.log('Successfully loaded users:', usersData.length, 'roles:', rolesData.length);
+      console.log('Successfully loaded users:', processedUsers.length, 'roles:', rolesData.length);
     } catch (error) {
       console.error('Error loading users and roles:', error);
       
@@ -130,6 +157,7 @@ const UserManagement = () => {
       }
       
       setUsers([]);
+      setAllUsers([]);
       setJobRoles([]);
     } finally {
       setLoading(false);
@@ -153,7 +181,6 @@ const UserManagement = () => {
       can_edit_asset: false,
       can_delete_asset: false,
       can_print_barcode: false,
-      is_active: true
     });
     setDialogOpen(true);
   };
@@ -175,19 +202,9 @@ const UserManagement = () => {
       can_edit_asset: user.can_edit_asset ?? false,
       can_delete_asset: user.can_delete_asset ?? false,
       can_print_barcode: user.can_print_barcode ?? false,
-      is_active: user.is_active ?? true
     });
     setDialogOpen(true);
   };
-
-  // Filter users by role (client-side for role filter)
-  const filteredUsers = useMemo(() => {
-    return (users || []).filter(user => {
-      if (!user) return false;
-      const matchesRole = !roleFilter || roleFilter === 'all' || user.role === roleFilter;
-      return matchesRole;
-    });
-  }, [users, roleFilter]);
 
   const getRoleName = (roleName) => {
     if (!jobRoles || !Array.isArray(jobRoles)) return roleName || 'Unknown Role';
@@ -227,6 +244,57 @@ const UserManagement = () => {
     }
   };
 
+  const validatePermissions = () => {
+    const errors = [];
+    
+    // Check branch permissions
+    if ((formData.can_edit_branch || formData.can_delete_branch) && !formData.can_read_branch) {
+      errors.push('Read branch permission is required for edit/delete branch permissions');
+    }
+    
+    // Check warehouse permissions
+    if ((formData.can_edit_warehouse || formData.can_delete_warehouse) && !formData.can_read_warehouse) {
+      errors.push('Read warehouse permission is required for edit/delete warehouse permissions');
+    }
+    
+    // Check asset permissions
+    if ((formData.can_edit_asset || formData.can_delete_asset) && !formData.can_read_asset) {
+      errors.push('Read asset permission is required for edit/delete asset permissions');
+    }
+    
+    return errors;
+  };
+
+  const handlePermissionChange = (permission, checked) => {
+    setFormData(prev => {
+      const newFormData = { ...prev };
+      
+      // If unchecking a read permission, also uncheck corresponding edit/delete
+      if (permission === 'can_read_branch' && !checked) {
+        newFormData.can_edit_branch = false;
+        newFormData.can_delete_branch = false;
+      } else if (permission === 'can_read_warehouse' && !checked) {
+        newFormData.can_edit_warehouse = false;
+        newFormData.can_delete_warehouse = false;
+      } else if (permission === 'can_read_asset' && !checked) {
+        newFormData.can_edit_asset = false;
+        newFormData.can_delete_asset = false;
+      }
+      
+      // If enabling edit/delete, automatically enable read
+      if ((permission === 'can_edit_branch' || permission === 'can_delete_branch') && checked) {
+        newFormData.can_read_branch = true;
+      } else if ((permission === 'can_edit_warehouse' || permission === 'can_delete_warehouse') && checked) {
+        newFormData.can_read_warehouse = true;
+      } else if ((permission === 'can_edit_asset' || permission === 'can_delete_asset') && checked) {
+        newFormData.can_read_asset = true;
+      }
+      
+      newFormData[permission] = checked;
+      return newFormData;
+    });
+  };
+
   const handleSave = async () => {
     try {
       // Validate required fields
@@ -244,6 +312,13 @@ const UserManagement = () => {
       }
       if (!editingUser && !formData.password.trim()) {
         toast.error('Password is required for new users');
+        return;
+      }
+
+      // Validate permissions logic
+      const validationErrors = validatePermissions();
+      if (validationErrors.length > 0) {
+        toast.error(validationErrors[0]);
         return;
       }
 
@@ -326,6 +401,103 @@ const UserManagement = () => {
     }
   };
 
+  const UserListView = () => (
+    <Card className="glass-card">
+      <CardContent className="p-0">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>User</TableHead>
+              <TableHead>Email</TableHead>
+              <TableHead>Role</TableHead>
+              <TableHead>Permissions</TableHead>
+              <TableHead>Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filteredUsers.map(user => (
+              <TableRow key={user.id}>
+                <TableCell>
+                  <div className="flex items-center space-x-3">
+                    <div className="p-2 bg-blue-500/10 rounded-lg">
+                      <User className="h-4 w-4 text-blue-500" />
+                    </div>
+                    <div>
+                      <div className="font-semibold">{user.full_name}</div>
+                      <div className="text-sm text-muted-foreground">ID: {user.id}</div>
+                    </div>
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div className="flex items-center space-x-1">
+                    <Mail className="h-3 w-3 text-muted-foreground" />
+                    <span className="text-sm">{user.email}</span>
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div className="flex items-center space-x-2">
+                    <Shield className="h-4 w-4 text-muted-foreground" />
+                    <span>{getRoleName(user.role)}</span>
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div className="flex gap-1 flex-wrap">
+                    {(user.can_read_branch || user.can_edit_branch || user.can_delete_branch) && (
+                      <Badge variant="outline" className="text-xs">
+                        Branch: {[
+                          user.can_read_branch && 'R',
+                          user.can_edit_branch && 'E', 
+                          user.can_delete_branch && 'D'
+                        ].filter(Boolean).join('/')}
+                      </Badge>
+                    )}
+                    {(user.can_read_warehouse || user.can_edit_warehouse || user.can_delete_warehouse) && (
+                      <Badge variant="outline" className="text-xs">
+                        Warehouse: {[
+                          user.can_read_warehouse && 'R',
+                          user.can_edit_warehouse && 'E', 
+                          user.can_delete_warehouse && 'D'
+                        ].filter(Boolean).join('/')}
+                      </Badge>
+                    )}
+                    {(user.can_read_asset || user.can_edit_asset || user.can_delete_asset) && (
+                      <Badge variant="outline" className="text-xs">
+                        Asset: {[
+                          user.can_read_asset && 'R',
+                          user.can_edit_asset && 'E', 
+                          user.can_delete_asset && 'D'
+                        ].filter(Boolean).join('/')}
+                      </Badge>
+                    )}
+                    {user.can_print_barcode && (
+                      <Badge variant="outline" className="text-xs">Barcode</Badge>
+                    )}
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div className="flex items-center space-x-2">
+                    <Button variant="ghost" size="sm" onClick={() => openEditDialog(user)}>
+                      <Edit3 className="h-4 w-4" />
+                    </Button>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="text-destructive hover:text-destructive"
+                      onClick={() => handleDelete(user.id)}
+                      disabled={loading}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
+  );
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-96">
@@ -344,10 +516,13 @@ const UserManagement = () => {
           <h1 className="text-3xl font-bold text-foreground">Users</h1>
           <p className="text-muted-foreground">Manage system users and permissions</p>
         </div>
-        <Button onClick={openAddDialog}>
-          <Plus className="h-4 w-4 mr-2" />
-          Add User
-        </Button>
+        <div className="flex items-center space-x-3">
+          <ViewToggle view={viewMode} onViewChange={setViewMode} />
+          <Button onClick={openAddDialog}>
+            <Plus className="h-4 w-4 mr-2" />
+            Add User
+          </Button>
+        </div>
       </div>
 
       {error && (
@@ -367,6 +542,7 @@ const UserManagement = () => {
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
             <Input
+              ref={searchInputRef}
               placeholder="Search users..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -389,7 +565,9 @@ const UserManagement = () => {
         </Select>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {/* Users Display */}
+      {viewMode === 'grid' ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredUsers.map(user => (
           <Card key={user.id} className="hover:shadow-lg transition-shadow">
             <CardHeader className="pb-4">
@@ -429,18 +607,6 @@ const UserManagement = () => {
                 </div>
                 
                 <div className="flex gap-2 flex-wrap items-center">
-                  {user.is_active ? (
-                    <Badge variant="default" className="text-xs">
-                      <UserCheck className="h-3 w-3 mr-1" />
-                      Active
-                    </Badge>
-                  ) : (
-                    <Badge variant="secondary" className="text-xs">
-                      <UserX className="h-3 w-3 mr-1" />
-                      Inactive
-                    </Badge>
-                  )}
-                  
                   {/* Permission badges */}
                   {(user.can_read_branch || user.can_edit_branch || user.can_delete_branch) && (
                     <Badge variant="outline" className="text-xs">
@@ -480,7 +646,10 @@ const UserManagement = () => {
             </CardContent>
           </Card>
         ))}
-      </div>
+        </div>
+      ) : (
+        <UserListView />
+      )}
 
       {!loading && filteredUsers.length === 0 && (
         <div className="text-center py-12">
@@ -509,7 +678,7 @@ const UserManagement = () => {
             <PaginationContent>
               <PaginationItem>
                 <PaginationPrevious 
-                  onClick={() => currentPage > 1 && loadData(currentPage - 1, searchTerm)}
+                  onClick={() => currentPage > 1 && setCurrentPage(currentPage - 1)}
                   className={currentPage <= 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
                 />
               </PaginationItem>
@@ -521,7 +690,7 @@ const UserManagement = () => {
                 return (
                   <PaginationItem key={pageNum}>
                     <PaginationLink
-                      onClick={() => loadData(pageNum, searchTerm)}
+                      onClick={() => setCurrentPage(pageNum)}
                       isActive={currentPage === pageNum}
                       className="cursor-pointer"
                     >
@@ -539,7 +708,7 @@ const UserManagement = () => {
               
               <PaginationItem>
                 <PaginationNext 
-                  onClick={() => currentPage < totalPages && loadData(currentPage + 1, searchTerm)}
+                  onClick={() => currentPage < totalPages && setCurrentPage(currentPage + 1)}
                   className={currentPage >= totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
                 />
               </PaginationItem>
@@ -550,13 +719,13 @@ const UserManagement = () => {
 
       {/* Add/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="flex flex-col">
           <DialogHeader>
             <DialogTitle>
               {editingUser ? 'Edit User' : 'Add New User'}
             </DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
+          <div className="space-y-4 overflow-y-auto p-1">
             <div className="grid grid-cols-1 gap-4">
               <div>
                 <Label htmlFor="full_name">Full Name *</Label>
@@ -633,7 +802,7 @@ const UserManagement = () => {
                     <Switch
                       id="can_read_branch"
                       checked={formData.can_read_branch}
-                      onCheckedChange={(checked) => setFormData(prev => ({ ...prev, can_read_branch: checked }))}
+                      onCheckedChange={(checked) => handlePermissionChange('can_read_branch', checked)}
                     />
                     <Label htmlFor="can_read_branch" className="text-sm">Read Branches</Label>
                   </div>
@@ -641,17 +810,23 @@ const UserManagement = () => {
                     <Switch
                       id="can_edit_branch"
                       checked={formData.can_edit_branch}
-                      onCheckedChange={(checked) => setFormData(prev => ({ ...prev, can_edit_branch: checked }))}
+                      onCheckedChange={(checked) => handlePermissionChange('can_edit_branch', checked)}
+                      disabled={!formData.can_read_branch}
                     />
-                    <Label htmlFor="can_edit_branch" className="text-sm">Edit Branches</Label>
+                    <Label htmlFor="can_edit_branch" className={`text-sm ${!formData.can_read_branch ? 'text-muted-foreground' : ''}`}>
+                      Edit Branches {!formData.can_read_branch && <span className="text-xs">(requires read)</span>}
+                    </Label>
                   </div>
                   <div className="flex items-center space-x-2">
                     <Switch
                       id="can_delete_branch"
                       checked={formData.can_delete_branch}
-                      onCheckedChange={(checked) => setFormData(prev => ({ ...prev, can_delete_branch: checked }))}
+                      onCheckedChange={(checked) => handlePermissionChange('can_delete_branch', checked)}
+                      disabled={!formData.can_read_branch}
                     />
-                    <Label htmlFor="can_delete_branch" className="text-sm">Delete Branches</Label>
+                    <Label htmlFor="can_delete_branch" className={`text-sm ${!formData.can_read_branch ? 'text-muted-foreground' : ''}`}>
+                      Delete Branches {!formData.can_read_branch && <span className="text-xs">(requires read)</span>}
+                    </Label>
                   </div>
                 </div>
               </div>
@@ -664,7 +839,7 @@ const UserManagement = () => {
                     <Switch
                       id="can_read_warehouse"
                       checked={formData.can_read_warehouse}
-                      onCheckedChange={(checked) => setFormData(prev => ({ ...prev, can_read_warehouse: checked }))}
+                      onCheckedChange={(checked) => handlePermissionChange('can_read_warehouse', checked)}
                     />
                     <Label htmlFor="can_read_warehouse" className="text-sm">Read Warehouses</Label>
                   </div>
@@ -672,17 +847,23 @@ const UserManagement = () => {
                     <Switch
                       id="can_edit_warehouse"
                       checked={formData.can_edit_warehouse}
-                      onCheckedChange={(checked) => setFormData(prev => ({ ...prev, can_edit_warehouse: checked }))}
+                      onCheckedChange={(checked) => handlePermissionChange('can_edit_warehouse', checked)}
+                      disabled={!formData.can_read_warehouse}
                     />
-                    <Label htmlFor="can_edit_warehouse" className="text-sm">Edit Warehouses</Label>
+                    <Label htmlFor="can_edit_warehouse" className={`text-sm ${!formData.can_read_warehouse ? 'text-muted-foreground' : ''}`}>
+                      Edit Warehouses {!formData.can_read_warehouse && <span className="text-xs">(requires read)</span>}
+                    </Label>
                   </div>
                   <div className="flex items-center space-x-2">
                     <Switch
                       id="can_delete_warehouse"
                       checked={formData.can_delete_warehouse}
-                      onCheckedChange={(checked) => setFormData(prev => ({ ...prev, can_delete_warehouse: checked }))}
+                      onCheckedChange={(checked) => handlePermissionChange('can_delete_warehouse', checked)}
+                      disabled={!formData.can_read_warehouse}
                     />
-                    <Label htmlFor="can_delete_warehouse" className="text-sm">Delete Warehouses</Label>
+                    <Label htmlFor="can_delete_warehouse" className={`text-sm ${!formData.can_read_warehouse ? 'text-muted-foreground' : ''}`}>
+                      Delete Warehouses {!formData.can_read_warehouse && <span className="text-xs">(requires read)</span>}
+                    </Label>
                   </div>
                 </div>
               </div>
@@ -695,7 +876,7 @@ const UserManagement = () => {
                     <Switch
                       id="can_read_asset"
                       checked={formData.can_read_asset}
-                      onCheckedChange={(checked) => setFormData(prev => ({ ...prev, can_read_asset: checked }))}
+                      onCheckedChange={(checked) => handlePermissionChange('can_read_asset', checked)}
                     />
                     <Label htmlFor="can_read_asset" className="text-sm">Read Assets</Label>
                   </div>
@@ -703,37 +884,33 @@ const UserManagement = () => {
                     <Switch
                       id="can_edit_asset"
                       checked={formData.can_edit_asset}
-                      onCheckedChange={(checked) => setFormData(prev => ({ ...prev, can_edit_asset: checked }))}
+                      onCheckedChange={(checked) => handlePermissionChange('can_edit_asset', checked)}
+                      disabled={!formData.can_read_asset}
                     />
-                    <Label htmlFor="can_edit_asset" className="text-sm">Edit Assets</Label>
+                    <Label htmlFor="can_edit_asset" className={`text-sm ${!formData.can_read_asset ? 'text-muted-foreground' : ''}`}>
+                      Edit Assets {!formData.can_read_asset && <span className="text-xs">(requires read)</span>}
+                    </Label>
                   </div>
                   <div className="flex items-center space-x-2">
                     <Switch
                       id="can_delete_asset"
                       checked={formData.can_delete_asset}
-                      onCheckedChange={(checked) => setFormData(prev => ({ ...prev, can_delete_asset: checked }))}
+                      onCheckedChange={(checked) => handlePermissionChange('can_delete_asset', checked)}
+                      disabled={!formData.can_read_asset}
                     />
-                    <Label htmlFor="can_delete_asset" className="text-sm">Delete Assets</Label>
+                    <Label htmlFor="can_delete_asset" className={`text-sm ${!formData.can_read_asset ? 'text-muted-foreground' : ''}`}>
+                      Delete Assets {!formData.can_read_asset && <span className="text-xs">(requires read)</span>}
+                    </Label>
                   </div>
                   <div className="flex items-center space-x-2">
                     <Switch
                       id="can_print_barcode"
                       checked={formData.can_print_barcode}
-                      onCheckedChange={(checked) => setFormData(prev => ({ ...prev, can_print_barcode: checked }))}
+                      onCheckedChange={(checked) => handlePermissionChange('can_print_barcode', checked)}
                     />
                     <Label htmlFor="can_print_barcode" className="text-sm">Print Barcodes</Label>
                   </div>
                 </div>
-              </div>
-
-              {/* User Status */}
-              <div className="flex items-center space-x-2 pt-4 border-t">
-                <Switch
-                  id="is_active"
-                  checked={formData.is_active}
-                  onCheckedChange={(checked) => setFormData(prev => ({ ...prev, is_active: checked }))}
-                />
-                <Label htmlFor="is_active">Active User</Label>
               </div>
             </div>
 

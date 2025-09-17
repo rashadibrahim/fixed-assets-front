@@ -24,6 +24,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import apiClient from '../utils/api';
+import FileUpload from './FileUpload';
+import { ViewToggle } from '@/components/ui/view-toggle';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 const AssetManagement = () => {
   const [assets, setAssets] = useState([]);
@@ -35,6 +38,8 @@ const AssetManagement = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedAsset, setSelectedAsset] = useState(null);
   const [pagination, setPagination] = useState({ page: 1, pages: 1, total: 0 });
+  const [assetFiles, setAssetFiles] = useState({});
+  const [viewMode, setViewMode] = useState('grid');
 
   // Form state matching API structure
   const [formData, setFormData] = useState({
@@ -241,6 +246,81 @@ const AssetManagement = () => {
     }
   };
 
+  const AssetListView = () => (
+    <Card className="glass-card">
+      <CardContent className="p-0">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Asset</TableHead>
+              <TableHead>Category</TableHead>
+              <TableHead>Product Code</TableHead>
+              <TableHead>Value</TableHead>
+              <TableHead>Warehouse</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filteredAssets.map(asset => (
+              <TableRow key={asset.id}>
+                <TableCell>
+                  <div className="flex items-center space-x-3">
+                    <div className="p-2 bg-primary/10 rounded-lg">
+                      <Package className="h-4 w-4 text-primary" />
+                    </div>
+                    <div>
+                      <div className="font-semibold">{asset.name_en}</div>
+                      <div className="text-sm text-muted-foreground">{asset.name_ar}</div>
+                    </div>
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div>
+                    <div className="font-medium">{asset.category}</div>
+                    <div className="text-sm text-muted-foreground">{asset.subcategory}</div>
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <span className="font-mono text-sm">{asset.product_code}</span>
+                </TableCell>
+                <TableCell>
+                  <span className="font-semibold text-green-600">${asset.value?.toLocaleString() || '0'}</span>
+                </TableCell>
+                <TableCell>
+                  {getWarehouseName(asset.warehouse_id)}
+                </TableCell>
+                <TableCell>
+                  <Badge variant={asset.is_active ? 'default' : 'secondary'}>
+                    {asset.is_active ? 'Active' : 'Inactive'}
+                  </Badge>
+                </TableCell>
+                <TableCell>
+                  <div className="flex items-center space-x-1">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleGenerateBarcode(asset)}
+                      title="Generate Barcode"
+                    >
+                      <QrCode className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => handleEdit(asset)}>
+                      <Edit3 className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => handleDelete(asset)}>
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
+  );
+
   const resetForm = () => {
     setFormData({
       name_en: '',
@@ -277,6 +357,7 @@ const AssetManagement = () => {
           <p className="text-muted-foreground">Manage your organization's fixed assets</p>
         </div>
         <div className="flex items-center space-x-3">
+          <ViewToggle view={viewMode} onViewChange={setViewMode} />
           <Button variant="outline" size="sm">
             <Download className="h-4 w-4 mr-2" />
             Export
@@ -288,11 +369,11 @@ const AssetManagement = () => {
                 Add Asset
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-2xl">
+            <DialogContent className="flex flex-col">
               <DialogHeader>
                 <DialogTitle>Add New Asset</DialogTitle>
               </DialogHeader>
-              <form onSubmit={handleSubmit} className="space-y-6">
+              <form onSubmit={handleSubmit} className="space-y-6 overflow-y-auto p-1">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="name_en">Name (English) *</Label>
@@ -470,63 +551,75 @@ const AssetManagement = () => {
         </CardContent>
       </Card>
 
-      {/* Assets Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredAssets.map(asset => (
-          <Card key={asset.id} className="glass-card hover:shadow-primary transition-smooth">
-            <CardHeader className="pb-4">
-              <div className="flex items-start justify-between">
-                <div className="p-2 bg-primary/10 rounded-lg">
-                  <Package className="h-6 w-6 text-primary" />
+      {/* Assets Display */}
+      {viewMode === 'grid' ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredAssets.map(asset => (
+            <Card key={asset.id} className="glass-card hover:shadow-primary transition-smooth">
+              <CardHeader className="pb-4">
+                <div className="flex items-start justify-between">
+                  <div className="p-2 bg-primary/10 rounded-lg">
+                    <Package className="h-6 w-6 text-primary" />
+                  </div>
+                  <Badge className={asset.is_active ? 'status-active' : 'status-inactive'}>
+                    {asset.is_active ? 'Active' : 'Inactive'}
+                  </Badge>
                 </div>
-                <Badge className={asset.is_active ? 'status-active' : 'status-inactive'}>
-                  {asset.is_active ? 'Active' : 'Inactive'}
-                </Badge>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <h3 className="font-semibold text-foreground text-lg">{asset.name_en}</h3>
-                <p className="text-sm text-muted-foreground">{asset.name_ar}</p>
-              </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <h3 className="font-semibold text-foreground text-lg">{asset.name_en}</h3>
+                  <p className="text-sm text-muted-foreground">{asset.name_ar}</p>
+                </div>
 
-              <div className="space-y-2">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Category:</span>
-                  <span className="font-medium">{asset.category}</span>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Category:</span>
+                    <span className="font-medium">{asset.category}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Value:</span>
+                    <span className="font-medium text-success">${parseFloat(asset.value).toLocaleString()}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Quantity:</span>
+                    <span className="font-medium">{asset.quantity}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Warehouse:</span>
+                    <span className="font-medium">{getWarehouseName(asset.warehouse_id)}</span>
+                  </div>
                 </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Value:</span>
-                  <span className="font-medium text-success">${parseFloat(asset.value).toLocaleString()}</span>
-                </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Quantity:</span>
-                  <span className="font-medium">{asset.quantity}</span>
-                </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Warehouse:</span>
-                  <span className="font-medium">{getWarehouseName(asset.warehouse_id)}</span>
-                </div>
-              </div>
 
-              <div className="flex items-center justify-between pt-4 border-t border-border">
-                <div className="flex items-center text-xs text-muted-foreground">
-                  <Calendar className="h-3 w-3 mr-1" />
-                  {new Date(asset.purchase_date).toLocaleDateString()}
+                <div className="flex items-center justify-between pt-4 border-t border-border">
+                  <div className="flex items-center text-xs text-muted-foreground">
+                    <Calendar className="h-3 w-3 mr-1" />
+                    {new Date(asset.purchase_date).toLocaleDateString()}
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleGenerateBarcode(asset)}
+                      title="Generate Barcode"
+                    >
+                      <QrCode className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => handleEdit(asset)}>
+                      <Edit3 className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => handleDelete(asset)}>
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  </div>
                 </div>
-                <div className="flex items-center space-x-2">
-                  <Button variant="ghost" size="sm" onClick={() => handleEdit(asset)}>
-                    <Edit3 className="h-4 w-4" />
-                  </Button>
-                  <Button variant="ghost" size="sm" onClick={() => handleDelete(asset)}>
-                    <Trash2 className="h-4 w-4 text-destructive" />
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      ) : (
+        <AssetListView />
+      )}
 
       {/* Pagination */}
       {pagination.pages > 1 && (
@@ -569,154 +662,168 @@ const AssetManagement = () => {
 
       {/* Edit Modal */}
       <Dialog open={showEditModal} onOpenChange={setShowEditModal}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="flex flex-col">
           <DialogHeader>
             <DialogTitle>Edit Asset</DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="edit_name_en">Name (English) *</Label>
-                <Input
-                  id="edit_name_en"
-                  name="name_en"
-                  value={formData.name_en}
-                  onChange={handleInputChange}
-                  required
-                />
+          <div className="flex-1 overflow-y-auto p-1">
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="edit_name_en">Name (English) *</Label>
+                  <Input
+                    id="edit_name_en"
+                    name="name_en"
+                    value={formData.name_en}
+                    onChange={handleInputChange}
+                    required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="edit_name_ar">Name (Arabic) *</Label>
+                  <Input
+                    id="edit_name_ar"
+                    name="name_ar"
+                    value={formData.name_ar}
+                    onChange={handleInputChange}
+                    dir="rtl"
+                    required
+                  />
+                </div>
               </div>
-              <div>
-                <Label htmlFor="edit_name_ar">Name (Arabic) *</Label>
-                <Input
-                  id="edit_name_ar"
-                  name="name_ar"
-                  value={formData.name_ar}
-                  onChange={handleInputChange}
-                  dir="rtl"
-                  required
-                />
-              </div>
-            </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="edit_category">Category *</Label>
-                <Input
-                  id="edit_category"
-                  name="category"
-                  value={formData.category}
-                  onChange={handleInputChange}
-                  required
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="edit_category">Category *</Label>
+                  <Input
+                    id="edit_category"
+                    name="category"
+                    value={formData.category}
+                    onChange={handleInputChange}
+                    required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="edit_subcategory">Subcategory *</Label>
+                  <Input
+                    id="edit_subcategory"
+                    name="subcategory"
+                    value={formData.subcategory}
+                    onChange={handleInputChange}
+                    required
+                  />
+                </div>
               </div>
-              <div>
-                <Label htmlFor="edit_subcategory">Subcategory *</Label>
-                <Input
-                  id="edit_subcategory"
-                  name="subcategory"
-                  value={formData.subcategory}
-                  onChange={handleInputChange}
-                  required
-                />
-              </div>
-            </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="edit_product_code">Product Code *</Label>
-                <Input
-                  id="edit_product_code"
-                  name="product_code"
-                  value={formData.product_code}
-                  onChange={handleInputChange}
-                  required
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="edit_product_code">Product Code *</Label>
+                  <Input
+                    id="edit_product_code"
+                    name="product_code"
+                    value={formData.product_code}
+                    onChange={handleInputChange}
+                    required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="edit_purchase_invoice">Purchase Invoice *</Label>
+                  <Input
+                    id="edit_purchase_invoice"
+                    name="purchase_invoice"
+                    value={formData.purchase_invoice}
+                    onChange={handleInputChange}
+                    required
+                  />
+                </div>
               </div>
-              <div>
-                <Label htmlFor="edit_purchase_invoice">Purchase Invoice *</Label>
-                <Input
-                  id="edit_purchase_invoice"
-                  name="purchase_invoice"
-                  value={formData.purchase_invoice}
-                  onChange={handleInputChange}
-                  required
-                />
-              </div>
-            </div>
 
-            <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <Label htmlFor="edit_value">Value</Label>
+                  <Input
+                    id="edit_value"
+                    name="value"
+                    type="number"
+                    step="0.01"
+                    value={formData.value}
+                    onChange={handleInputChange}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="edit_quantity">Quantity</Label>
+                  <Input
+                    id="edit_quantity"
+                    name="quantity"
+                    type="number"
+                    value={formData.quantity}
+                    onChange={handleInputChange}
+                    min="1"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="edit_purchase_date">Purchase Date *</Label>
+                  <Input
+                    id="edit_purchase_date"
+                    name="purchase_date"
+                    type="date"
+                    value={formData.purchase_date}
+                    onChange={handleInputChange}
+                    required
+                  />
+                </div>
+              </div>
+
               <div>
-                <Label htmlFor="edit_value">Value</Label>
-                <Input
-                  id="edit_value"
-                  name="value"
-                  type="number"
-                  step="0.01"
-                  value={formData.value}
+                <Label htmlFor="edit_warehouse_id">Warehouse *</Label>
+                <Select value={formData.warehouse_id.toString()} onValueChange={handleWarehouseChange}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select warehouse" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(warehouses || []).filter(warehouse => warehouse && warehouse.id).map(warehouse => (
+                      <SelectItem key={warehouse.id} value={warehouse.id.toString()}>
+                        {warehouse.name_en || warehouse.name_ar || 'Unnamed Warehouse'}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="edit_is_active"
+                  name="is_active"
+                  checked={formData.is_active}
                   onChange={handleInputChange}
+                  className="rounded"
+                />
+                <Label htmlFor="edit_is_active">Active Asset</Label>
+              </div>
+
+              <div className="flex justify-end space-x-3">
+                <Button type="button" variant="outline" onClick={handleCancel}>
+                  Cancel
+                </Button>
+                <Button type="submit" className="btn-primary">
+                  {selectedAsset ? 'Update Asset' : 'Create Asset'}
+                </Button>
+              </div>
+            </form>
+
+            {/* File Upload Section - only show when editing an existing asset */}
+            {selectedAsset && (
+              <div className="mt-6 pt-6 border-t border-border">
+                <FileUpload
+                  assetId={selectedAsset.id}
+                  files={assetFiles[selectedAsset.id] || selectedAsset.attached_files || []}
+                  onFileUploaded={(response) => handleFileUploaded(selectedAsset.id, response)}
+                  onFileDeleted={(fileId) => handleFileDeleted(selectedAsset.id, fileId)}
                 />
               </div>
-              <div>
-                <Label htmlFor="edit_quantity">Quantity</Label>
-                <Input
-                  id="edit_quantity"
-                  name="quantity"
-                  type="number"
-                  value={formData.quantity}
-                  onChange={handleInputChange}
-                  min="1"
-                />
-              </div>
-              <div>
-                <Label htmlFor="edit_purchase_date">Purchase Date *</Label>
-                <Input
-                  id="edit_purchase_date"
-                  name="purchase_date"
-                  type="date"
-                  value={formData.purchase_date}
-                  onChange={handleInputChange}
-                  required
-                />
-              </div>
-            </div>
-
-            <div>
-              <Label htmlFor="edit_warehouse_id">Warehouse *</Label>
-              <Select value={formData.warehouse_id.toString()} onValueChange={handleWarehouseChange}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select warehouse" />
-                </SelectTrigger>
-                <SelectContent>
-                  {(warehouses || []).filter(warehouse => warehouse && warehouse.id).map(warehouse => (
-                    <SelectItem key={warehouse.id} value={warehouse.id.toString()}>
-                      {warehouse.name_en || warehouse.name_ar || 'Unnamed Warehouse'}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="flex items-center space-x-2">
-              <input
-                type="checkbox"
-                id="edit_is_active"
-                name="is_active"
-                checked={formData.is_active}
-                onChange={handleInputChange}
-                className="rounded"
-              />
-              <Label htmlFor="edit_is_active">Active Asset</Label>
-            </div>
-
-            <div className="flex justify-end space-x-3">
-              <Button type="button" variant="outline" onClick={handleCancel}>
-                Cancel
-              </Button>
-              <Button type="submit" className="btn-primary">
-                {selectedAsset ? 'Update Asset' : 'Create Asset'}
-              </Button>
-            </div>
-          </form>
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </div>

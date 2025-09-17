@@ -17,6 +17,8 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { ViewToggle } from '@/components/ui/view-toggle';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import apiClient from '../utils/api';
 
 const BranchManagement = () => {
@@ -26,6 +28,7 @@ const BranchManagement = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingBranch, setEditingBranch] = useState(null);
   const [error, setError] = useState(null);
+  const [viewMode, setViewMode] = useState('grid');
 
   const [formData, setFormData] = useState({
     name_en: '',
@@ -142,6 +145,75 @@ const BranchManagement = () => {
     (branch.address_ar && branch.address_ar.includes(searchTerm))
   );
 
+  const BranchListView = () => (
+    <Card className="glass-card">
+      <CardContent className="p-0">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Branch</TableHead>
+              <TableHead>Address</TableHead>
+              <TableHead>Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filteredBranches.map(branch => (
+              <TableRow key={branch.id}>
+                <TableCell>
+                  <div className="flex items-center space-x-3">
+                    <div className="p-2 bg-blue-500/10 rounded-lg">
+                      <Building className="h-4 w-4 text-blue-500" />
+                    </div>
+                    <div>
+                      <div className="font-semibold">
+                        {branch.name_en || branch.name_ar || 'Unnamed Branch'}
+                      </div>
+                      {branch.name_ar && branch.name_en && (
+                        <div className="text-sm text-muted-foreground" dir="rtl">{branch.name_ar}</div>
+                      )}
+                    </div>
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div className="space-y-1">
+                    {branch.address_en && (
+                      <div className="flex items-start gap-2">
+                        <MapPin className="h-3 w-3 text-muted-foreground mt-1" />
+                        <span className="text-sm">{branch.address_en}</span>
+                      </div>
+                    )}
+                    {branch.address_ar && (
+                      <div className="text-sm text-muted-foreground" dir="rtl">{branch.address_ar}</div>
+                    )}
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => openEditDialog(branch)}
+                    >
+                      <Edit3 className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleDelete(branch.id, branch.name_en || branch.name_ar)}
+                      className="text-destructive hover:text-destructive"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
+  );
+
   if (loading && branches.length === 0) {
     return (
       <div className="flex items-center justify-center min-h-96">
@@ -160,10 +232,13 @@ const BranchManagement = () => {
           <h1 className="text-3xl font-bold text-foreground">Branches</h1>
           <p className="text-muted-foreground">Manage your organization branches</p>
         </div>
-        <Button onClick={openAddDialog}>
-          <Plus className="h-4 w-4 mr-2" />
-          Add Branch
-        </Button>
+        <div className="flex items-center space-x-3">
+          <ViewToggle view={viewMode} onViewChange={setViewMode} />
+          <Button onClick={openAddDialog}>
+            <Plus className="h-4 w-4 mr-2" />
+            Add Branch
+          </Button>
+        </div>
       </div>
 
       {error && (
@@ -185,7 +260,9 @@ const BranchManagement = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {/* Branches Display */}
+      {viewMode === 'grid' ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredBranches.map(branch => (
           <Card key={branch.id} className="hover:shadow-lg transition-shadow">
             <CardHeader className="pb-4">
@@ -238,7 +315,10 @@ const BranchManagement = () => {
             </CardContent>
           </Card>
         ))}
-      </div>
+        </div>
+      ) : (
+        <BranchListView />
+      )}
 
       {!loading && filteredBranches.length === 0 && branches.length === 0 && (
         <div className="text-center py-12">
@@ -266,7 +346,7 @@ const BranchManagement = () => {
 
       {/* Add/Edit Branch Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="flex flex-col">
           <DialogHeader>
             <DialogTitle>
               {editingBranch ? 'Edit Branch' : 'Add New Branch'}
