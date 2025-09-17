@@ -30,6 +30,14 @@ class ApiClient {
     };
 
     try {
+      // Debug: Log the request details
+      console.log('API Request:', {
+        url,
+        method: config.method,
+        headers: config.headers,
+        body: config.body
+      });
+      
       const response = await fetch(url, config);
 
       if (!response.ok) {
@@ -108,8 +116,21 @@ class ApiClient {
     return this.request(`/assets/${assetId}`);
   }
 
-  async getAssetBarcode(assetId) {
-    return this.request(`/assets/${assetId}/barcode`);
+  async getAssetBarcode(assetId, options = {}) {
+    const params = new URLSearchParams();
+    
+    // Add barcode customization parameters
+    if (options.product_code) params.append('product_code', options.product_code);
+    if (options.barcode_type) params.append('barcode_type', options.barcode_type);
+    if (options.width) params.append('width', options.width);
+    if (options.height) params.append('height', options.height);
+    if (options.color) params.append('color', options.color);
+    if (options.font_size) params.append('font_size', options.font_size);
+    
+    const queryString = params.toString();
+    const endpoint = `/assets/${assetId}/barcode${queryString ? `?${queryString}` : ''}`;
+    
+    return this.request(endpoint);
   }
 
   // File attachment methods
@@ -377,6 +398,54 @@ class ApiClient {
 
   async getCategory(categoryId) {
     return this.request(`/categories/${categoryId}`);
+  }
+
+  // Asset Transactions API - Show coming soon instead of failing
+  async getAssetTransactions(assetId = null, params = {}) {
+    // Return empty data instead of making request
+    console.log('Asset transactions endpoint not ready - showing coming soon message');
+    return { 
+      items: [], 
+      page: 1, 
+      pages: 1, 
+      total: 0,
+      message: 'Coming soon' 
+    };
+  }
+
+  async createAssetTransaction(formData) {
+    throw new Error('Transaction features are coming soon!');
+  }
+
+  async updateAssetTransaction(transactionId, transactionData) {
+    throw new Error('Transaction features are coming soon!');
+  }
+
+  async deleteAssetTransaction(transactionId) {
+    throw new Error('Transaction features are coming soon!');
+  }
+
+  async getTransactionFile(transactionId) {
+    throw new Error('Transaction features are coming soon!');
+  }
+
+  // Asset Stock Summary - Show coming soon instead of failing
+  async getAssetStock(assetId = null) {
+    console.log('Asset stock endpoint not ready - showing coming soon message');
+    return { items: [], message: 'Coming soon' };
+  }
+
+  // Reports API - Show coming soon instead of failing
+  async generateStockReport(params = {}) {
+    throw new Error('Reporting features are coming soon!');
+  }
+
+  async generateTransactionReport(params = {}) {
+    throw new Error('Reporting features are coming soon!');
+  }
+
+  async generateAssetReport(params = {}) {
+    throw new Error('Reporting features are coming soon!');
   }
 }
 

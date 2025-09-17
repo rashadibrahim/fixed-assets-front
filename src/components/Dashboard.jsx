@@ -23,7 +23,9 @@ import {
   TrendingUp,
   AlertCircle,
   Shield,
-  FolderOpen
+  FolderOpen,
+  ArrowUpCircle,
+  FileText
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -33,6 +35,8 @@ import { useAuth } from '../contexts/AuthContext';
 import apiClient from '../utils/api';
 import { toast } from 'sonner';
 import AssetManagement from './AssetManagement';
+import AssetTransactions from './AssetTransactions';
+import Reports from './Reports';
 import WarehouseManagement from './WarehouseManagement';
 import BranchManagement from './BranchManagement';
 import UserManagement from './UserManagement';
@@ -161,6 +165,8 @@ const Dashboard = () => {
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
     { id: 'assets', label: 'Fixed Assets', icon: Package },
+    { id: 'transactions', label: 'Transactions', icon: ArrowUpCircle, comingSoon: true },
+    { id: 'reports', label: 'Reports', icon: FileText, comingSoon: true },
     { id: 'warehouses', label: 'Warehouses', icon: Warehouse },
     { id: 'branches', label: 'Branches', icon: Building2 },
     { id: 'categories', label: 'Categories', icon: FolderOpen },
@@ -363,6 +369,10 @@ const Dashboard = () => {
         return <DashboardView />;
       case 'assets':
         return <ErrorBoundary><AssetManagement /></ErrorBoundary>;
+      case 'transactions':
+        return <ErrorBoundary><AssetTransactions /></ErrorBoundary>;
+      case 'reports':
+        return <ErrorBoundary><Reports /></ErrorBoundary>;
       case 'warehouses':
         return <ErrorBoundary><WarehouseManagement /></ErrorBoundary>;
       case 'branches':
@@ -417,11 +427,23 @@ const Dashboard = () => {
                 variant={activeTab === item.id ? "default" : "ghost"}
                 className={`w-full justify-start transition-smooth ${
                   activeTab === item.id ? 'gradient-primary text-primary-foreground shadow-primary' : ''
-                }`}
+                } ${item.comingSoon ? 'opacity-75' : ''}`}
                 onClick={() => setActiveTab(item.id)}
               >
                 <Icon className="h-4 w-4" />
-                {sidebarOpen && <span className="ml-3">{item.label}</span>}
+                {sidebarOpen && (
+                  <div className="flex items-center justify-between w-full ml-3">
+                    <span>{item.label}</span>
+                    {item.comingSoon && (
+                      <Badge variant="secondary" className="text-xs">Soon</Badge>
+                    )}
+                  </div>
+                )}
+                {!sidebarOpen && item.comingSoon && (
+                  <div className="absolute -top-1 -right-1">
+                    <div className="h-2 w-2 bg-orange-500 rounded-full"></div>
+                  </div>
+                )}
               </Button>
             );
           })}
