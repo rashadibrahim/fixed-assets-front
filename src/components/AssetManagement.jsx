@@ -47,7 +47,6 @@ const AssetManagement = () => {
     name_en: '',
     name_ar: '',
     category_id: '',
-    quantity: 1,
     product_code: '',
     is_active: true
   });
@@ -294,7 +293,6 @@ const AssetManagement = () => {
       name_en: asset.name_en || '',
       name_ar: asset.name_ar || '',
       category_id: asset.category_id?.toString() || '',
-      quantity: asset.quantity || 1,
       product_code: asset.product_code || '',
       is_active: asset.is_active !== undefined ? asset.is_active : true
     });
@@ -537,7 +535,6 @@ const AssetManagement = () => {
       name_en: '',
       name_ar: '',
       category_id: '',
-      quantity: 1,
       product_code: '',
       is_active: true
     });
@@ -641,32 +638,6 @@ const AssetManagement = () => {
                       <p className="text-xs text-muted-foreground mt-1">
                         Numbers only, 6-11 digits (will be auto-formatted for barcode)
                       </p>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="quantity">Quantity</Label>
-                      <Input
-                        id="quantity"
-                        name="quantity"
-                        type="number"
-                        value={formData.quantity}
-                        onChange={handleInputChange}
-                        min="1"
-                        placeholder="1"
-                      />
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        id="is_active"
-                        name="is_active"
-                        checked={formData.is_active}
-                        onChange={handleInputChange}
-                        className="rounded"
-                      />
-                      <Label htmlFor="is_active">Active Asset</Label>
                     </div>
                   </div>
 
@@ -883,18 +854,6 @@ const AssetManagement = () => {
                   <p className="text-xs text-muted-foreground mt-1">
                     Numbers only, 6-11 digits (will be auto-formatted for barcode)
                   </p>
-                </div>
-                <div>
-                  <Label htmlFor="edit_quantity">Quantity</Label>
-                  <Input
-                    id="edit_quantity"
-                    name="quantity"
-                    type="number"
-                    value={formData.quantity}
-                    onChange={handleInputChange}
-                    min="1"
-                    placeholder="1"
-                  />
                 </div>
               </div>
 

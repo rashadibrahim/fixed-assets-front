@@ -23,7 +23,7 @@ const Login = () => {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-    const handleSubmit = async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
 
@@ -33,7 +33,7 @@ const Login = () => {
       // No need to navigate - the AuthContext will automatically show Dashboard
     } catch (error) {
       console.error('Login failed:', error);
-      
+
       // Handle specific error types
       let errorMessage;
       if (error.message.includes('Cannot connect to server')) {
@@ -45,12 +45,12 @@ const Login = () => {
       } else if (error.message.includes('500')) {
         errorMessage = 'Server error. Please try again later.';
       } else {
-        errorMessage = error.response?.data?.detail || 
-                      error.response?.data?.message || 
-                      error.message || 
-                      'Login failed. Please check your credentials and try again.';
+        errorMessage = error.response?.data?.detail ||
+          error.response?.data?.message ||
+          error.message ||
+          'Login failed. Please check your credentials and try again.';
       }
-      
+
       toast.error(errorMessage);
     } finally {
       setIsLoading(false);
@@ -66,9 +66,9 @@ const Login = () => {
     <div className="min-h-screen relative overflow-hidden">
       {/* Background Images */}
       <div className="absolute inset-0">
-        <img 
-          src={heroBuilding} 
-          alt="Modern office building" 
+        <img
+          src={heroBuilding}
+          alt="Modern office building"
           className="w-full h-full object-cover"
         />
         <div className="absolute inset-0 bg-gradient-to-br from-background/95 via-background/90 to-background/95"></div>
@@ -85,7 +85,7 @@ const Login = () => {
               <p className="text-xl text-muted-foreground mb-8">
                 Complete Fixed Assets Management Solution for modern organizations
               </p>
-              
+
               <div className="space-y-6">
                 <div className="flex items-start space-x-4">
                   <div className="p-2 gradient-primary rounded-lg">
@@ -96,7 +96,7 @@ const Login = () => {
                     <p className="text-muted-foreground">Track and manage all your fixed assets with ease</p>
                   </div>
                 </div>
-                
+
                 <div className="flex items-start space-x-4">
                   <div className="p-2 bg-purple-500 rounded-lg">
                     <Warehouse className="h-6 w-6 text-white" />
@@ -106,7 +106,7 @@ const Login = () => {
                     <p className="text-muted-foreground">Organize assets across multiple warehouse locations</p>
                   </div>
                 </div>
-                
+
                 <div className="flex items-start space-x-4">
                   <div className="p-2 bg-blue-500 rounded-lg">
                     <Building2 className="h-6 w-6 text-white" />
@@ -120,9 +120,9 @@ const Login = () => {
             </div>
 
             <div className="relative">
-              <img 
-                src={warehouseInterior} 
-                alt="Modern warehouse interior" 
+              <img
+                src={warehouseInterior}
+                alt="Modern warehouse interior"
                 className="rounded-xl shadow-glass"
               />
             </div>
@@ -155,7 +155,7 @@ const Login = () => {
                 {connectionError && (
                   <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
                     <p className="text-sm text-yellow-800">
-                      <span className="font-medium">Connection Issue:</span> Unable to connect to the server. 
+                      <span className="font-medium">Connection Issue:</span> Unable to connect to the server.
                       You can try the demo login below or wait for the backend service to become available.
                     </p>
                   </div>
@@ -211,8 +211,8 @@ const Login = () => {
                   </div>
 
                   <div className="space-y-4">
-                    <Button 
-                      type="submit" 
+                    <Button
+                      type="submit"
                       className="w-full btn-primary transition-bounce"
                       disabled={isLoading}
                     >
@@ -228,9 +228,9 @@ const Login = () => {
                       </div>
                     </div>
 
-                    <Button 
-                      type="button" 
-                      variant="outline" 
+                    <Button
+                      type="button"
+                      variant="outline"
                       className="w-full transition-bounce"
                       onClick={handleDemoLogin}
                     >
