@@ -19,13 +19,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import apiClient from '../utils/api';
-import FileUpload from './FileUpload';
 import { ViewToggle } from '@/components/ui/view-toggle';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
@@ -39,8 +38,23 @@ const AssetManagement = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedAsset, setSelectedAsset] = useState(null);
   const [pagination, setPagination] = useState({ page: 1, pages: 1, total: 0 });
-  const [assetFiles, setAssetFiles] = useState({});
   const [viewMode, setViewMode] = useState('grid');
+
+  // Barcode customization state
+  const [barcodeOptions, setBarcodeOptions] = useState({
+    width: 300,
+    height: 100,
+    fontSize: 16,
+    fontFamily: 'Courier New',
+    textColor: '#000000',
+    barcodeColor: '#000000',
+    backgroundColor: '#ffffff',
+    showText: true,
+    textPosition: 'bottom' // 'top', 'bottom', 'none'
+  });
+
+  const [showBarcodeOptions, setShowBarcodeOptions] = useState(false);
+  const [selectedAssetForBarcode, setSelectedAssetForBarcode] = useState(null);
 
   // Form state matching API structure
   const [formData, setFormData] = useState({
@@ -187,10 +201,6 @@ const AssetManagement = () => {
       };
 
       // Add optional fields that are supported by backend
-      if (formData.quantity && parseInt(formData.quantity) > 0) {
-        assetData.quantity = parseInt(formData.quantity);
-      }
-
       if (formData.product_code && formData.product_code.trim()) {
         assetData.product_code = formData.product_code.trim();
       }
@@ -223,70 +233,6 @@ const AssetManagement = () => {
     }
   };
 
-  // File management functions
-  const loadAssetFiles = async (assetId) => {
-    try {
-      console.log(`Loading files for asset ${assetId}...`);
-      const response = await apiClient.getAssetFiles(assetId);
-      const files = response.items || response.attached_files || response || [];
-
-      // Also load any locally stored files
-      const storedFiles = JSON.parse(localStorage.getItem(`asset_${assetId}_files`) || '[]');
-      const allFiles = [...files, ...storedFiles];
-
-      setAssetFiles(prev => ({
-        ...prev,
-        [assetId]: Array.isArray(allFiles) ? allFiles : []
-      }));
-      console.log(`Loaded ${allFiles.length} files for asset ${assetId} (${files.length} from server, ${storedFiles.length} local)`);
-    } catch (error) {
-      console.error('Error loading asset files:', error);
-
-      // Try to load from localStorage if backend fails
-      const storedFiles = JSON.parse(localStorage.getItem(`asset_${assetId}_files`) || '[]');
-      setAssetFiles(prev => ({
-        ...prev,
-        [assetId]: storedFiles
-      }));
-      console.log(`Loaded ${storedFiles.length} files from localStorage for asset ${assetId}`);
-    }
-  };
-
-  const handleFileUploaded = (assetId, response) => {
-    console.log('File uploaded successfully for asset:', assetId, response);
-
-    // Update local state immediately
-    setAssetFiles(prev => ({
-      ...prev,
-      [assetId]: [...(prev[assetId] || []), response]
-    }));
-
-    // Reload files to sync with any backend changes
-    loadAssetFiles(assetId);
-
-    // Show success message
-    if (response.simulated) {
-      toast.success('File uploaded and stored locally!');
-    } else {
-      toast.success('File attached to asset successfully!');
-    }
-  };
-
-  const handleFileDeleted = (assetId, fileId) => {
-    console.log('File deleted for asset:', assetId, 'file:', fileId);
-
-    // Remove file from local state immediately
-    setAssetFiles(prev => ({
-      ...prev,
-      [assetId]: (prev[assetId] || []).filter(file => file.id !== fileId)
-    }));
-
-    // Also remove from localStorage if it exists
-    const storedFiles = JSON.parse(localStorage.getItem(`asset_${assetId}_files`) || '[]');
-    const updatedFiles = storedFiles.filter(file => file.id !== fileId);
-    localStorage.setItem(`asset_${assetId}_files`, JSON.stringify(updatedFiles));
-  };
-
   const handleEdit = (asset) => {
     setSelectedAsset(asset);
     setFormData({
@@ -296,9 +242,6 @@ const AssetManagement = () => {
       product_code: asset.product_code || '',
       is_active: asset.is_active !== undefined ? asset.is_active : true
     });
-
-    // Load files for this asset
-    loadAssetFiles(asset.id);
 
     setShowEditModal(true);
   };
@@ -316,146 +259,257 @@ const AssetManagement = () => {
     }
   };
 
-  const handleGenerateBarcode = async (asset) => {
+  const handleGenerateBarcode = async (asset, customOptions = null) => {
+    if (!customOptions) {
+      // Show customization dialog first
+      setSelectedAssetForBarcode(asset);
+      setShowBarcodeOptions(true);
+      return;
+    }
+
     try {
+      // Ensure product_code is numeric only (6-11 digits)
       let numericCode = asset.product_code?.replace(/\D/g, '') || '';
 
+      // If no numeric code or invalid length, generate one
       if (!numericCode || numericCode.length < 6 || numericCode.length > 11) {
+        // Generate a random 8-digit code as default
         numericCode = Math.floor(10000000 + Math.random() * 90000000).toString();
       }
 
+      // Pad to ensure consistent length (8 digits for uniform appearance)
       const paddedCode = numericCode.padStart(8, '0');
 
       const response = await apiClient.getAssetBarcode(asset.id, {
         product_code: paddedCode,
         barcode_type: 'CODE128',
-        width: 400, // Increased width
-        height: 150  // Increased height
+        width: customOptions.width,
+        height: customOptions.height,
+        color: customOptions.barcodeColor.replace('#', ''),
+        font_size: customOptions.fontSize
       });
 
-      // Increased window size
-      const barcodeWindow = window.open('', '_blank', 'width=800,height=800');
+      // Create a new window to display the barcode with custom styling
+      const barcodeWindow = window.open('', '_blank', 'width=700,height=600');
       barcodeWindow.document.write(`
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>Barcode - ${asset.name_en || asset.name_ar}</title>
-          <style>
-            body {
-              font-family: 'Arial', sans-serif;
-              text-align: center;
-              padding: 40px;
-              margin: 0;
-              background: white;
-            }
-            .barcode-container {
-              max-width: 600px;
-              margin: 0 auto;
-              border: 2px solid #333;
-              padding: 50px;
-              border-radius: 12px;
-              background: white;
-            }
-            .asset-name {
-              margin-bottom: 30px;
-              font-size: 24px;
-              font-weight: bold;
-              color: #333;
-              text-transform: uppercase;
-              word-wrap: break-word;
-            }
-            .barcode-image {
-              margin: 30px 0;
-              background: white;
-              padding: 20px;
-              border: 1px solid #ddd;
-              display: flex;
-              justify-content: center;
-              align-items: center;
-            }
-            .barcode-image img {
-              width: 100%;
-              height: auto;
-              max-width: 400px;
-              max-height: 150px;
-            }
-            .barcode-number {
-              font-family: 'Courier New', monospace;
-              font-size: 20px;
-              font-weight: bold;
-              color: #000;
-              margin-top: 20px;
-              letter-spacing: 3px;
-            }
-            .buttons {
-              margin-top: 40px;
-            }
-            .btn {
-              background: #007bff;
-              color: white;
-              border: none;
-              padding: 15px 30px;
-              border-radius: 6px;
-              cursor: pointer;
-              margin: 0 10px;
-              font-size: 16px;
-              font-weight: bold;
-            }
-            .btn:hover {
-              background: #0056b3;
-            }
-            .btn-secondary {
-              background: #6c757d;
-            }
-            .btn-secondary:hover {
-              background: #545b62;
-            }
-            @media print {
-              .no-print { display: none; }
-              .barcode-container { 
-                border: none; 
-                max-width: none;
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <title>Barcode - ${asset.name_en || asset.name_ar}</title>
+            <style>
+              body {
+                font-family: '${customOptions.fontFamily}', monospace;
+                text-align: center;
                 padding: 20px;
+                margin: 0;
+                background: ${customOptions.backgroundColor};
               }
-              body { 
-                padding: 0; 
-                font-size: 14pt;
+              .barcode-container {
+                max-width: ${customOptions.width + 100}px;
+                margin: 0 auto;
+                border: 2px solid #333;
+                padding: 30px;
+                border-radius: 8px;
+                background: ${customOptions.backgroundColor};
               }
               .asset-name {
-                font-size: 18pt;
-                margin-bottom: 25px;
-              }
-              .barcode-number {
-                font-size: 16pt;
+                margin-bottom: 20px;
+                font-size: ${customOptions.fontSize + 2}px;
+                font-weight: bold;
+                color: ${customOptions.textColor};
+                text-transform: uppercase;
+                word-wrap: break-word;
+                font-family: '${customOptions.fontFamily}', monospace;
               }
               .barcode-image {
-                border: none;
+                margin: 20px 0;
+                background: ${customOptions.backgroundColor};
                 padding: 10px;
+                border: 1px solid #ddd;
+                display: flex;
+                justify-content: center;
+                align-items: center;
               }
-            }
-          </style>
-        </head>
-        <body>
-          <div class="barcode-container">
-            <div class="asset-name">
-              ${asset.name_en || asset.name_ar || 'Unnamed Asset'}
+              .barcode-image img {
+                width: ${customOptions.width}px;
+                height: ${customOptions.height}px;
+                max-width: ${customOptions.width}px;
+                max-height: ${customOptions.height}px;
+              }
+              .barcode-number {
+                font-family: '${customOptions.fontFamily}', monospace;
+                font-size: ${customOptions.fontSize}px;
+                font-weight: bold;
+                color: ${customOptions.textColor};
+                margin-top: 10px;
+                letter-spacing: 2px;
+                ${!customOptions.showText ? 'display: none;' : ''}
+              }
+              .barcode-number-top {
+                font-family: '${customOptions.fontFamily}', monospace;
+                font-size: ${customOptions.fontSize}px;
+                font-weight: bold;
+                color: ${customOptions.textColor};
+                margin-bottom: 10px;
+                letter-spacing: 2px;
+                ${customOptions.textPosition !== 'top' ? 'display: none;' : ''}
+              }
+              .buttons {
+                margin-top: 30px;
+              }
+              .btn {
+                background: #007bff;
+                color: white;
+                border: none;
+                padding: 12px 24px;
+                border-radius: 4px;
+                cursor: pointer;
+                margin: 0 10px;
+                font-size: 14px;
+                font-weight: bold;
+              }
+              .btn:hover {
+                background: #0056b3;
+              }
+              .btn-secondary {
+                background: #6c757d;
+              }
+              .btn-secondary:hover {
+                background: #545b62;
+              }
+              @media print {
+                /* Force browsers to print background colors */
+                * {
+                  -webkit-print-color-adjust: exact !important;
+                  color-adjust: exact !important;
+                  print-color-adjust: exact !important;
+                }
+                
+                .no-print { display: none; }
+                .barcode-container { 
+                  border: 2px solid #333 !important;
+                  max-width: ${customOptions.width + 100}px !important;
+                  padding: 30px !important;
+                  background: ${customOptions.backgroundColor} !important;
+                  background-color: ${customOptions.backgroundColor} !important;
+                  border-radius: 8px !important;
+                  page-break-inside: avoid !important;
+                  /* Alternative approach for stubborn backgrounds */
+                  box-shadow: inset 0 0 0 1000px ${customOptions.backgroundColor} !important;
+                }
+                body { 
+                  padding: 0 !important;
+                  margin: 0 !important;
+                  background: ${customOptions.backgroundColor} !important;
+                  background-color: ${customOptions.backgroundColor} !important;
+                  font-family: '${customOptions.fontFamily}', monospace !important;
+                  /* Force background printing */
+                  -webkit-print-color-adjust: exact !important;
+                  color-adjust: exact !important;
+                  print-color-adjust: exact !important;
+                }
+                @page {
+                  /* Set page background */
+                  background: ${customOptions.backgroundColor} !important;
+                  margin: 0.5in !important;
+                }
+                .asset-name {
+                  font-size: ${customOptions.fontSize + 2}px !important;
+                  font-family: '${customOptions.fontFamily}', monospace !important;
+                  color: ${customOptions.textColor} !important;
+                  margin-bottom: 20px !important;
+                  font-weight: bold !important;
+                  text-transform: uppercase !important;
+                }
+                .barcode-image {
+                  margin: 20px 0 !important;
+                  background: ${customOptions.backgroundColor} !important;
+                  background-color: ${customOptions.backgroundColor} !important;
+                  padding: 10px !important;
+                  border: 1px solid #ddd !important;
+                  display: flex !important;
+                  justify-content: center !important;
+                  align-items: center !important;
+                }
+                .barcode-image img {
+                  width: ${customOptions.width}px !important;
+                  height: ${customOptions.height}px !important;
+                  max-width: ${customOptions.width}px !important;
+                  max-height: ${customOptions.height}px !important;
+                }
+                .barcode-number {
+                  font-family: '${customOptions.fontFamily}', monospace !important;
+                  font-size: ${customOptions.fontSize}px !important;
+                  font-weight: bold !important;
+                  color: ${customOptions.textColor} !important;
+                  margin-top: 10px !important;
+                  letter-spacing: 2px !important;
+                  ${!customOptions.showText ? 'display: none !important;' : ''}
+                }
+                .barcode-number-top {
+                  font-family: '${customOptions.fontFamily}', monospace !important;
+                  font-size: ${customOptions.fontSize}px !important;
+                  font-weight: bold !important;
+                  color: ${customOptions.textColor} !important;
+                  margin-bottom: 10px !important;
+                  letter-spacing: 2px !important;
+                  ${customOptions.textPosition !== 'top' ? 'display: none !important;' : ''}
+                }
+              }
+            </style>
+          </head>
+          <body>
+            <div class="barcode-container">
+              <div class="asset-name">
+                ${asset.name_en || asset.name_ar || 'Unnamed Asset'}
+              </div>
+              ${customOptions.textPosition === 'top' ? `<div class="barcode-number-top">${response.product_code || paddedCode}</div>` : ''}
+              <div class="barcode-image">
+                <img src="data:image/png;base64,${response.barcode_image}" alt="Barcode" />
+              </div>
+              ${customOptions.textPosition === 'bottom' ? `<div class="barcode-number">${response.product_code || paddedCode}</div>` : ''}
+              <div class="buttons no-print">
+                <button class="btn" onclick="printWithBackgrounds()">Print Barcode</button>
+                <button class="btn btn-secondary" onclick="window.close()">Close</button>
+                ${customOptions.backgroundColor !== '#ffffff' ? `
+                  <div style="margin-top: 15px; padding: 10px; background: #f0f0f0; border-radius: 4px; font-size: 12px; color: #666;">
+                    <strong>💡 Print Tip:</strong> To print background colors, enable "Background graphics" in your browser's print settings.
+                  </div>
+                ` : ''}
+              </div>
             </div>
-            <div class="barcode-image">
-              <img src="data:image/png;base64,${response.barcode_image}" alt="Barcode" />
-            </div>
-            <div class="barcode-number">
-              ${response.product_code || paddedCode}
-            </div>
-            <div class="buttons no-print">
-              <button class="btn" onclick="window.print()">Print Barcode</button>
-              <button class="btn btn-secondary" onclick="window.close()">Close</button>
-            </div>
-          </div>
-        </body>
-      </html>
-    `);
+            
+            <script>
+              function printWithBackgrounds() {
+                // Try to enable background graphics programmatically
+                const css = '@media print { * { -webkit-print-color-adjust: exact !important; color-adjust: exact !important; print-color-adjust: exact !important; } }';
+                const style = document.createElement('style');
+                style.appendChild(document.createTextNode(css));
+                document.head.appendChild(style);
+                
+                // Alert user about print settings if background is not white
+                ${customOptions.backgroundColor !== '#ffffff' ? `
+                  const shouldPrint = confirm('To print background colors properly, please:\\n\\n1. In Chrome: Enable "Background graphics" in print options\\n2. In Firefox: Enable "Print backgrounds" in print options\\n3. In Safari: Enable "Print backgrounds" in print options\\n\\nClick OK to proceed with printing.');
+                  if (shouldPrint) {
+                    window.print();
+                  }
+                ` : 'window.print();'}
+              }
+              
+              // Force color adjustment on page load
+              document.addEventListener('DOMContentLoaded', function() {
+                document.body.style.webkitPrintColorAdjust = 'exact';
+                document.body.style.colorAdjust = 'exact';
+                document.body.style.printColorAdjust = 'exact';
+              });
+            </script>
+          </body>
+        </html>
+      `);
       barcodeWindow.document.close();
       toast.success('Barcode generated successfully');
+      setShowBarcodeOptions(false);
+      setSelectedAssetForBarcode(null);
     } catch (error) {
       console.error('Error generating barcode:', error);
       toast.error('Failed to generate barcode');
@@ -541,6 +595,172 @@ const AssetManagement = () => {
     setSelectedAsset(null);
   };
 
+  // Barcode Customization Dialog Component
+  const BarcodeCustomizationDialog = () => {
+    // Local state for the dialog - doesn't affect main component until Generate is clicked
+    const [localOptions, setLocalOptions] = useState(barcodeOptions);
+
+    // Reset local options when dialog opens
+    React.useEffect(() => {
+      if (showBarcodeOptions) {
+        setLocalOptions(barcodeOptions);
+      }
+    }, [showBarcodeOptions]);
+
+    const handleGenerate = () => {
+      // Update main state and generate barcode
+      setBarcodeOptions(localOptions);
+      handleGenerateBarcode(selectedAssetForBarcode, localOptions);
+    };
+
+    return (
+      <Dialog open={showBarcodeOptions} onOpenChange={setShowBarcodeOptions}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Customize Barcode</DialogTitle>
+            <DialogDescription>
+              Adjust barcode appearance and styling options. Click "Generate Barcode" to create and preview your customized barcode.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            {/* Size Controls */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="barcode-width">Width (px)</Label>
+                <Input
+                  id="barcode-width"
+                  type="number"
+                  value={localOptions.width}
+                  onChange={(e) => setLocalOptions(prev => ({ ...prev, width: parseInt(e.target.value) || 300 }))}
+                  min="100"
+                  max="800"
+                />
+              </div>
+              <div>
+                <Label htmlFor="barcode-height">Height (px)</Label>
+                <Input
+                  id="barcode-height"
+                  type="number"
+                  value={localOptions.height}
+                  onChange={(e) => setLocalOptions(prev => ({ ...prev, height: parseInt(e.target.value) || 100 }))}
+                  min="50"
+                  max="300"
+                />
+              </div>
+            </div>
+
+            {/* Font Controls */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="font-size">Font Size (px)</Label>
+                <Input
+                  id="font-size"
+                  type="number"
+                  value={localOptions.fontSize}
+                  onChange={(e) => setLocalOptions(prev => ({ ...prev, fontSize: parseInt(e.target.value) || 16 }))}
+                  min="8"
+                  max="48"
+                />
+              </div>
+              <div>
+                <Label htmlFor="font-family">Font Family</Label>
+                <Select
+                  value={localOptions.fontFamily}
+                  onValueChange={(value) => setLocalOptions(prev => ({ ...prev, fontFamily: value }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Arial">Arial</SelectItem>
+                    <SelectItem value="Courier New">Courier New</SelectItem>
+                    <SelectItem value="Helvetica">Helvetica</SelectItem>
+                    <SelectItem value="Times New Roman">Times New Roman</SelectItem>
+                    <SelectItem value="Verdana">Verdana</SelectItem>
+                    <SelectItem value="Georgia">Georgia</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* Color Controls */}
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <Label htmlFor="text-color">Text Color</Label>
+                <Input
+                  id="text-color"
+                  type="color"
+                  value={localOptions.textColor}
+                  onChange={(e) => setLocalOptions(prev => ({ ...prev, textColor: e.target.value }))}
+                />
+              </div>
+              <div>
+                <Label htmlFor="barcode-color">Barcode Color</Label>
+                <Input
+                  id="barcode-color"
+                  type="color"
+                  value={localOptions.barcodeColor}
+                  onChange={(e) => setLocalOptions(prev => ({ ...prev, barcodeColor: e.target.value }))}
+                />
+              </div>
+              <div>
+                <Label htmlFor="bg-color">Background</Label>
+                <Input
+                  id="bg-color"
+                  type="color"
+                  value={localOptions.backgroundColor}
+                  onChange={(e) => setLocalOptions(prev => ({ ...prev, backgroundColor: e.target.value }))}
+                />
+              </div>
+            </div>
+
+            {/* Text Options */}
+            <div className="space-y-3">
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="show-text"
+                  checked={localOptions.showText}
+                  onChange={(e) => setLocalOptions(prev => ({ ...prev, showText: e.target.checked }))}
+                />
+                <Label htmlFor="show-text">Show barcode number</Label>
+              </div>
+
+              {localOptions.showText && (
+                <div>
+                  <Label htmlFor="text-position">Text Position</Label>
+                  <Select
+                    value={localOptions.textPosition}
+                    onValueChange={(value) => setLocalOptions(prev => ({ ...prev, textPosition: value }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="top">Above barcode</SelectItem>
+                      <SelectItem value="bottom">Below barcode</SelectItem>
+                      <SelectItem value="none">Hidden</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowBarcodeOptions(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleGenerate}>
+              Generate Barcode
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    );
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -572,11 +792,11 @@ const AssetManagement = () => {
                 Add Asset
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[100%] h-[100vh] flex flex-col fixed top-0 right-0">
+            <DialogContent className="flex flex-col">
               <DialogHeader>
                 <DialogTitle>Add New Asset</DialogTitle>
               </DialogHeader>
-              <div className="flex-1 overflow-y-auto p-6">
+              <div className="flex-1 overflow-y-auto p-1">
                 <form onSubmit={handleSubmit} className="space-y-6">
                   <div className="grid grid-cols-2 gap-4">
                     <div>
@@ -640,6 +860,35 @@ const AssetManagement = () => {
                       </p>
                     </div>
                   </div>
+
+                  {/* <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="product_code">Product Code (6-11 digits)</Label>
+                    <Input
+                      id="product_code"
+                      name="product_code"
+                      value={formData.product_code}
+                      onChange={handleProductCodeChange}
+                      placeholder="Enter 6-11 digit code"
+                      maxLength="11"
+                      pattern="[0-9]{6,11}"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Numbers only, 6-11 digits (will be auto-formatted for barcode)
+                    </p>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      id="is_active"
+                      name="is_active"
+                      checked={formData.is_active}
+                      onChange={handleInputChange}
+                      className="rounded"
+                    />
+                    <Label htmlFor="is_active">Active Asset</Label>
+                  </div>
+                </div> */}
 
                   <div className="flex justify-end space-x-3">
                     <Button type="button" variant="outline" onClick={handleCancel}>
@@ -855,18 +1104,17 @@ const AssetManagement = () => {
                     Numbers only, 6-11 digits (will be auto-formatted for barcode)
                   </p>
                 </div>
-              </div>
-
-              <div className="flex items-center space-x-2">
-                <input
-                  type="checkbox"
-                  id="edit_is_active"
-                  name="is_active"
-                  checked={formData.is_active}
-                  onChange={handleInputChange}
-                  className="rounded"
-                />
-                <Label htmlFor="edit_is_active">Active Asset</Label>
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id="edit_is_active"
+                    name="is_active"
+                    checked={formData.is_active}
+                    onChange={handleInputChange}
+                    className="rounded"
+                  />
+                  <Label htmlFor="edit_is_active">Active Asset</Label>
+                </div>
               </div>
 
               <div className="flex justify-end space-x-3">
@@ -874,13 +1122,16 @@ const AssetManagement = () => {
                   Cancel
                 </Button>
                 <Button type="submit" className="btn-primary">
-                  Update Asset
+                  {selectedAsset ? 'Update Asset' : 'Create Asset'}
                 </Button>
               </div>
             </form>
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Barcode Customization Dialog */}
+      {showBarcodeOptions && <BarcodeCustomizationDialog />}
     </div>
   );
 };

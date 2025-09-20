@@ -60,23 +60,23 @@ export const AuthProvider = ({ children }) => {
       setLoading(true);
       setConnectionError(false);
       const response = await apiClient.login(credentials);
-
+      
       if (response.access_token) {
         localStorage.setItem('authToken', response.access_token);
         apiClient.setToken(response.access_token);
-
+        
         // Get user profile after login
         try {
           const userProfile = await apiClient.getUserProfile();
           setUser(userProfile);
         } catch (error) {
           console.error('Failed to get user profile:', error);
-          setUser({
-            email: credentials.email,
-            full_name: 'User'
+          setUser({ 
+            email: credentials.email, 
+            full_name: 'User' 
           });
         }
-
+        
         setIsAuthenticated(true);
         return response;
       } else {
