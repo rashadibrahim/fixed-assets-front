@@ -463,7 +463,7 @@ const WarehouseManagement = () => {
 
       {/* Add/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col">
+        <DialogContent className="flex flex-col">
           <DialogHeader>
             <DialogTitle>
               {editingWarehouse ? 'Edit Warehouse' : 'Add New Warehouse'}

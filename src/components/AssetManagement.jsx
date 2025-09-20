@@ -25,7 +25,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import apiClient from '../utils/api';
-import FileUpload from './FileUpload';
 import { ViewToggle } from '@/components/ui/view-toggle';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
@@ -39,7 +38,6 @@ const AssetManagement = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedAsset, setSelectedAsset] = useState(null);
   const [pagination, setPagination] = useState({ page: 1, pages: 1, total: 0 });
-  const [assetFiles, setAssetFiles] = useState({});
   const [viewMode, setViewMode] = useState('grid');
 
   // Barcode customization state
@@ -63,7 +61,6 @@ const AssetManagement = () => {
     name_en: '',
     name_ar: '',
     category_id: '',
-    quantity: 1,
     product_code: '',
     is_active: true
   });
@@ -204,10 +201,6 @@ const AssetManagement = () => {
       };
 
       // Add optional fields that are supported by backend
-      if (formData.quantity && parseInt(formData.quantity) > 0) {
-        assetData.quantity = parseInt(formData.quantity);
-      }
-      
       if (formData.product_code && formData.product_code.trim()) {
         assetData.product_code = formData.product_code.trim();
       }
@@ -240,83 +233,15 @@ const AssetManagement = () => {
     }
   };
 
-  // File management functions
-  const loadAssetFiles = async (assetId) => {
-    try {
-      console.log(`Loading files for asset ${assetId}...`);
-      const response = await apiClient.getAssetFiles(assetId);
-      const files = response.items || response.attached_files || response || [];
-      
-      // Also load any locally stored files
-      const storedFiles = JSON.parse(localStorage.getItem(`asset_${assetId}_files`) || '[]');
-      const allFiles = [...files, ...storedFiles];
-      
-      setAssetFiles(prev => ({
-        ...prev,
-        [assetId]: Array.isArray(allFiles) ? allFiles : []
-      }));
-      console.log(`Loaded ${allFiles.length} files for asset ${assetId} (${files.length} from server, ${storedFiles.length} local)`);
-    } catch (error) {
-      console.error('Error loading asset files:', error);
-      
-      // Try to load from localStorage if backend fails
-      const storedFiles = JSON.parse(localStorage.getItem(`asset_${assetId}_files`) || '[]');
-      setAssetFiles(prev => ({
-        ...prev,
-        [assetId]: storedFiles
-      }));
-      console.log(`Loaded ${storedFiles.length} files from localStorage for asset ${assetId}`);
-    }
-  };
-
-  const handleFileUploaded = (assetId, response) => {
-    console.log('File uploaded successfully for asset:', assetId, response);
-    
-    // Update local state immediately
-    setAssetFiles(prev => ({
-      ...prev,
-      [assetId]: [...(prev[assetId] || []), response]
-    }));
-    
-    // Reload files to sync with any backend changes
-    loadAssetFiles(assetId);
-    
-    // Show success message
-    if (response.simulated) {
-      toast.success('File uploaded and stored locally!');
-    } else {
-      toast.success('File attached to asset successfully!');
-    }
-  };
-
-  const handleFileDeleted = (assetId, fileId) => {
-    console.log('File deleted for asset:', assetId, 'file:', fileId);
-    
-    // Remove file from local state immediately
-    setAssetFiles(prev => ({
-      ...prev,
-      [assetId]: (prev[assetId] || []).filter(file => file.id !== fileId)
-    }));
-    
-    // Also remove from localStorage if it exists
-    const storedFiles = JSON.parse(localStorage.getItem(`asset_${assetId}_files`) || '[]');
-    const updatedFiles = storedFiles.filter(file => file.id !== fileId);
-    localStorage.setItem(`asset_${assetId}_files`, JSON.stringify(updatedFiles));
-  };
-
   const handleEdit = (asset) => {
     setSelectedAsset(asset);
     setFormData({
       name_en: asset.name_en || '',
       name_ar: asset.name_ar || '',
       category_id: asset.category_id?.toString() || '',
-      quantity: asset.quantity || 1,
       product_code: asset.product_code || '',
       is_active: asset.is_active !== undefined ? asset.is_active : true
     });
-    
-    // Load files for this asset
-    loadAssetFiles(asset.id);
     
     setShowEditModal(true);
   };
@@ -664,7 +589,6 @@ const AssetManagement = () => {
       name_en: '',
       name_ar: '',
       category_id: '',
-      quantity: 1,
       product_code: '',
       is_active: true
     });
@@ -868,7 +792,7 @@ const AssetManagement = () => {
                 Add Asset
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col">
+            <DialogContent className="flex flex-col">
               <DialogHeader>
                 <DialogTitle>Add New Asset</DialogTitle>
               </DialogHeader>
@@ -939,16 +863,19 @@ const AssetManagement = () => {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="quantity">Quantity</Label>
+                    <Label htmlFor="product_code">Product Code (6-11 digits)</Label>
                     <Input
-                      id="quantity"
-                      name="quantity"
-                      type="number"
-                      value={formData.quantity}
-                      onChange={handleInputChange}
-                      min="1"
-                      placeholder="1"
+                      id="product_code"
+                      name="product_code"
+                      value={formData.product_code}
+                      onChange={handleProductCodeChange}
+                      placeholder="Enter 6-11 digit code"
+                      maxLength="11"
+                      pattern="[0-9]{6,11}"
                     />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Numbers only, 6-11 digits (will be auto-formatted for barcode)
+                    </p>
                   </div>
                   <div className="flex items-center space-x-2">
                     <input
@@ -1177,30 +1104,17 @@ const AssetManagement = () => {
                     Numbers only, 6-11 digits (will be auto-formatted for barcode)
                   </p>
                 </div>
-                <div>
-                  <Label htmlFor="edit_quantity">Quantity</Label>
-                  <Input
-                    id="edit_quantity"
-                    name="quantity"
-                    type="number"
-                    value={formData.quantity}
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id="edit_is_active"
+                    name="is_active"
+                    checked={formData.is_active}
                     onChange={handleInputChange}
-                    min="1"
-                    placeholder="1"
+                    className="rounded"
                   />
+                  <Label htmlFor="edit_is_active">Active Asset</Label>
                 </div>
-              </div>
-
-              <div className="flex items-center space-x-2">
-                <input
-                  type="checkbox"
-                  id="edit_is_active"
-                  name="is_active"
-                  checked={formData.is_active}
-                  onChange={handleInputChange}
-                  className="rounded"
-                />
-                <Label htmlFor="edit_is_active">Active Asset</Label>
               </div>
 
               <div className="flex justify-end space-x-3">
@@ -1212,18 +1126,6 @@ const AssetManagement = () => {
                 </Button>
               </div>
             </form>
-
-            {/* File Upload Section - only show when editing an existing asset */}
-            {selectedAsset && (
-              <div className="mt-6 pt-6 border-t border-border">
-                <FileUpload
-                  assetId={selectedAsset.id}
-                  files={assetFiles[selectedAsset.id] || selectedAsset.attached_files || []}
-                  onFileUploaded={(response) => handleFileUploaded(selectedAsset.id, response)}
-                  onFileDeleted={(fileId) => handleFileDeleted(selectedAsset.id, fileId)}
-                />
-              </div>
-            )}
           </div>
         </DialogContent>
       </Dialog>
