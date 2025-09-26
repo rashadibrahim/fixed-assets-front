@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Building2, 
-  Warehouse, 
-  Package, 
-  Users, 
-  Plus, 
-  Edit3, 
-  Trash2, 
-  Eye, 
+import {
+  Building2,
+  Warehouse,
+  Package,
+  Users,
+  Plus,
+  Edit3,
+  Trash2,
+  Eye,
   Filter,
   Download,
   Upload,
@@ -43,6 +43,7 @@ import UserManagement from './UserManagement';
 import JobRoleManagement from './JobRoleManagement';
 import CategoryManagement from './CategoryManagement';
 import ErrorBoundary from './ErrorBoundary';
+import Transactions from './Transactions';
 
 const Dashboard = () => {
   const { user, logout } = useAuth();
@@ -50,129 +51,167 @@ const Dashboard = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [loading, setLoading] = useState(true);
 
+  // Permission helper functions
+  const isAdmin = () => user?.role?.toLowerCase() === 'admin';
+  const canReadAssets = () => isAdmin() || user?.can_read_asset;
+  const canReadWarehouses = () => isAdmin() || user?.can_read_warehouse;
+  const canReadBranches = () => isAdmin() || user?.can_read_branch;
+  const canEditAssets = () => isAdmin() || user?.can_edit_asset;
+  const canEditWarehouses = () => isAdmin() || user?.can_edit_warehouse;
+  const canEditBranches = () => isAdmin() || user?.can_edit_branch;
+
   // Dashboard stats from API
   const [dashboardStats, setDashboardStats] = useState({
     totalAssets: 0,
-    totalValue: 0,
     activeAssets: 0,
     warehouses: 0,
     branches: 0,
     users: 0,
-    recentAssets: []
+    totalJobs: 0
+  });
+
+  // Transaction summary data
+  const [transactionSummary, setTransactionSummary] = useState({
+    total_transactions: 0,
+    total_in_transactions: 0,
+    total_out_transactions: 0,
+    total_in_value: 0,
+    total_out_value: 0,
+    net_value: 0
   });
 
   useEffect(() => {
     loadDashboardStats();
+    loadTransactionSummary();
   }, []);
+
+  const loadTransactionSummary = async () => {
+    try {
+      // Only load transaction summary if user can read assets (since transactions are asset-related)
+      if (canReadAssets()) {
+        const token = localStorage.getItem('authToken');
+        if (!token) {
+          console.error('No token found for transaction summary');
+          return;
+        }
+
+        const response = await fetch('http://127.0.0.1:5000/transactions/summary', {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+          },
+          mode: 'cors',
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+
+        const data = await response.json();
+        setTransactionSummary(data || {
+          total_transactions: 0,
+          total_in_transactions: 0,
+          total_out_transactions: 0,
+          total_in_value: 0,
+          total_out_value: 0,
+          net_value: 0
+        });
+
+        console.log('Transaction summary loaded:', data);
+      }
+    } catch (error) {
+      console.error('Error loading transaction summary:', error);
+      toast.error('Failed to load transaction summary');
+      // Set default values on error
+      setTransactionSummary({
+        total_transactions: 0,
+        total_in_transactions: 0,
+        total_out_transactions: 0,
+        total_in_value: 0,
+        total_out_value: 0,
+        net_value: 0
+      });
+    }
+  };
 
   const loadDashboardStats = async () => {
     try {
       setLoading(true);
-      
-      // Load both statistics and assets data
-      const [statsResponse, assetsResponse] = await Promise.all([
-        apiClient.getStatistics().catch(err => {
-          console.warn('Failed to load stats:', err);
-          return {};
-        }),
-        apiClient.getAssets().catch(err => {
-          console.warn('Failed to load assets:', err);
-          return { items: [] };
-        })
-      ]);
-      
-      // Process assets data
-      const assetsData = assetsResponse?.items || assetsResponse?.data || assetsResponse || [];
-      const validAssets = Array.isArray(assetsData) ? assetsData : [];
-      
-      // Calculate asset statistics
-      const totalAssets = validAssets.length;
-      
-      // Debug: Log all asset statuses to understand the data
-      if (validAssets.length > 0) {
-        console.log('All asset data found:', validAssets.map(asset => ({
-          id: asset.id,
-          name: asset.name_en || asset.name_ar || asset.name,
-          is_active: asset.is_active,
-          status: asset.status
-        })));
+
+      const token = localStorage.getItem('authToken');
+      if (!token) {
+        console.error('No token found for dashboard stats');
+        setLoading(false);
+        return;
       }
-      
-      const activeAssets = validAssets.filter(asset => {
-        // Use is_active boolean field instead of status string
-        const isActive = asset.is_active === true || asset.is_active === 1 || asset.is_active === "1";
-        console.log(`Asset ${asset.id}: is_active=${asset.is_active} -> isActive=${isActive}`);
-        return isActive;
-      }).length;
-      const totalValue = validAssets.reduce((sum, asset) => {
-        const value = parseFloat(asset?.value || asset?.price || 0);
-        const quantity = parseInt(asset?.quantity || 1);
-        return sum + (isNaN(value) ? 0 : value * quantity);
-      }, 0);
-      
-      // Get recent assets (last 5, sorted by creation date or ID)
-      const recentAssets = validAssets
-        .sort((a, b) => {
-          // Sort by created_at if available, otherwise by ID
-          const dateA = new Date(a?.created_at || a?.id || 0);
-          const dateB = new Date(b?.created_at || b?.id || 0);
-          return dateB - dateA;
-        })
-        .slice(0, 5);
-      
+
+      // Load statistics from the auth/stats endpoint
+      const response = await fetch('http://127.0.0.1:5000/auth/stats', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        mode: 'cors',
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log('Dashboard stats loaded:', data);
+
+      // Map the API response to our dashboard stats structure
       setDashboardStats({
-        totalAssets: totalAssets,
-        totalValue: totalValue,
-        activeAssets: activeAssets,
-        warehouses: statsResponse.total_warehouses || 0,
-        branches: statsResponse.total_branches || 0,
-        users: statsResponse.total_users || 0,
-        recentAssets: recentAssets
+        totalAssets: canReadAssets() ? (data.total_assets || 0) : 0,
+        activeAssets: canReadAssets() ? (data.active_assets || 0) : 0,
+        warehouses: canReadWarehouses() ? (data.total_warehouses || 0) : 0,
+        branches: canReadBranches() ? (data.total_branches || 0) : 0,
+        users: isAdmin() ? (data.total_users || 0) : 0,
+        totalJobs: isAdmin() ? (data.job_roles_count || 0) : 0
       });
-      
-      console.log('Dashboard stats loaded:', {
-        totalAssets,
-        totalValue,
-        activeAssets,
-        recentAssetsCount: recentAssets.length,
-        sampleAsset: validAssets[0] // Log first asset to see structure
-      });
-      
-      // Debug: Log asset statuses to understand the data
-      if (validAssets.length > 0) {
-        console.log('Asset statuses found:', [...new Set(validAssets.map(a => a.status))]);
-        console.log('Sample asset structure:', validAssets[0]);
-      }
+
     } catch (error) {
       console.error('Error loading dashboard stats:', error);
       toast.error('Failed to load dashboard statistics');
-      
+
       // Fallback to empty state on error
       setDashboardStats({
         totalAssets: 0,
-        totalValue: 0,
+        totalJobs: 0,
         activeAssets: 0,
         warehouses: 0,
         branches: 0,
-        users: 0,
-        recentAssets: []
+        users: 0
       });
     } finally {
       setLoading(false);
     }
   };
 
+
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
-    { id: 'assets', label: 'Fixed Assets', icon: Package },
-    { id: 'transactions', label: 'Transactions', icon: ArrowUpCircle, comingSoon: true },
+    // Only show assets if user can read assets
+    ...(canReadAssets() ? [{ id: 'assets', label: 'Fixed Assets', icon: Package }] : []),
+    // Always show transactions and reports for now (they are coming soon anyway)
+    { id: 'transactions', label: 'Transactions', icon: ArrowUpCircle },
     { id: 'reports', label: 'Reports', icon: FileText, comingSoon: true },
-    { id: 'warehouses', label: 'Warehouses', icon: Warehouse },
-    { id: 'branches', label: 'Branches', icon: Building2 },
-    { id: 'categories', label: 'Categories', icon: FolderOpen },
-    { id: 'users', label: 'Users', icon: Users },
-    { id: 'jobroles', label: 'Job Roles', icon: Shield },
-    { id: 'settings', label: 'Settings', icon: Settings },
+    // Only show warehouses if user can read warehouses
+    ...(canReadWarehouses() ? [{ id: 'warehouses', label: 'Warehouses', icon: Warehouse }] : []),
+    // Only show branches if user can read branches
+    ...(canReadBranches() ? [{ id: 'branches', label: 'Branches', icon: Building2 }] : []),
+    // Only show categories, users, and job roles for admin users
+    ...(isAdmin() ? [
+      { id: 'categories', label: 'Categories', icon: FolderOpen },
+      { id: 'users', label: 'Users', icon: Users },
+      { id: 'jobroles', label: 'Job Roles', icon: Shield },
+      { id: 'settings', label: 'Settings', icon: Settings },
+    ] : []),
   ];
 
   const StatCard = ({ title, value, icon: Icon, color, subtitle, trend }) => (
@@ -204,21 +243,22 @@ const Dashboard = () => {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
-          <p className="text-muted-foreground">Welcome back, {user?.name}</p>
+          <p className="text-muted-foreground">Welcome back, {user?.full_name || user?.name}</p>
         </div>
         <div className="flex items-center space-x-3">
           <Button variant="outline" size="sm">
             <Download className="h-4 w-4 mr-2" />
             Export Report
           </Button>
-          <Button className="btn-primary">
-            <Plus className="h-4 w-4 mr-2" />
-            Add Asset
-          </Button>
+          {canEditAssets() && (
+            <Button className="btn-primary" onClick={() => setActiveTab('assets')}>
+              <Plus className="h-4 w-4 mr-2" />
+              Add Asset
+            </Button>
+          )}
         </div>
       </div>
 
-      {/* Stats Grid */}
       {/* Stats Cards */}
       {loading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -238,125 +278,271 @@ const Dashboard = () => {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <StatCard 
-            title="Total Assets" 
-            value={dashboardStats.totalAssets.toLocaleString()} 
-            icon={Package} 
-            color="gradient-primary"
-            subtitle={`${dashboardStats.activeAssets} active`}
-          />
-          <StatCard 
-            title="Asset Value" 
-            value={
-              dashboardStats.totalValue > 1000000 
-                ? `$${(dashboardStats.totalValue / 1000000).toFixed(1)}M`
-                : dashboardStats.totalValue > 1000
-                ? `$${(dashboardStats.totalValue / 1000).toFixed(1)}K`
-                : `$${dashboardStats.totalValue.toLocaleString()}`
-            } 
-            icon={DollarSign} 
-            color="gradient-success"
-            subtitle="Total portfolio"
-          />
-          <StatCard 
-            title="Warehouses" 
-            value={dashboardStats.warehouses} 
-            icon={Warehouse} 
-            color="bg-purple-500"
-            subtitle={`${dashboardStats.branches} branches`}
-          />
-          <StatCard 
-            title="Active Users" 
-            value={dashboardStats.users} 
-            icon={Users} 
-            color="bg-orange-500"
-            subtitle="System users"
-          />
+          {canReadAssets() && (
+            <StatCard
+              title="Total Assets"
+              value={dashboardStats.totalAssets.toLocaleString()}
+              icon={Package}
+              color="gradient-primary"
+              subtitle={`${dashboardStats.activeAssets} active`}
+            />
+          )}
+          {isAdmin() && (
+            <StatCard
+              title="Job Roles"
+              value={dashboardStats.totalJobs.toLocaleString()}
+              icon={User}
+              color="bg-blue-500"
+              subtitle="Defined roles"
+            />
+          )}
+          {canReadWarehouses() && (
+            <StatCard
+              title="Warehouses"
+              value={dashboardStats.warehouses}
+              icon={Warehouse}
+              color="bg-purple-500"
+              subtitle={canReadBranches() ? `${dashboardStats.branches} branches` : ""}
+            />
+          )}
+          {isAdmin() && (
+            <StatCard
+              title="Active Users"
+              value={dashboardStats.users}
+              icon={Users}
+              color="bg-orange-500"
+              subtitle="System users"
+            />
+          )}
         </div>
       )}
 
-      {/* Recent Assets and Quick Actions */}
+      {/* Transaction Summary and Quick Actions */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle className="flex items-center">
-              <Package className="h-5 w-5 mr-2" />
-              Recent Assets
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <div className="space-y-4">
-                {[...Array(4)].map((_, i) => (
-                  <div key={i} className="flex items-center justify-between p-4 rounded-lg animate-pulse">
-                    <div className="flex items-center space-x-4">
-                      <div className="h-10 w-10 bg-gray-200 rounded-lg"></div>
-                      <div className="space-y-2">
-                        <div className="h-4 bg-gray-200 rounded w-32"></div>
-                        <div className="h-3 bg-gray-200 rounded w-24"></div>
+        {canReadAssets() && (
+          <Card className="lg:col-span-2">
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <ArrowUpCircle className="h-5 w-5 mr-2" />
+                Transaction Summary
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {loading ? (
+                <div className="space-y-4">
+                  {[...Array(3)].map((_, i) => (
+                    <div key={i} className="flex items-center justify-between p-4 rounded-lg animate-pulse">
+                      <div className="flex items-center space-x-4">
+                        <div className="h-10 w-10 bg-gray-200 rounded-lg"></div>
+                        <div className="space-y-2">
+                          <div className="h-4 bg-gray-200 rounded w-32"></div>
+                          <div className="h-3 bg-gray-200 rounded w-24"></div>
+                        </div>
                       </div>
+                      <div className="h-6 bg-gray-200 rounded w-20"></div>
                     </div>
-                    <div className="h-6 bg-gray-200 rounded w-16"></div>
-                  </div>
-                ))}
-              </div>
-            ) : dashboardStats.recentAssets.length > 0 ? (
-              <div className="space-y-4">
-                {dashboardStats.recentAssets.map(asset => (
-                  <div key={asset.id} className="flex items-center justify-between p-4 rounded-lg hover:bg-secondary transition-smooth">
+                  ))}
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {/* Total Transactions */}
+                  <div className="flex items-center justify-between p-4 rounded-lg hover:bg-secondary transition-smooth">
                     <div className="flex items-center space-x-4">
-                      <div className="p-2 bg-primary/10 rounded-lg">
-                        <Package className="h-5 w-5 text-primary" />
+                      <div className="p-2 bg-blue-500/10 rounded-lg">
+                        <ArrowUpCircle className="h-5 w-5 text-blue-500" />
                       </div>
                       <div>
-                        <p className="font-medium">{asset.name_en || asset.name_ar || asset.name || 'Unnamed Asset'}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {asset.sub_category || asset.category || asset.asset_category || 'Uncategorized'} • 
-                          {asset.product_code ? ` Code: ${asset.product_code}` : asset.serial_number ? ` SN: ${asset.serial_number}` : ' No code'}
-                        </p>
+                        <p className="font-medium">Total Transactions</p>
+                        <p className="text-sm text-muted-foreground">All transaction records</p>
                       </div>
                     </div>
                     <div className="text-right">
-                      <p className="font-semibold">
-                        ${(parseFloat(asset.value || asset.price || 0) || 0).toLocaleString()} / unit
-                      </p>
+                      <p className="text-2xl font-bold">{transactionSummary.total_transactions.toLocaleString()}</p>
                       <Badge variant="outline" className="text-xs">
-                        Qty: {asset.quantity || 1}
+                        Total Count
                       </Badge>
                     </div>
                   </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-8">
-                <Package className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <p className="text-muted-foreground">No recent assets found</p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
 
+                  {/* In Transactions */}
+                  <div className="flex items-center justify-between p-4 rounded-lg hover:bg-secondary transition-smooth">
+                    <div className="flex items-center space-x-4">
+                      <div className="p-2 bg-green-500/10 rounded-lg">
+                        <TrendingUp className="h-5 w-5 text-green-500" />
+                      </div>
+                      <div>
+                        <p className="font-medium">Incoming Transactions</p>
+                        <p className="text-sm text-muted-foreground">Assets received</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xl font-semibold text-green-600">
+                        {transactionSummary.total_in_transactions.toLocaleString()}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        ${transactionSummary.total_in_value.toLocaleString()} value
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Out Transactions */}
+                  <div className="flex items-center justify-between p-4 rounded-lg hover:bg-secondary transition-smooth">
+                    <div className="flex items-center space-x-4">
+                      <div className="p-2 bg-red-500/10 rounded-lg">
+                        <ArrowUpCircle className="h-5 w-5 text-red-500 rotate-180" />
+                      </div>
+                      <div>
+                        <p className="font-medium">Outgoing Transactions</p>
+                        <p className="text-sm text-muted-foreground">Assets transferred out</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xl font-semibold text-red-600">
+                        {transactionSummary.total_out_transactions.toLocaleString()}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        ${transactionSummary.total_out_value.toLocaleString()} value
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Net Value */}
+                  <div className="flex items-center justify-between p-4 rounded-lg bg-primary/5 border border-primary/20">
+                    <div className="flex items-center space-x-4">
+                      <div className="p-2 bg-primary/10 rounded-lg">
+                        <DollarSign className="h-5 w-5 text-primary" />
+                      </div>
+                      <div>
+                        <p className="font-medium">Net Value</p>
+                        <p className="text-sm text-muted-foreground">Total asset value balance</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className={`text-2xl font-bold ${transactionSummary.net_value >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        ${transactionSummary.net_value.toLocaleString()}
+                      </p>
+                      <Badge
+                        variant={transactionSummary.net_value >= 0 ? "default" : "destructive"}
+                        className="text-xs"
+                      >
+                        {transactionSummary.net_value >= 0 ? 'Positive' : 'Negative'}
+                      </Badge>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Quick Actions for Admin or User Information for Normal Users */}
         <Card className="glass-card">
           <CardHeader>
-            <CardTitle>Quick Actions</CardTitle>
+            <CardTitle>{isAdmin() ? 'Quick Actions' : 'User Information'}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <Button className="w-full btn-primary" onClick={() => setActiveTab('assets')}>
-              <Plus className="h-4 w-4 mr-2" />
-              Add New Asset
-            </Button>
-            <Button className="w-full btn-secondary" onClick={() => setActiveTab('warehouses')}>
-              <Warehouse className="h-4 w-4 mr-2" />
-              Manage Warehouses
-            </Button>
-            <Button className="w-full btn-secondary" onClick={() => setActiveTab('branches')}>
-              <Building2 className="h-4 w-4 mr-2" />
-              Manage Branches
-            </Button>
-            <Button variant="outline" className="w-full">
-              <Download className="h-4 w-4 mr-2" />
-              Generate Report
-            </Button>
+            {isAdmin() ? (
+              // Quick Actions for Admin
+              <>
+                {canEditAssets() && (
+                  <Button className="w-full btn-primary" onClick={() => setActiveTab('assets')}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add New Asset
+                  </Button>
+                )}
+                {canEditWarehouses() && (
+                  <Button className="w-full btn-secondary" onClick={() => setActiveTab('warehouses')}>
+                    <Warehouse className="h-4 w-4 mr-2" />
+                    Manage Warehouses
+                  </Button>
+                )}
+                {canEditBranches() && (
+                  <Button className="w-full btn-secondary" onClick={() => setActiveTab('branches')}>
+                    <Building2 className="h-4 w-4 mr-2" />
+                    Manage Branches
+                  </Button>
+                )}
+                <Button variant="outline" className="w-full" onClick={() => setActiveTab('transactions')}>
+                  <ArrowUpCircle className="h-4 w-4 mr-2" />
+                  View Transactions
+                </Button>
+                <Button variant="outline" className="w-full">
+                  <Download className="h-4 w-4 mr-2" />
+                  Generate Report
+                </Button>
+              </>
+            ) : (
+              // User Information for Normal Users
+              <div className="space-y-4">
+                <div className="text-center">
+                  <div className="p-4 bg-primary/10 rounded-full w-16 h-16 mx-auto mb-3 flex items-center justify-center">
+                    <User className="h-8 w-8 text-primary" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-foreground">
+                    {user?.full_name || user?.name || 'User'}
+                  </h3>
+                  <p className="text-sm text-muted-foreground">{user?.email}</p>
+                  <Badge variant="secondary" className="mt-2">
+                    {user?.role || 'User'}
+                  </Badge>
+                </div>
+
+                <div className="border-t pt-4">
+                  <h4 className="text-sm font-semibold text-foreground mb-3">Your Permissions</h4>
+                  <div className="space-y-2">
+                    {canReadAssets() && (
+                      <div className="flex items-center text-sm text-muted-foreground">
+                        <Package className="h-4 w-4 mr-2 text-green-500" />
+                        <span>View Assets</span>
+                      </div>
+                    )}
+                    {canReadWarehouses() && (
+                      <div className="flex items-center text-sm text-muted-foreground">
+                        <Warehouse className="h-4 w-4 mr-2 text-green-500" />
+                        <span>View Warehouses</span>
+                      </div>
+                    )}
+                    {canReadBranches() && (
+                      <div className="flex items-center text-sm text-muted-foreground">
+                        <Building2 className="h-4 w-4 mr-2 text-green-500" />
+                        <span>View Branches</span>
+                      </div>
+                    )}
+                    {user?.can_edit_asset && (
+                      <div className="flex items-center text-sm text-muted-foreground">
+                        <Edit3 className="h-4 w-4 mr-2 text-blue-500" />
+                        <span>Edit Assets</span>
+                      </div>
+                    )}
+                    {user?.can_edit_warehouse && (
+                      <div className="flex items-center text-sm text-muted-foreground">
+                        <Edit3 className="h-4 w-4 mr-2 text-blue-500" />
+                        <span>Edit Warehouses</span>
+                      </div>
+                    )}
+                    {user?.can_edit_branch && (
+                      <div className="flex items-center text-sm text-muted-foreground">
+                        <Edit3 className="h-4 w-4 mr-2 text-blue-500" />
+                        <span>Edit Branches</span>
+                      </div>
+                    )}
+                    {user?.can_print_barcode && (
+                      <div className="flex items-center text-sm text-muted-foreground">
+                        <Download className="h-4 w-4 mr-2 text-purple-500" />
+                        <span>Print Barcodes</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="pt-4">
+                  <Button variant="outline" className="w-full" onClick={() => setActiveTab('reports')}>
+                    <FileText className="h-4 w-4 mr-2" />
+                    View Reports
+                  </Button>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -367,10 +553,10 @@ const Dashboard = () => {
     switch (activeTab) {
       case 'dashboard':
         return <DashboardView />;
+      case 'transactions':
+        return <Transactions />;
       case 'assets':
         return <ErrorBoundary><AssetManagement /></ErrorBoundary>;
-      case 'transactions':
-        return <ErrorBoundary><AssetTransactions /></ErrorBoundary>;
       case 'reports':
         return <ErrorBoundary><Reports /></ErrorBoundary>;
       case 'warehouses':
@@ -425,9 +611,8 @@ const Dashboard = () => {
               <Button
                 key={item.id}
                 variant={activeTab === item.id ? "default" : "ghost"}
-                className={`w-full justify-start transition-smooth ${
-                  activeTab === item.id ? 'gradient-primary text-primary-foreground shadow-primary' : ''
-                } ${item.comingSoon ? 'opacity-75' : ''}`}
+                className={`w-full justify-start transition-smooth ${activeTab === item.id ? 'gradient-primary text-primary-foreground shadow-primary' : ''
+                  } ${item.comingSoon ? 'opacity-75' : ''}`}
                 onClick={() => setActiveTab(item.id)}
               >
                 <Icon className="h-4 w-4" />
@@ -456,7 +641,7 @@ const Dashboard = () => {
             </div>
             {sidebarOpen && (
               <div className="flex-1">
-                <p className="text-sm font-medium text-foreground">{user?.name}</p>
+                <p className="text-sm font-medium text-foreground">{user?.full_name || user?.name}</p>
                 <p className="text-xs text-muted-foreground">{user?.email}</p>
               </div>
             )}

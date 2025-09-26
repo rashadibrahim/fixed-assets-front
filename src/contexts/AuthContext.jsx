@@ -60,27 +60,31 @@ export const AuthProvider = ({ children }) => {
       setLoading(true);
       setConnectionError(false);
       const response = await apiClient.login(credentials);
-      
-      if (response.access_token) {
+
+      if (response.access_token && response.user) {
         localStorage.setItem('authToken', response.access_token);
         apiClient.setToken(response.access_token);
-        
-        // Get user profile after login
+
+        // Use the user object from login response which includes all permissions
+        setUser(response.user);
+
+        // Optionally try to get additional user profile data
         try {
           const userProfile = await apiClient.getUserProfile();
-          setUser(userProfile);
+          // Merge profile data with login user data, prioritizing permissions from login
+          setUser({
+            ...userProfile,
+            ...response.user, // This ensures permissions are not overwritten
+          });
         } catch (error) {
           console.error('Failed to get user profile:', error);
-          setUser({ 
-            email: credentials.email, 
-            full_name: 'User' 
-          });
+          // Keep using the user data from login response
         }
-        
+
         setIsAuthenticated(true);
         return response;
       } else {
-        throw new Error('No access token received');
+        throw new Error('No access token or user data received');
       }
     } catch (error) {
       console.error('Login failed:', error);
@@ -114,9 +118,16 @@ export const AuthProvider = ({ children }) => {
       full_name: 'Demo Admin',
       email: 'admin@demo.com',
       role: 'admin',
+      can_read_branch: true,
+      can_edit_branch: true,
+      can_delete_branch: true,
+      can_read_warehouse: true,
+      can_edit_warehouse: true,
+      can_delete_warehouse: true,
       can_read_asset: true,
       can_edit_asset: true,
-      can_delete_asset: true
+      can_delete_asset: true,
+      can_print_barcode: true
     };
     setUser(demoUser);
     setIsAuthenticated(true);
