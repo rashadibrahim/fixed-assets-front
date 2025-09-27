@@ -15,10 +15,14 @@ import {
   ChevronRight,
   X,
   AlertCircle,
-  LogOut
+  LogOut,
+  Plus
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '../contexts/AuthContext';
+import AddTransaction from './AddTransaction';
+import ViewTransaction from './ViewTransaction';
+import apiClient from '../utils/api';
 
 const Transactions = () => {
   const { user, logout } = useAuth();
@@ -47,6 +51,9 @@ const Transactions = () => {
   const [branches, setBranches] = useState([]);
   const [warehouses, setWarehouses] = useState([]);
   const [showFilters, setShowFilters] = useState(false);
+  const [showAddTransaction, setShowAddTransaction] = useState(false);
+  const [showViewTransaction, setShowViewTransaction] = useState(false);
+  const [selectedTransactionId, setSelectedTransactionId] = useState(null);
 
   // Permission checks
   const isAdmin = () => user?.role?.toLowerCase() === 'admin';
@@ -132,7 +139,7 @@ const Transactions = () => {
         }
       });
 
-      const url = `http://127.0.0.1:5000/transactions/?${params.toString()}`;
+      const url = `${apiClient.baseURL}/transactions/?${params.toString()}`;
 
       const response = await fetch(url, {
         method: 'GET',
@@ -190,7 +197,7 @@ const Transactions = () => {
       const token = getValidToken();
       if (!token) return;
 
-      const url = 'http://127.0.0.1:5000/branches/';
+      const url = `${apiClient.baseURL}/branches/`;
 
       const response = await fetch(url, {
         method: 'GET',
@@ -228,7 +235,7 @@ const Transactions = () => {
       const token = getValidToken();
       if (!token) return;
 
-      const url = 'http://127.0.0.1:5000/warehouses/';
+      const url = `${apiClient.baseURL}/warehouses/`;
 
       const response = await fetch(url, {
         method: 'GET',
@@ -308,14 +315,61 @@ const Transactions = () => {
     }
   };
 
-  const downloadAttachment = (filename) => {
-    if (filename) {
-      window.open(`http://127.0.0.1:5000/uploads/${filename}`, '_blank');
+  const downloadAttachment = (transactionId, filename) => {
+    if (transactionId) {
+      const token = localStorage.getItem('authToken');
+      if (!token) {
+        toast.error('Authentication required to download file');
+        return;
+      }
+
+      // Create a temporary link element to trigger download
+      const link = document.createElement('a');
+      link.href = `${apiClient.baseURL}/transactions/${transactionId}/download`;
+      link.target = '_blank';
+
+      // Add authorization header by creating a fetch request instead
+      fetch(`${apiClient.baseURL}/transactions/${transactionId}/download`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      })
+        .then(response => {
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+          }
+          return response.blob();
+        })
+        .then(blob => {
+          // Create blob URL and trigger download
+          const url = window.URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = filename || 'transaction-file';
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          window.URL.revokeObjectURL(url);
+        })
+        .catch(error => {
+          console.error('Error downloading file:', error);
+          toast.error('Failed to download file');
+        });
     }
   };
 
   const handleLogout = () => {
     logout();
+  };
+
+  const handleTransactionAdded = () => {
+    loadTransactions(); // Refresh the transactions list
+  };
+
+  const handleViewTransaction = (transactionId) => {
+    setSelectedTransactionId(transactionId);
+    setShowViewTransaction(true);
   };
 
   // Check permissions
@@ -362,6 +416,13 @@ const Transactions = () => {
           <p className="text-gray-600">Manage asset transactions and movements</p>
         </div>
         <div className="flex items-center space-x-3">
+          <button
+            onClick={() => setShowAddTransaction(true)}
+            className="flex items-center px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Add Transaction
+          </button>
           <button
             onClick={() => setShowFilters(!showFilters)}
             className={`flex items-center px-4 py-2 rounded-md border transition-colors ${showFilters
@@ -553,129 +614,196 @@ const Transactions = () => {
       </div>
 
       {/* Transactions Table */}
-      <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
         {loading ? (
-          <div className="p-8 text-center">
-            <RefreshCw className="w-8 h-8 mx-auto text-gray-400 animate-spin mb-4" />
-            <p className="text-gray-600">Loading transactions...</p>
+          <div className="p-12 text-center">
+            <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-100 rounded-full mb-4">
+              <RefreshCw className="w-8 h-8 text-blue-600 animate-spin" />
+            </div>
+            <p className="text-lg font-medium text-gray-900 mb-2">Loading transactions...</p>
+            <p className="text-gray-500">Please wait while we fetch your data</p>
           </div>
         ) : error ? (
-          <div className="p-8 text-center">
-            <AlertCircle className="w-12 h-12 mx-auto text-red-400 mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">Failed to Load Transactions</h3>
-            <p className="text-gray-600 mb-4">There was an error loading the transaction data.</p>
+          <div className="p-12 text-center">
+            <div className="inline-flex items-center justify-center w-16 h-16 bg-red-100 rounded-full mb-4">
+              <AlertCircle className="w-8 h-8 text-red-600" />
+            </div>
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">Failed to Load Transactions</h3>
+            <p className="text-gray-600 mb-6">There was an error loading the transaction data.</p>
             <button
               onClick={loadTransactions}
-              className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
+              className="inline-flex items-center px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors"
             >
+              <RefreshCw className="w-4 h-4 mr-2" />
               Try Again
             </button>
           </div>
         ) : transactions.length === 0 ? (
-          <div className="p-8 text-center">
-            <ArrowUpCircle className="w-12 h-12 mx-auto text-gray-400 mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No transactions found</h3>
-            <p className="text-gray-600">No transaction data available.</p>
+          <div className="p-12 text-center">
+            <div className="inline-flex items-center justify-center w-16 h-16 bg-gray-100 rounded-full mb-4">
+              <ArrowUpCircle className="w-8 h-8 text-gray-400" />
+            </div>
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">No transactions found</h3>
+            <p className="text-gray-500 mb-6">No transaction data available with the current filters.</p>
+            <button
+              onClick={() => setShowAddTransaction(true)}
+              className="inline-flex items-center px-6 py-3 bg-green-600 text-white font-medium rounded-lg hover:bg-green-700 transition-colors"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Add First Transaction
+            </button>
           </div>
         ) : (
           <>
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
+                <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                       Transaction
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Date
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                      Date & Time
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Warehouse
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                      Location
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Description
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                      Details
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                       Reference
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                       Attachment
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                       Actions
                     </th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {transactions.map((transaction) => (
-                    <tr key={transaction.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">
+                  {transactions.map((transaction, index) => (
+                    <tr
+                      key={transaction.id}
+                      className={`hover:bg-blue-50 transition-colors duration-200 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'
+                        }`}
+                    >
+                      <td className="px-6 py-5 whitespace-nowrap">
                         <div className="flex items-center">
-                          <div className="p-2 bg-indigo-100 rounded-lg mr-3">
-                            <ArrowUpCircle className="w-5 h-5 text-indigo-600" />
+                          <div className="flex-shrink-0">
+                            <div className={`w-12 h-12 rounded-xl flex items-center justify-center shadow-sm ${transaction.transaction_type
+                              ? 'bg-gradient-to-r from-green-500 to-green-600'
+                              : 'bg-gradient-to-r from-red-500 to-red-600'
+                              }`}>
+                              {transaction.transaction_type ? (
+                                <ArrowUpCircle className="w-6 h-6 text-white" />
+                              ) : (
+                                <ArrowDownCircle className="w-6 h-6 text-white" />
+                              )}
+                            </div>
                           </div>
-                          <div>
-                            <div className="text-sm font-medium text-gray-900">
+                          <div className="ml-4">
+                            <div className="text-sm font-semibold text-gray-900">
                               {transaction.custom_id}
                             </div>
-                            <div className="text-sm text-gray-500">
-                              ID: {transaction.id}
+                            <div className="flex items-center space-x-2 mt-1">
+                              <div className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
+                                ID: {transaction.id}
+                              </div>
+                              <div className={`text-xs px-2 py-1 rounded-full font-medium ${transaction.transaction_type
+                                ? 'bg-green-100 text-green-800'
+                                : 'bg-red-100 text-red-800'
+                                }`}>
+                                {transaction.transaction_type ? 'IN' : 'OUT'}
+                              </div>
                             </div>
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center">
-                          <Calendar className="w-4 h-4 text-gray-400 mr-2" />
+
+                      <td className="px-6 py-5 whitespace-nowrap">
+                        <div className="flex items-start">
+                          <Calendar className="w-4 h-4 text-blue-500 mt-1 mr-3 flex-shrink-0" />
                           <div>
-                            <div className="text-sm text-gray-900">
+                            <div className="text-sm font-medium text-gray-900">
                               {formatDate(transaction.date)}
                             </div>
-                            <div className="text-xs text-gray-500">
+                            <div className="text-xs text-gray-500 mt-1">
                               Created: {formatDate(transaction.created_at)}
                             </div>
+                            {transaction.user_id && (
+                              <div className="text-xs text-gray-500 mt-1">
+                                User ID: {transaction.user_id}
+                              </div>
+                            )}
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center">
-                          <Warehouse className="w-4 h-4 text-gray-400 mr-2" />
+
+                      <td className="px-6 py-5 whitespace-nowrap">
+                        <div className="flex items-start">
+                          <Warehouse className="w-4 h-4 text-indigo-500 mt-1 mr-3 flex-shrink-0" />
                           <div>
-                            <div className="text-sm text-gray-900">
-                              {transaction.warehouse?.name_en || transaction.warehouse?.name_ar || 'Unknown'}
+                            <div className="text-sm font-medium text-gray-900">
+                              {transaction.warehouse?.name_en || transaction.warehouse?.name_ar || 'Unknown Warehouse'}
                             </div>
-                            <div className="text-xs text-gray-500">
+                            <div className="text-xs text-gray-500 mt-1 flex items-center">
+                              <Building2 className="w-3 h-3 mr-1" />
                               Branch ID: {transaction.warehouse?.branch_id}
                             </div>
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4">
-                        <div className="text-sm text-gray-900 max-w-xs truncate" title={transaction.description}>
-                          {transaction.description || 'No description'}
+
+                      <td className="px-6 py-5">
+                        <div className="max-w-xs">
+                          <div className="text-sm text-gray-900 font-medium truncate" title={transaction.description}>
+                            {transaction.description || 'No description provided'}
+                          </div>
+                          <div className="text-xs text-gray-500 mt-1">
+                            Transaction {transaction.transaction_type ? 'Inbound' : 'Outbound'}
+                          </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+
+                      <td className="px-6 py-5 whitespace-nowrap">
                         <div className="text-sm text-gray-900">
-                          {transaction.reference_number || '-'}
+                          {transaction.reference_number ? (
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                              {transaction.reference_number}
+                            </span>
+                          ) : (
+                            <span className="text-gray-400 italic">No reference</span>
+                          )}
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+
+                      <td className="px-6 py-5 whitespace-nowrap">
                         {transaction.attached_file ? (
                           <button
-                            onClick={() => downloadAttachment(transaction.attached_file)}
-                            className="flex items-center text-sm text-indigo-600 hover:text-indigo-800"
+                            onClick={() => downloadAttachment(transaction.id, transaction.attached_file)}
+                            className="inline-flex items-center px-3 py-2 text-xs font-medium text-blue-700 bg-blue-100 rounded-lg hover:bg-blue-200 transition-colors duration-200"
                           >
-                            <FileText className="w-4 h-4 mr-1" />
-                            View File
+                            <FileText className="w-4 h-4 mr-1.5" />
+                            Download
                           </button>
                         ) : (
-                          <span className="text-sm text-gray-400">No file</span>
+                          <span className="inline-flex items-center px-3 py-2 text-xs font-medium text-gray-500 bg-gray-100 rounded-lg">
+                            <X className="w-3 h-3 mr-1" />
+                            No file
+                          </span>
                         )}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <button className="text-indigo-600 hover:text-indigo-900 mr-3">
-                          <Eye className="w-4 h-4" />
+
+                      <td className="px-6 py-5 whitespace-nowrap text-right">
+                        <button
+                          onClick={() => handleViewTransaction(transaction.id)}
+                          className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-indigo-500 to-indigo-600 rounded-lg hover:from-indigo-600 hover:to-indigo-700 transition-all duration-200 shadow-sm hover:shadow-md"
+                          title="View transaction details"
+                        >
+                          <Eye className="w-4 h-4 mr-2" />
+                          View
                         </button>
                       </td>
                     </tr>
@@ -684,22 +812,24 @@ const Transactions = () => {
               </table>
             </div>
 
-            {/* Pagination */}
-            <div className="bg-white px-4 py-3 border-t border-gray-200 sm:px-6">
+            {/* Enhanced Pagination */}
+            <div className="bg-gradient-to-r from-gray-50 to-gray-100 px-6 py-4 border-t border-gray-200">
               <div className="flex items-center justify-between">
-                <div className="flex items-center">
-                  <p className="text-sm text-gray-700">
-                    Page <span className="font-medium">{pagination.page}</span> of{' '}
-                    <span className="font-medium">{pagination.pages}</span>
-                  </p>
+                <div className="flex items-center text-sm text-gray-700">
+                  <span className="font-medium">
+                    Showing {((pagination.page - 1) * pagination.per_page + 1)} - {Math.min(pagination.page * pagination.per_page, pagination.total)}
+                  </span>
+                  <span className="ml-1">of</span>
+                  <span className="ml-1 font-semibold text-gray-900">{pagination.total}</span>
+                  <span className="ml-1">transactions</span>
                 </div>
                 <div className="flex items-center space-x-2">
                   <button
                     onClick={() => handlePageChange(pagination.page - 1)}
                     disabled={pagination.page <= 1}
-                    className="relative inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm transition-colors duration-200"
                   >
-                    <ChevronLeft className="w-4 h-4" />
+                    <ChevronLeft className="w-4 h-4 mr-1" />
                     Previous
                   </button>
 
@@ -710,9 +840,9 @@ const Transactions = () => {
                         <button
                           key={page}
                           onClick={() => handlePageChange(page)}
-                          className={`px-3 py-2 text-sm font-medium rounded-md ${page === pagination.page
-                            ? 'bg-indigo-600 text-white'
-                            : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50'
+                          className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors duration-200 ${page === pagination.page
+                            ? 'bg-gradient-to-r from-indigo-500 to-indigo-600 text-white shadow-md'
+                            : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 shadow-sm'
                             }`}
                         >
                           {page}
@@ -724,10 +854,10 @@ const Transactions = () => {
                   <button
                     onClick={() => handlePageChange(pagination.page + 1)}
                     disabled={pagination.page >= pagination.pages}
-                    className="relative inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm transition-colors duration-200"
                   >
                     Next
-                    <ChevronRight className="w-4 h-4" />
+                    <ChevronRight className="w-4 h-4 ml-1" />
                   </button>
                 </div>
               </div>
@@ -735,6 +865,23 @@ const Transactions = () => {
           </>
         )}
       </div>
+
+      {/* Add Transaction Modal */}
+      <AddTransaction
+        isOpen={showAddTransaction}
+        onClose={() => setShowAddTransaction(false)}
+        onSuccess={handleTransactionAdded}
+      />
+
+      {/* View Transaction Modal */}
+      <ViewTransaction
+        isOpen={showViewTransaction}
+        onClose={() => {
+          setShowViewTransaction(false);
+          setSelectedTransactionId(null);
+        }}
+        transactionId={selectedTransactionId}
+      />
     </div>
   );
 };

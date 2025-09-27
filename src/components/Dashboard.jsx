@@ -25,7 +25,8 @@ import {
   Shield,
   FolderOpen,
   ArrowUpCircle,
-  FileText
+  FileText,
+  RefreshCw
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -95,7 +96,7 @@ const Dashboard = () => {
           return;
         }
 
-        const response = await fetch('http://127.0.0.1:5000/transactions/summary', {
+        const response = await fetch(`${apiClient.baseURL}/transactions/summary`, {
           method: 'GET',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -148,7 +149,7 @@ const Dashboard = () => {
       }
 
       // Load statistics from the auth/stats endpoint
-      const response = await fetch('http://127.0.0.1:5000/auth/stats', {
+      const response = await fetch(`${apiClient.baseURL}/auth/stats`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -193,6 +194,21 @@ const Dashboard = () => {
     }
   };
 
+  const handleRefresh = async () => {
+    setLoading(true);
+    try {
+      await Promise.all([
+        loadDashboardStats(),
+        loadTransactionSummary()
+      ]);
+      toast.success('Dashboard data refreshed successfully!');
+    } catch (error) {
+      console.error('Error refreshing dashboard:', error);
+      toast.error('Failed to refresh dashboard data');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
@@ -246,6 +262,16 @@ const Dashboard = () => {
           <p className="text-muted-foreground">Welcome back, {user?.full_name || user?.name}</p>
         </div>
         <div className="flex items-center space-x-3">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleRefresh}
+            disabled={loading}
+            className="flex items-center"
+          >
+            <ArrowUpCircle className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+            {loading ? 'Refreshing...' : 'Refresh'}
+          </Button>
           <Button variant="outline" size="sm">
             <Download className="h-4 w-4 mr-2" />
             Export Report
@@ -611,11 +637,16 @@ const Dashboard = () => {
               <Button
                 key={item.id}
                 variant={activeTab === item.id ? "default" : "ghost"}
-                className={`w-full justify-start transition-smooth ${activeTab === item.id ? 'gradient-primary text-primary-foreground shadow-primary' : ''
+                className={`w-full transition-smooth ${sidebarOpen
+                  ? 'justify-start'
+                  : 'justify-center px-0'
+                  } ${activeTab === item.id
+                    ? 'gradient-primary text-primary-foreground shadow-primary'
+                    : ''
                   } ${item.comingSoon ? 'opacity-75' : ''}`}
                 onClick={() => setActiveTab(item.id)}
               >
-                <Icon className="h-4 w-4" />
+                <Icon className={`h-4 w-4 ${sidebarOpen ? '' : 'mx-auto'}`} />
                 {sidebarOpen && (
                   <div className="flex items-center justify-between w-full ml-3">
                     <span>{item.label}</span>
@@ -636,7 +667,7 @@ const Dashboard = () => {
 
         <div className="p-4 border-t border-border">
           <div className={`flex items-center ${sidebarOpen ? 'space-x-3' : 'justify-center'}`}>
-            <div className="p-2 bg-primary/10 rounded-lg">
+            <div className={`p-2 bg-primary/10 rounded-lg ${!sidebarOpen ? 'mx-auto' : ''}`}>
               <User className="h-4 w-4 text-primary" />
             </div>
             {sidebarOpen && (
@@ -650,6 +681,7 @@ const Dashboard = () => {
               size="sm"
               onClick={logout}
               title="Logout"
+              className={!sidebarOpen ? 'absolute bottom-4 right-2' : ''}
             >
               <LogOut className="h-4 w-4" />
             </Button>

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  ArrowUpCircle, 
-  ArrowDownCircle, 
+import {
+  ArrowUpCircle,
+  ArrowDownCircle,
   Calendar,
   FileText,
   Download,
@@ -29,9 +29,11 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { ViewToggle } from '@/components/ui/view-toggle';
+import apiClient from '../utils/api';
 
 const AssetTransactions = () => {
   const [transactions, setTransactions] = useState([]);
+  const [assets, setAssets] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('all');
@@ -60,74 +62,132 @@ const AssetTransactions = () => {
     notes: ''
   });
 
-  // Mock data for demonstration
-  const mockTransactions = [
-    {
-      id: 1,
-      asset_name: 'Dell Laptop XPS 13',
-      transaction_type: 'IN',
-      quantity: 5,
-      unit_price: 1200.00,
-      total_value: 6000.00,
-      reference_number: 'PO-2024-001',
-      transaction_date: '2024-01-15',
-      warehouse: 'Main Warehouse',
-      user: 'John Smith',
-      status: 'COMPLETED',
-      notes: 'New stock arrival from supplier'
-    },
-    {
-      id: 2,
-      asset_name: 'Office Chair',
-      transaction_type: 'OUT',
-      quantity: 2,
-      unit_price: 150.00,
-      total_value: 300.00,
-      reference_number: 'REQ-2024-045',
-      transaction_date: '2024-01-14',
-      warehouse: 'Branch Office',
-      user: 'Sarah Johnson',
-      status: 'PENDING',
-      notes: 'Transfer to branch office'
-    },
-    {
-      id: 3,
-      asset_name: 'HP Printer LaserJet',
-      transaction_type: 'TRANSFER',
-      quantity: 1,
-      unit_price: 450.00,
-      total_value: 450.00,
-      reference_number: 'TR-2024-012',
-      transaction_date: '2024-01-13',
-      warehouse: 'IT Department',
-      user: 'Mike Wilson',
-      status: 'COMPLETED',
-      notes: 'Internal transfer between departments'
-    }
-  ];
-
   useEffect(() => {
     loadTransactions();
+    loadAssets();
   }, []);
 
-  const loadTransactions = async () => {
+  const getValidToken = () => {
+    return localStorage.getItem('authToken');
+  };
+
+  const loadTransactions = async (page = 1) => {
     setLoading(true);
     try {
-      // Simulate API call with mock data
-      setTimeout(() => {
-        setTransactions(mockTransactions);
-        setPagination({
-          page: 1,
-          pages: 1,
-          total: mockTransactions.length
-        });
-        setLoading(false);
-      }, 500);
+      const token = getValidToken();
+      if (!token) {
+        toast.error('Authentication required');
+        return;
+      }
+
+      const response = await fetch(`${apiClient.baseURL}/transactions/?per_page=50&page=${page}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        mode: 'cors',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch transactions');
+      }
+
+      const data = await response.json();
+      setTransactions(data.items || data || []);
+      setPagination({
+        page: data.page || 1,
+        pages: data.pages || 1,
+        total: data.total || 0
+      });
     } catch (error) {
       console.error('Error loading transactions:', error);
-      setLoading(false);
       toast.error('Failed to load transactions');
+      // Fallback to mock data for development
+      loadMockTransactions();
+    } finally {
+      setLoading(false);
     }
+  };
+
+  const loadAssets = async () => {
+    try {
+      const token = getValidToken();
+      if (!token) return;
+
+      const response = await fetch(`${apiClient.baseURL}/assets/?per_page=1000&page=1`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        mode: 'cors',
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setAssets(data.items || data || []);
+      }
+    } catch (error) {
+      console.error('Error loading assets:', error);
+    }
+  };
+
+  // Mock data fallback for development
+  const loadMockTransactions = () => {
+    const mockTransactions = [
+      {
+        id: 1,
+        asset_name: 'Dell Laptop XPS 13',
+        transaction_type: 'IN',
+        quantity: 5,
+        unit_price: 1200.00,
+        total_value: 6000.00,
+        reference_number: 'PO-2024-001',
+        transaction_date: '2024-01-15',
+        warehouse: 'Main Warehouse',
+        user: 'John Smith',
+        status: 'COMPLETED',
+        notes: 'New stock arrival from supplier'
+      },
+      {
+        id: 2,
+        asset_name: 'Office Chair',
+        transaction_type: 'OUT',
+        quantity: 2,
+        unit_price: 150.00,
+        total_value: 300.00,
+        reference_number: 'REQ-2024-045',
+        transaction_date: '2024-01-14',
+        warehouse: 'Branch Office',
+        user: 'Sarah Johnson',
+        status: 'PENDING',
+        notes: 'Transfer to branch office'
+      },
+      {
+        id: 3,
+        asset_name: 'HP Printer LaserJet',
+        transaction_type: 'TRANSFER',
+        quantity: 1,
+        unit_price: 450.00,
+        total_value: 450.00,
+        reference_number: 'TR-2024-012',
+        transaction_date: '2024-01-13',
+        warehouse: 'IT Department',
+        user: 'Mike Wilson',
+        status: 'COMPLETED',
+        notes: 'Internal transfer between departments'
+      }
+    ];
+
+    setTransactions(mockTransactions);
+    setPagination({
+      page: 1,
+      pages: 1,
+      total: mockTransactions.length
+    });
   };
 
   const handleInputChange = (e) => {
@@ -140,14 +200,81 @@ const AssetTransactions = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
     try {
-      // Simulate API call
+      const token = getValidToken();
+      if (!token) {
+        toast.error('Authentication required');
+        return;
+      }
+
+      // Prepare transaction data
+      const transactionData = {
+        asset_id: parseInt(formData.asset_id),
+        transaction_type: formData.transaction_type,
+        quantity: parseInt(formData.quantity),
+        unit_price: parseFloat(formData.unit_price) || 0,
+        total_value: parseFloat(formData.total_value) || 0,
+        reference_number: formData.reference_number,
+        description: formData.description || formData.notes,
+        transaction_date: formData.transaction_date,
+        notes: formData.notes
+      };
+
+      const response = await fetch(`${apiClient.baseURL}/asset-transactions/`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: JSON.stringify(transactionData),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to create transaction');
+      }
+
       toast.success('Transaction created successfully!');
       setShowAddModal(false);
       loadTransactions();
       resetForm();
     } catch (error) {
-      toast.error('Failed to create transaction');
+      console.error('Error creating transaction:', error);
+      toast.error(error.message || 'Failed to create transaction');
+    }
+  };
+
+  const handleDelete = async (transactionId) => {
+    if (!window.confirm('Are you sure you want to delete this transaction?')) {
+      return;
+    }
+
+    try {
+      const token = getValidToken();
+      if (!token) {
+        toast.error('Authentication required');
+        return;
+      }
+
+      const response = await fetch(`${apiClient.baseURL}/asset-transactions/${transactionId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete transaction');
+      }
+
+      toast.success('Transaction deleted successfully');
+      loadTransactions();
+    } catch (error) {
+      console.error('Error deleting transaction:', error);
+      toast.error('Failed to delete transaction');
     }
   };
 
@@ -169,11 +296,11 @@ const AssetTransactions = () => {
   };
 
   const filteredTransactions = transactions.filter(transaction => {
-    const matchesSearch = transaction.asset_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         transaction.reference_number.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = (transaction.asset_name || transaction.asset?.name_en || transaction.asset?.name_ar || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (transaction.reference_number || '').toLowerCase().includes(searchTerm.toLowerCase());
     const matchesType = filterType === 'all' || transaction.transaction_type === filterType;
     const matchesStatus = filterStatus === 'all' || transaction.status === filterStatus;
-    
+
     return matchesSearch && matchesType && matchesStatus;
   });
 
@@ -193,7 +320,7 @@ const AssetTransactions = () => {
       'CANCELLED': 'destructive',
       'IN_PROGRESS': 'outline'
     };
-    return <Badge variant={variants[status] || 'outline'}>{status}</Badge>;
+    return <Badge variant={variants[status] || 'outline'}>{status || 'COMPLETED'}</Badge>;
   };
 
   const TransactionListView = () => (
@@ -221,8 +348,12 @@ const AssetTransactions = () => {
                       <Package className="h-4 w-4 text-primary" />
                     </div>
                     <div>
-                      <div className="font-semibold">{transaction.asset_name}</div>
-                      <div className="text-sm text-muted-foreground">{transaction.warehouse}</div>
+                      <div className="font-semibold">
+                        {transaction.asset_name || transaction.asset?.name_en || transaction.asset?.name_ar || 'Unknown Asset'}
+                      </div>
+                      <div className="text-sm text-muted-foreground">
+                        {transaction.warehouse || transaction.warehouse?.name_en || transaction.warehouse?.name_ar || 'Unknown Warehouse'}
+                      </div>
                     </div>
                   </div>
                 </TableCell>
@@ -235,15 +366,15 @@ const AssetTransactions = () => {
                 <TableCell>{transaction.quantity}</TableCell>
                 <TableCell>
                   <div>
-                    <div className="font-medium">${transaction.total_value.toLocaleString()}</div>
-                    <div className="text-sm text-muted-foreground">@${transaction.unit_price}</div>
+                    <div className="font-medium">${(transaction.total_value || 0).toLocaleString()}</div>
+                    <div className="text-sm text-muted-foreground">@${transaction.unit_price || 0}</div>
                   </div>
                 </TableCell>
                 <TableCell>
-                  <span className="font-mono text-sm">{transaction.reference_number}</span>
+                  <span className="font-mono text-sm">{transaction.reference_number || 'N/A'}</span>
                 </TableCell>
                 <TableCell>
-                  {new Date(transaction.transaction_date).toLocaleDateString()}
+                  {new Date(transaction.transaction_date || transaction.date).toLocaleDateString()}
                 </TableCell>
                 <TableCell>
                   {getStatusBadge(transaction.status)}
@@ -253,7 +384,12 @@ const AssetTransactions = () => {
                     <Button variant="ghost" size="sm">
                       <Edit3 className="h-4 w-4" />
                     </Button>
-                    <Button variant="ghost" size="sm" className="text-destructive">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-destructive"
+                      onClick={() => handleDelete(transaction.id)}
+                    >
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
@@ -281,8 +417,10 @@ const AssetTransactions = () => {
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <h3 className="font-semibold text-lg">{transaction.asset_name}</h3>
-              <p className="text-sm text-muted-foreground">{transaction.reference_number}</p>
+              <h3 className="font-semibold text-lg">
+                {transaction.asset_name || transaction.asset?.name_en || transaction.asset?.name_ar || 'Unknown Asset'}
+              </h3>
+              <p className="text-sm text-muted-foreground">{transaction.reference_number || 'N/A'}</p>
             </div>
 
             <div className="space-y-2">
@@ -292,28 +430,37 @@ const AssetTransactions = () => {
               </div>
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">Total Value:</span>
-                <span className="font-medium text-green-600">${transaction.total_value.toLocaleString()}</span>
+                <span className="font-medium text-green-600">${(transaction.total_value || 0).toLocaleString()}</span>
               </div>
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">Warehouse:</span>
-                <span className="font-medium">{transaction.warehouse}</span>
+                <span className="font-medium">
+                  {transaction.warehouse || transaction.warehouse?.name_en || transaction.warehouse?.name_ar || 'Unknown'}
+                </span>
               </div>
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">User:</span>
-                <span className="font-medium">{transaction.user}</span>
+                <span className="font-medium">
+                  {transaction.user || transaction.user?.full_name || 'Unknown User'}
+                </span>
               </div>
             </div>
 
             <div className="flex items-center justify-between pt-4 border-t border-border">
               <div className="flex items-center text-xs text-muted-foreground">
                 <Calendar className="h-3 w-3 mr-1" />
-                {new Date(transaction.transaction_date).toLocaleDateString()}
+                {new Date(transaction.transaction_date || transaction.date).toLocaleDateString()}
               </div>
               <div className="flex items-center space-x-2">
                 <Button variant="ghost" size="sm">
                   <Edit3 className="h-4 w-4" />
                 </Button>
-                <Button variant="ghost" size="sm" className="text-destructive">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-destructive"
+                  onClick={() => handleDelete(transaction.id)}
+                >
                   <Trash2 className="h-4 w-4" />
                 </Button>
               </div>
@@ -354,20 +501,22 @@ const AssetTransactions = () => {
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <Label htmlFor="asset_id">Asset *</Label>
-                      <Select value={formData.asset_id} onValueChange={(value) => setFormData(prev => ({...prev, asset_id: value}))}>
+                      <Select value={formData.asset_id} onValueChange={(value) => setFormData(prev => ({ ...prev, asset_id: value }))}>
                         <SelectTrigger>
                           <SelectValue placeholder="Select asset" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="1">Dell Laptop XPS 13</SelectItem>
-                          <SelectItem value="2">Office Chair</SelectItem>
-                          <SelectItem value="3">HP Printer LaserJet</SelectItem>
+                          {assets.map(asset => (
+                            <SelectItem key={asset.id} value={asset.id.toString()}>
+                              {asset.name_en || asset.name_ar} - {asset.product_code}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     </div>
                     <div>
                       <Label htmlFor="transaction_type">Transaction Type *</Label>
-                      <Select value={formData.transaction_type} onValueChange={(value) => setFormData(prev => ({...prev, transaction_type: value}))}>
+                      <Select value={formData.transaction_type} onValueChange={(value) => setFormData(prev => ({ ...prev, transaction_type: value }))}>
                         <SelectTrigger>
                           <SelectValue />
                         </SelectTrigger>
@@ -512,7 +661,7 @@ const AssetTransactions = () => {
               <div>
                 <p className="text-sm text-muted-foreground">Total Value</p>
                 <p className="text-2xl font-bold text-primary">
-                  ${transactions.reduce((sum, t) => sum + t.total_value, 0).toLocaleString()}
+                  ${transactions.reduce((sum, t) => sum + (t.total_value || 0), 0).toLocaleString()}
                 </p>
               </div>
               <DollarSign className="h-8 w-8 text-green-500" />
@@ -576,8 +725,8 @@ const AssetTransactions = () => {
         <div className="text-center py-12">
           <FileText className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
           <h3 className="text-xl font-semibold text-foreground mb-2">
-            {searchTerm || filterType !== 'all' || filterStatus !== 'all' 
-              ? 'No Transactions Found' 
+            {searchTerm || filterType !== 'all' || filterStatus !== 'all'
+              ? 'No Transactions Found'
               : 'No Transactions Yet'}
           </h3>
           <p className="text-muted-foreground mb-6">
