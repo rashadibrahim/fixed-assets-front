@@ -12,7 +12,7 @@ import {
   Download,
   Upload,
   BarChart3,
-  Settings,
+  Settings as SettingsIcon,
   User,
   LogOut,
   Menu,
@@ -45,6 +45,7 @@ import JobRoleManagement from './JobRoleManagement';
 import CategoryManagement from './CategoryManagement';
 import ErrorBoundary from './ErrorBoundary';
 import Transactions from './Transactions';
+import Settings from './Settings';
 
 const Dashboard = () => {
   const { user, logout } = useAuth();
@@ -226,7 +227,7 @@ const Dashboard = () => {
       { id: 'categories', label: 'Categories', icon: FolderOpen },
       { id: 'users', label: 'Users', icon: Users },
       { id: 'jobroles', label: 'Job Roles', icon: Shield },
-      { id: 'settings', label: 'Settings', icon: Settings },
+      { id: 'settings', label: 'Settings', icon: SettingsIcon },
     ] : []),
   ];
 
@@ -596,13 +597,7 @@ const Dashboard = () => {
       case 'jobroles':
         return <ErrorBoundary><JobRoleManagement /></ErrorBoundary>;
       case 'settings':
-        return (
-          <div className="text-center py-12">
-            <Settings className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-foreground mb-2">Settings</h3>
-            <p className="text-muted-foreground">Settings page coming soon...</p>
-          </div>
-        );
+        return <ErrorBoundary><Settings /></ErrorBoundary>;
       default:
         return <DashboardView />;
     }
@@ -698,7 +693,7 @@ const Dashboard = () => {
             </div>
             <div className="flex items-center space-x-3">
               <Button variant="ghost" size="sm">
-                <Settings className="h-4 w-4" />
+                <SettingsIcon className="h-4 w-4" />
               </Button>
             </div>
           </div>
