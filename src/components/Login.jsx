@@ -1,16 +1,17 @@
 import React, { useState } from 'react';
-import { Shield, User, Lock, Eye, EyeOff, Building2, Package, Warehouse } from 'lucide-react';
+import { Shield, User, Lock, Eye, EyeOff, Building2, Package, Warehouse, AlertCircle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { toast } from 'sonner';
 import { useAuth } from '../contexts/AuthContext';
 import heroBuilding from '../assets/hero-building.jpg';
 import warehouseInterior from '../assets/warehouse-interior.jpg';
 
 const Login = () => {
-  const { login, demoLogin, loading, connectionError } = useAuth();
+  const { login, loading, connectionError } = useAuth();
   const [formData, setFormData] = useState({
     email: '',
     password: ''
@@ -26,40 +27,27 @@ const Login = () => {
     const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
-
+    
     try {
-      await login(formData);
+      await login(formData.email, formData.password);
       toast.success('Login successful!');
-      // No need to navigate - the AuthContext will automatically show Dashboard
     } catch (error) {
-      console.error('Login failed:', error);
+      console.error('Login error:', error);
       
-      // Handle specific error types
-      let errorMessage;
-      if (error.message.includes('Cannot connect to server')) {
-        errorMessage = 'Cannot connect to the server. Please ensure the backend service is running and try again.';
-      } else if (error.message.includes('401') || error.message.includes('unauthorized')) {
-        errorMessage = 'Invalid email or password. Please check your credentials and try again.';
-      } else if (error.message.includes('400')) {
-        errorMessage = 'Invalid request. Please check your input and try again.';
-      } else if (error.message.includes('500')) {
-        errorMessage = 'Server error. Please try again later.';
-      } else {
-        errorMessage = error.response?.data?.detail || 
-                      error.response?.data?.message || 
-                      error.message || 
-                      'Login failed. Please check your credentials and try again.';
+      let errorMessage = 'Login failed. Please check your credentials and try again.';
+      
+      if (error.message?.includes('Network')) {
+        errorMessage = 'Unable to connect to server. Please check your internet connection.';
+      } else if (error.message?.includes('401') || error.message?.includes('Unauthorized')) {
+        errorMessage = 'Invalid email or password. Please try again.';
+      } else if (error.message?.includes('404')) {
+        errorMessage = 'Service unavailable. Please contact your system administrator.';
       }
       
       toast.error(errorMessage);
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const handleDemoLogin = () => {
-    demoLogin();
-    toast.success('Demo login successful!');
   };
 
   return (
@@ -76,24 +64,24 @@ const Login = () => {
 
       <div className="relative z-10 min-h-screen flex">
         {/* Left side - Hero Content */}
-        <div className="hidden lg:flex lg:w-1/2 items-center justify-center p-12">
-          <div className="max-w-lg space-y-8">
+        <div className="hidden lg:flex lg:w-2/5 items-center justify-center p-10">
+          <div className="max-w-lg space-y-7">
             <div>
-              <h1 className="text-5xl font-bold text-foreground mb-6">
+              <h1 className="text-5xl font-bold text-foreground mb-5">
                 Assets Pro
               </h1>
-              <p className="text-xl text-muted-foreground mb-8">
-                Complete Fixed Assets Management Solution for modern organizations
+              <p className="text-xl text-muted-foreground mb-7">
+                Professional Fixed Assets Management Solution
               </p>
               
-              <div className="space-y-6">
+              <div className="space-y-5">
                 <div className="flex items-start space-x-4">
                   <div className="p-2 gradient-primary rounded-lg">
                     <Package className="h-6 w-6 text-white" />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-foreground">Asset Tracking</h3>
-                    <p className="text-muted-foreground">Track and manage all your fixed assets with ease</p>
+                    <h3 className="font-semibold text-foreground text-base">Asset Tracking</h3>
+                    <p className="text-muted-foreground text-base">Track and manage fixed assets efficiently</p>
                   </div>
                 </div>
                 
@@ -102,8 +90,8 @@ const Login = () => {
                     <Warehouse className="h-6 w-6 text-white" />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-foreground">Warehouse Management</h3>
-                    <p className="text-muted-foreground">Organize assets across multiple warehouse locations</p>
+                    <h3 className="font-semibold text-foreground text-base">Warehouse Management</h3>
+                    <p className="text-muted-foreground text-base">Organize assets across locations</p>
                   </div>
                 </div>
                 
@@ -112,8 +100,8 @@ const Login = () => {
                     <Building2 className="h-6 w-6 text-white" />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-foreground">Multi-Branch Support</h3>
-                    <p className="text-muted-foreground">Manage assets across different branch locations</p>
+                    <h3 className="font-semibold text-foreground text-base">Multi-Branch Support</h3>
+                    <p className="text-muted-foreground text-base">Manage assets across branches</p>
                   </div>
                 </div>
               </div>
@@ -123,20 +111,20 @@ const Login = () => {
               <img 
                 src={warehouseInterior} 
                 alt="Modern warehouse interior" 
-                className="rounded-xl shadow-glass"
+                className="rounded-xl shadow-glass h-52 w-full object-cover"
               />
             </div>
           </div>
         </div>
 
         {/* Right side - Login Form */}
-        <div className="w-full lg:w-1/2 flex items-center justify-center p-6">
-          <div className="w-full max-w-md space-y-6">
+        <div className="w-full lg:w-3/5 flex items-center justify-center p-8">
+          <div className="w-full max-w-xl space-y-5">
             {/* Mobile Header */}
             <div className="text-center space-y-4 lg:hidden">
-              <div className="flex items-center justify-center mb-6">
+              <div className="flex items-center justify-center mb-5">
                 <div className="p-4 gradient-primary rounded-2xl shadow-primary">
-                  <Building2 className="h-12 w-12 text-white" />
+                  <Building2 className="h-11 w-11 text-white" />
                 </div>
               </div>
               <div>
@@ -147,24 +135,24 @@ const Login = () => {
 
             {/* Login Card */}
             <Card className="glass-card shadow-glass">
-              <CardHeader className="text-center pb-6">
-                <CardTitle className="flex items-center justify-center space-x-2">
+              <CardHeader className="text-center pb-5">
+                <CardTitle className="flex items-center justify-center space-x-2 text-lg">
                   <Shield className="h-5 w-5 text-primary" />
                   <span>Sign In</span>
                 </CardTitle>
                 {connectionError && (
-                  <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
-                    <p className="text-sm text-yellow-800">
-                      <span className="font-medium">Connection Issue:</span> Unable to connect to the server. 
-                      You can try the demo login below or wait for the backend service to become available.
-                    </p>
-                  </div>
+                  <Alert variant="destructive" className="mt-4">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>
+                      Unable to connect to the server. Please contact your system administrator or try again later.
+                    </AlertDescription>
+                  </Alert>
                 )}
               </CardHeader>
-              <CardContent>
+              <CardContent className="px-8 pb-8">
                 <form onSubmit={handleSubmit} className="space-y-6">
                   <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
+                    <Label htmlFor="email">Email Address</Label>
                     <div className="relative">
                       <User className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                       <Input
@@ -173,9 +161,10 @@ const Login = () => {
                         type="email"
                         value={formData.email}
                         onChange={handleInputChange}
-                        placeholder="admin@example.com"
+                        placeholder="Enter your email address"
                         className="pl-10 transition-smooth"
                         required
+                        autoComplete="email"
                       />
                     </div>
                   </div>
@@ -193,82 +182,55 @@ const Login = () => {
                         placeholder="Enter your password"
                         className="pl-10 pr-10 transition-smooth"
                         required
+                        autoComplete="current-password"
                       />
-                      <Button
+                      <button
                         type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="absolute right-1 top-1/2 transform -translate-y-1/2 h-8 w-8 p-0"
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                         onClick={() => setShowPassword(!showPassword)}
                       >
-                        {showPassword ? (
-                          <EyeOff className="h-4 w-4" />
-                        ) : (
-                          <Eye className="h-4 w-4" />
-                        )}
-                      </Button>
+                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
                     </div>
                   </div>
 
-                  <div className="space-y-4">
-                    <Button 
-                      type="submit" 
-                      className="w-full btn-primary transition-bounce"
-                      disabled={isLoading}
-                    >
-                      {isLoading ? 'Signing in...' : 'Sign In'}
-                    </Button>
-
-                    <div className="relative">
-                      <div className="absolute inset-0 flex items-center">
-                        <span className="w-full border-t border-border" />
-                      </div>
-                      <div className="relative flex justify-center text-xs uppercase">
-                        <span className="bg-background px-2 text-muted-foreground">Or</span>
-                      </div>
-                    </div>
-
-                    <Button 
-                      type="button" 
-                      variant="outline" 
-                      className="w-full transition-bounce"
-                      onClick={handleDemoLogin}
-                    >
-                      <Shield className="h-4 w-4 mr-2" />
-                      Demo Login
-                    </Button>
-                  </div>
+                  <Button 
+                    type="submit" 
+                    className="w-full btn-primary transition-bounce"
+                    disabled={isLoading || loading}
+                  >
+                    {isLoading || loading ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                        Signing In...
+                      </>
+                    ) : (
+                      <>
+                        <Shield className="h-4 w-4 mr-2" />
+                        Sign In
+                      </>
+                    )}
+                  </Button>
                 </form>
               </CardContent>
             </Card>
 
-            {/* Demo Info */}
-            <Card className="glass-card">
-              <CardContent className="p-6">
-                <div className="text-center space-y-3">
-                  <h3 className="font-semibold text-foreground">Demo Access</h3>
-                  <div className="text-sm text-muted-foreground space-y-2">
-                    <p>Click "Demo Login" to explore the system with sample data.</p>
-                    <div className="space-y-1">
-                      <p><strong>Features included:</strong></p>
-                      <ul className="text-xs space-y-1 text-left">
-                        <li>• Complete asset lifecycle management</li>
-                        <li>• Multi-warehouse & branch operations</li>
-                        <li>• Role-based user permissions</li>
-                        <li>• Real-time analytics dashboard</li>
-                        <li>• Multi-language support (EN/AR)</li>
-                      </ul>
+            {/* System Status */}
+            {connectionError && (
+              <Card className="glass-card border-yellow-200 bg-yellow-50/50">
+                <CardContent className="p-3">
+                  <div className="flex items-start space-x-2">
+                    <AlertCircle className="h-4 w-4 text-yellow-600 mt-0.5" />
+                    <div>
+                      <h4 className="font-medium text-yellow-800 text-sm">System Notice</h4>
+                      <p className="text-xs text-yellow-700 mt-1">
+                        If you're experiencing connection issues, please contact your system administrator.
+                      </p>
                     </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Footer */}
-            <div className="text-center text-xs text-muted-foreground">
-              <p>Built with React • JavaScript • Tailwind CSS</p>
-              <p className="mt-1">Enterprise-grade Asset Management</p>
-            </div>
+                </CardContent>
+              </Card>
+            )}
           </div>
         </div>
       </div>

@@ -40,22 +40,6 @@ const AssetManagement = () => {
   const [pagination, setPagination] = useState({ page: 1, pages: 1, total: 0 });
   const [viewMode, setViewMode] = useState('grid');
 
-  // Barcode customization state
-  const [barcodeOptions, setBarcodeOptions] = useState({
-    width: 300,
-    height: 100,
-    fontSize: 16,
-    fontFamily: 'Courier New',
-    textColor: '#000000',
-    barcodeColor: '#000000',
-    backgroundColor: '#ffffff',
-    showText: true,
-    textPosition: 'bottom' // 'top', 'bottom', 'none'
-  });
-
-  const [showBarcodeOptions, setShowBarcodeOptions] = useState(false);
-  const [selectedAssetForBarcode, setSelectedAssetForBarcode] = useState(null);
-
   // Form state matching API structure
   const [formData, setFormData] = useState({
     name_en: '',
@@ -259,15 +243,35 @@ const AssetManagement = () => {
     }
   };
 
-  const handleGenerateBarcode = async (asset, customOptions = null) => {
-    if (!customOptions) {
-      // Show customization dialog first
-      setSelectedAssetForBarcode(asset);
-      setShowBarcodeOptions(true);
-      return;
+  // Load barcode settings from localStorage
+  const loadBarcodeSettings = () => {
+    const saved = localStorage.getItem('barcodeSettings');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (error) {
+        console.error('Error loading barcode settings:', error);
+      }
     }
+    // Return default settings if none saved
+    return {
+      width: 300,
+      height: 100,
+      fontSize: 16,
+      fontFamily: 'Courier New',
+      textColor: '#000000',
+      barcodeColor: '#000000',
+      backgroundColor: '#ffffff',
+      showText: true,
+      textPosition: 'bottom'
+    };
+  };
 
+  const handleGenerateBarcode = async (asset) => {
     try {
+      // Load current barcode settings from localStorage
+      const customOptions = loadBarcodeSettings();
+
       // Ensure product_code is numeric only (6-11 digits)
       let numericCode = asset.product_code?.replace(/\D/g, '') || '';
 
@@ -343,7 +347,7 @@ const AssetManagement = () => {
                 color: ${customOptions.textColor};
                 margin-top: 10px;
                 letter-spacing: 2px;
-                ${!customOptions.showText ? 'display: none;' : ''}
+                ${!customOptions.showText || customOptions.textPosition !== 'bottom' ? 'display: none;' : ''}
               }
               .barcode-number-top {
                 font-family: '${customOptions.fontFamily}', monospace;
@@ -352,7 +356,7 @@ const AssetManagement = () => {
                 color: ${customOptions.textColor};
                 margin-bottom: 10px;
                 letter-spacing: 2px;
-                ${customOptions.textPosition !== 'top' ? 'display: none;' : ''}
+                ${!customOptions.showText || customOptions.textPosition !== 'top' ? 'display: none;' : ''}
               }
               .buttons {
                 margin-top: 30px;
@@ -378,7 +382,6 @@ const AssetManagement = () => {
                 background: #545b62;
               }
               @media print {
-                /* Force browsers to print background colors */
                 * {
                   -webkit-print-color-adjust: exact !important;
                   color-adjust: exact !important;
@@ -394,7 +397,6 @@ const AssetManagement = () => {
                   background-color: ${customOptions.backgroundColor} !important;
                   border-radius: 8px !important;
                   page-break-inside: avoid !important;
-                  /* Alternative approach for stubborn backgrounds */
                   box-shadow: inset 0 0 0 1000px ${customOptions.backgroundColor} !important;
                 }
                 body { 
@@ -403,13 +405,8 @@ const AssetManagement = () => {
                   background: ${customOptions.backgroundColor} !important;
                   background-color: ${customOptions.backgroundColor} !important;
                   font-family: '${customOptions.fontFamily}', monospace !important;
-                  /* Force background printing */
-                  -webkit-print-color-adjust: exact !important;
-                  color-adjust: exact !important;
-                  print-color-adjust: exact !important;
                 }
                 @page {
-                  /* Set page background */
                   background: ${customOptions.backgroundColor} !important;
                   margin: 0.5in !important;
                 }
@@ -444,7 +441,7 @@ const AssetManagement = () => {
                   color: ${customOptions.textColor} !important;
                   margin-top: 10px !important;
                   letter-spacing: 2px !important;
-                  ${!customOptions.showText ? 'display: none !important;' : ''}
+                  ${!customOptions.showText || customOptions.textPosition !== 'bottom' ? 'display: none !important;' : ''}
                 }
                 .barcode-number-top {
                   font-family: '${customOptions.fontFamily}', monospace !important;
@@ -453,7 +450,7 @@ const AssetManagement = () => {
                   color: ${customOptions.textColor} !important;
                   margin-bottom: 10px !important;
                   letter-spacing: 2px !important;
-                  ${customOptions.textPosition !== 'top' ? 'display: none !important;' : ''}
+                  ${!customOptions.showText || customOptions.textPosition !== 'top' ? 'display: none !important;' : ''}
                 }
               }
             </style>
@@ -463,39 +460,18 @@ const AssetManagement = () => {
               <div class="asset-name">
                 ${asset.name_en || asset.name_ar || 'Unnamed Asset'}
               </div>
-              ${customOptions.textPosition === 'top' ? `<div class="barcode-number-top">${response.product_code || paddedCode}</div>` : ''}
+              ${customOptions.showText && customOptions.textPosition === 'top' ? `<div class="barcode-number-top">${response.product_code || paddedCode}</div>` : ''}
               <div class="barcode-image">
                 <img src="data:image/png;base64,${response.barcode_image}" alt="Barcode" />
               </div>
-              ${customOptions.textPosition === 'bottom' ? `<div class="barcode-number">${response.product_code || paddedCode}</div>` : ''}
+              ${customOptions.showText && customOptions.textPosition === 'bottom' ? `<div class="barcode-number">${response.product_code || paddedCode}</div>` : ''}
               <div class="buttons no-print">
-                <button class="btn" onclick="printWithBackgrounds()">Print Barcode</button>
+                <button class="btn" onclick="window.print()">Print Barcode</button>
                 <button class="btn btn-secondary" onclick="window.close()">Close</button>
-                ${customOptions.backgroundColor !== '#ffffff' ? `
-                  <div style="margin-top: 15px; padding: 10px; background: #f0f0f0; border-radius: 4px; font-size: 12px; color: #666;">
-                    <strong>💡 Print Tip:</strong> To print background colors, enable "Background graphics" in your browser's print settings.
-                  </div>
-                ` : ''}
               </div>
             </div>
             
             <script>
-              function printWithBackgrounds() {
-                // Try to enable background graphics programmatically
-                const css = '@media print { * { -webkit-print-color-adjust: exact !important; color-adjust: exact !important; print-color-adjust: exact !important; } }';
-                const style = document.createElement('style');
-                style.appendChild(document.createTextNode(css));
-                document.head.appendChild(style);
-                
-                // Alert user about print settings if background is not white
-                ${customOptions.backgroundColor !== '#ffffff' ? `
-                  const shouldPrint = confirm('To print background colors properly, please:\\n\\n1. In Chrome: Enable "Background graphics" in print options\\n2. In Firefox: Enable "Print backgrounds" in print options\\n3. In Safari: Enable "Print backgrounds" in print options\\n\\nClick OK to proceed with printing.');
-                  if (shouldPrint) {
-                    window.print();
-                  }
-                ` : 'window.print();'}
-              }
-              
               // Force color adjustment on page load
               document.addEventListener('DOMContentLoaded', function() {
                 document.body.style.webkitPrintColorAdjust = 'exact';
@@ -508,8 +484,6 @@ const AssetManagement = () => {
       `);
       barcodeWindow.document.close();
       toast.success('Barcode generated successfully');
-      setShowBarcodeOptions(false);
-      setSelectedAssetForBarcode(null);
     } catch (error) {
       console.error('Error generating barcode:', error);
       toast.error('Failed to generate barcode');
@@ -593,172 +567,6 @@ const AssetManagement = () => {
       is_active: true
     });
     setSelectedAsset(null);
-  };
-
-  // Barcode Customization Dialog Component
-  const BarcodeCustomizationDialog = () => {
-    // Local state for the dialog - doesn't affect main component until Generate is clicked
-    const [localOptions, setLocalOptions] = useState(barcodeOptions);
-
-    // Reset local options when dialog opens
-    React.useEffect(() => {
-      if (showBarcodeOptions) {
-        setLocalOptions(barcodeOptions);
-      }
-    }, [showBarcodeOptions]);
-
-    const handleGenerate = () => {
-      // Update main state and generate barcode
-      setBarcodeOptions(localOptions);
-      handleGenerateBarcode(selectedAssetForBarcode, localOptions);
-    };
-
-    return (
-      <Dialog open={showBarcodeOptions} onOpenChange={setShowBarcodeOptions}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Customize Barcode</DialogTitle>
-            <DialogDescription>
-              Adjust barcode appearance and styling options. Click "Generate Barcode" to create and preview your customized barcode.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4">
-            {/* Size Controls */}
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="barcode-width">Width (px)</Label>
-                <Input
-                  id="barcode-width"
-                  type="number"
-                  value={localOptions.width}
-                  onChange={(e) => setLocalOptions(prev => ({ ...prev, width: parseInt(e.target.value) || 300 }))}
-                  min="100"
-                  max="800"
-                />
-              </div>
-              <div>
-                <Label htmlFor="barcode-height">Height (px)</Label>
-                <Input
-                  id="barcode-height"
-                  type="number"
-                  value={localOptions.height}
-                  onChange={(e) => setLocalOptions(prev => ({ ...prev, height: parseInt(e.target.value) || 100 }))}
-                  min="50"
-                  max="300"
-                />
-              </div>
-            </div>
-
-            {/* Font Controls */}
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="font-size">Font Size (px)</Label>
-                <Input
-                  id="font-size"
-                  type="number"
-                  value={localOptions.fontSize}
-                  onChange={(e) => setLocalOptions(prev => ({ ...prev, fontSize: parseInt(e.target.value) || 16 }))}
-                  min="8"
-                  max="48"
-                />
-              </div>
-              <div>
-                <Label htmlFor="font-family">Font Family</Label>
-                <Select
-                  value={localOptions.fontFamily}
-                  onValueChange={(value) => setLocalOptions(prev => ({ ...prev, fontFamily: value }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Arial">Arial</SelectItem>
-                    <SelectItem value="Courier New">Courier New</SelectItem>
-                    <SelectItem value="Helvetica">Helvetica</SelectItem>
-                    <SelectItem value="Times New Roman">Times New Roman</SelectItem>
-                    <SelectItem value="Verdana">Verdana</SelectItem>
-                    <SelectItem value="Georgia">Georgia</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            {/* Color Controls */}
-            <div className="grid grid-cols-3 gap-4">
-              <div>
-                <Label htmlFor="text-color">Text Color</Label>
-                <Input
-                  id="text-color"
-                  type="color"
-                  value={localOptions.textColor}
-                  onChange={(e) => setLocalOptions(prev => ({ ...prev, textColor: e.target.value }))}
-                />
-              </div>
-              <div>
-                <Label htmlFor="barcode-color">Barcode Color</Label>
-                <Input
-                  id="barcode-color"
-                  type="color"
-                  value={localOptions.barcodeColor}
-                  onChange={(e) => setLocalOptions(prev => ({ ...prev, barcodeColor: e.target.value }))}
-                />
-              </div>
-              <div>
-                <Label htmlFor="bg-color">Background</Label>
-                <Input
-                  id="bg-color"
-                  type="color"
-                  value={localOptions.backgroundColor}
-                  onChange={(e) => setLocalOptions(prev => ({ ...prev, backgroundColor: e.target.value }))}
-                />
-              </div>
-            </div>
-
-            {/* Text Options */}
-            <div className="space-y-3">
-              <div className="flex items-center space-x-2">
-                <input
-                  type="checkbox"
-                  id="show-text"
-                  checked={localOptions.showText}
-                  onChange={(e) => setLocalOptions(prev => ({ ...prev, showText: e.target.checked }))}
-                />
-                <Label htmlFor="show-text">Show barcode number</Label>
-              </div>
-
-              {localOptions.showText && (
-                <div>
-                  <Label htmlFor="text-position">Text Position</Label>
-                  <Select
-                    value={localOptions.textPosition}
-                    onValueChange={(value) => setLocalOptions(prev => ({ ...prev, textPosition: value }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="top">Above barcode</SelectItem>
-                      <SelectItem value="bottom">Below barcode</SelectItem>
-                      <SelectItem value="none">Hidden</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowBarcodeOptions(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleGenerate}>
-              Generate Barcode
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    );
   };
 
   if (loading) {
@@ -1130,8 +938,6 @@ const AssetManagement = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Barcode Customization Dialog */}
-      {showBarcodeOptions && <BarcodeCustomizationDialog />}
     </div>
   );
 };
