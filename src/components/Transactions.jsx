@@ -34,13 +34,13 @@ const Transactions = () => {
     total: 0,
     page: 1,
     pages: 1,
-    per_page: 10
+    per_page: 25 // Increased default per page
   });
 
   // Filter states
   const [filters, setFilters] = useState({
     page: 1,
-    per_page: 10,
+    per_page: 25, // Increased default per page
     branch_id: '',
     warehouse_id: '',
     date_from: '',
@@ -284,7 +284,7 @@ const Transactions = () => {
   const clearFilters = () => {
     setFilters({
       page: 1,
-      per_page: 10,
+      per_page: 25,
       branch_id: '',
       warehouse_id: '',
       date_from: '',
@@ -408,37 +408,36 @@ const Transactions = () => {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
+    <div className="space-y-3">
+      {/* Compact Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-gray-900">Transactions</h1>
-          <p className="text-gray-600">Manage asset transactions and movements</p>
+          <h1 className="text-xl font-semibold text-gray-900">Transactions</h1>
         </div>
-        <div className="flex items-center space-x-3">
+        <div className="flex items-center space-x-2">
           <button
             onClick={() => setShowAddTransaction(true)}
-            className="flex items-center px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+            className="flex items-center px-3 py-1.5 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm"
           >
-            <Plus className="w-4 h-4 mr-2" />
-            Add Transaction
+            <Plus className="w-3 h-3 mr-1" />
+            Add
           </button>
           <button
             onClick={() => setShowFilters(!showFilters)}
-            className={`flex items-center px-4 py-2 rounded-md border transition-colors ${showFilters
+            className={`flex items-center px-3 py-1.5 rounded-md border transition-colors text-sm ${showFilters
               ? 'bg-indigo-50 border-indigo-200 text-indigo-700'
               : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
               }`}
           >
-            <Filter className="w-4 h-4 mr-2" />
+            <Filter className="w-3 h-3 mr-1" />
             Filters
           </button>
           <button
             onClick={loadTransactions}
             disabled={loading}
-            className="flex items-center px-4 py-2 bg-white border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+            className="flex items-center px-3 py-1.5 bg-white border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 disabled:opacity-50 text-sm"
           >
-            <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`w-3 h-3 mr-1 ${loading ? 'animate-spin' : ''}`} />
             Refresh
           </button>
         </div>
@@ -446,76 +445,51 @@ const Transactions = () => {
 
       {/* Error Display */}
       {error && (
-        <div className="bg-red-50 border border-red-200 rounded-md p-4">
+        <div className="bg-red-50 border border-red-200 rounded-md p-2">
           <div className="flex items-center">
-            <AlertCircle className="w-5 h-5 text-red-400 mr-3" />
+            <AlertCircle className="w-4 h-4 text-red-400 mr-2" />
             <div>
               <h3 className="text-sm font-medium text-red-800">Error Loading Data</h3>
-              <p className="text-sm text-red-700 mt-1">{error}</p>
-              <p className="text-xs text-red-600 mt-1">Check browser console for detailed logs</p>
+              <p className="text-xs text-red-700 mt-1">{error}</p>
             </div>
           </div>
         </div>
       )}
 
-      {/* Debug Info - Shows token status */}
-      <div className="bg-gray-50 border border-gray-200 rounded-md p-4 text-xs text-gray-600">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div>
-            <strong>User:</strong> {user?.full_name || 'Unknown'}
-          </div>
-          <div>
-            <strong>Role:</strong> {user?.role || 'Unknown'}
-          </div>
-          <div>
-            <strong>Token:</strong> {localStorage.getItem('authToken') ? 'Present' : 'Missing'}
-          </div>
-          <div>
-            <strong>Page:</strong> {filters.page} of {pagination.pages}
-          </div>
-        </div>
-      </div>
-
-      {/* Filters Panel */}
+      {/* Compact Filters Panel */}
       {showFilters && (
-        <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-medium text-gray-900">Filter Transactions</h3>
+        <div className="bg-white p-3 rounded-lg border border-gray-200 shadow-sm">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-sm font-medium text-gray-900">Filter Transactions</h3>
             <button
               onClick={() => setShowFilters(false)}
               className="text-gray-400 hover:text-gray-600"
             >
-              <X className="w-5 h-5" />
+              <X className="w-4 h-4" />
             </button>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-2">
             {/* Search */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Search
-              </label>
               <div className="relative">
-                <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                <Search className="w-3 h-3 absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400" />
                 <input
                   type="text"
-                  placeholder="Description or reference number..."
+                  placeholder="Search..."
                   value={filters.search}
                   onChange={(e) => handleFilterChange('search', e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  className="w-full pl-7 pr-2 py-1.5 text-xs border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                 />
               </div>
             </div>
 
             {/* Branch Filter */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Branch ({branches.length} loaded)
-              </label>
               <select
                 value={filters.branch_id}
                 onChange={(e) => handleFilterChange('branch_id', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
               >
                 <option value="">All Branches</option>
                 {branches.map((branch) => (
@@ -528,13 +502,10 @@ const Transactions = () => {
 
             {/* Warehouse Filter */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Warehouse ({warehouses.length} loaded)
-              </label>
               <select
                 value={filters.warehouse_id}
                 onChange={(e) => handleFilterChange('warehouse_id', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
               >
                 <option value="">All Warehouses</option>
                 {warehouses.map((warehouse) => (
@@ -547,109 +518,70 @@ const Transactions = () => {
 
             {/* Date From */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Date From
-              </label>
               <input
                 type="date"
                 value={filters.date_from}
                 onChange={(e) => handleFilterChange('date_from', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
               />
             </div>
 
             {/* Date To */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Date To
-              </label>
               <input
                 type="date"
                 value={filters.date_to}
                 onChange={(e) => handleFilterChange('date_to', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
               />
-            </div>
-
-            {/* Items per page */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Items per page
-              </label>
-              <select
-                value={filters.per_page}
-                onChange={(e) => handlePerPageChange(parseInt(e.target.value))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-              >
-                <option value={10}>10</option>
-                <option value={25}>25</option>
-                <option value={50}>50</option>
-                <option value={100}>100</option>
-              </select>
             </div>
           </div>
 
-          <div className="flex items-center justify-between mt-6">
+          <div className="flex items-center justify-between mt-2">
             <button
               onClick={clearFilters}
-              className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
+              className="px-3 py-1 text-xs text-gray-600 hover:text-gray-800 transition-colors"
             >
-              Clear All Filters
+              Clear All
             </button>
             <button
               onClick={handleSearch}
-              className="px-6 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors"
+              className="px-4 py-1 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors text-xs"
             >
-              Apply Filters
+              Apply
             </button>
           </div>
         </div>
       )}
 
-      {/* Results Summary */}
-      <div className="flex items-center justify-between text-sm text-gray-600">
-        <div>
-          Showing {transactions.length > 0 ? ((pagination.page - 1) * pagination.per_page + 1) : 0} to {Math.min(pagination.page * pagination.per_page, pagination.total)} of {pagination.total} transactions
-        </div>
-      </div>
-
-      {/* Transactions Table */}
+      {/* Compact Transactions Table */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
         {loading ? (
-          <div className="p-12 text-center">
-            <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-100 rounded-full mb-4">
-              <RefreshCw className="w-8 h-8 text-blue-600 animate-spin" />
-            </div>
-            <p className="text-lg font-medium text-gray-900 mb-2">Loading transactions...</p>
-            <p className="text-gray-500">Please wait while we fetch your data</p>
+          <div className="p-6 text-center">
+            <RefreshCw className="w-6 h-6 text-blue-600 animate-spin mx-auto mb-2" />
+            <p className="text-sm text-gray-600">Loading transactions...</p>
           </div>
         ) : error ? (
-          <div className="p-12 text-center">
-            <div className="inline-flex items-center justify-center w-16 h-16 bg-red-100 rounded-full mb-4">
-              <AlertCircle className="w-8 h-8 text-red-600" />
-            </div>
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">Failed to Load Transactions</h3>
-            <p className="text-gray-600 mb-6">There was an error loading the transaction data.</p>
+          <div className="p-6 text-center">
+            <AlertCircle className="w-6 h-6 text-red-600 mx-auto mb-2" />
+            <h3 className="text-sm font-medium text-gray-900 mb-2">Failed to Load Transactions</h3>
             <button
               onClick={loadTransactions}
-              className="inline-flex items-center px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors"
+              className="inline-flex items-center px-3 py-1.5 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors text-sm"
             >
-              <RefreshCw className="w-4 h-4 mr-2" />
+              <RefreshCw className="w-3 h-3 mr-1" />
               Try Again
             </button>
           </div>
         ) : transactions.length === 0 ? (
-          <div className="p-12 text-center">
-            <div className="inline-flex items-center justify-center w-16 h-16 bg-gray-100 rounded-full mb-4">
-              <ArrowUpCircle className="w-8 h-8 text-gray-400" />
-            </div>
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">No transactions found</h3>
-            <p className="text-gray-500 mb-6">No transaction data available with the current filters.</p>
+          <div className="p-6 text-center">
+            <ArrowUpCircle className="w-6 h-6 text-gray-400 mx-auto mb-2" />
+            <h3 className="text-sm font-medium text-gray-900 mb-2">No transactions found</h3>
             <button
               onClick={() => setShowAddTransaction(true)}
-              className="inline-flex items-center px-6 py-3 bg-green-600 text-white font-medium rounded-lg hover:bg-green-700 transition-colors"
+              className="inline-flex items-center px-3 py-1.5 bg-green-600 text-white font-medium rounded-lg hover:bg-green-700 transition-colors text-sm"
             >
-              <Plus className="w-4 h-4 mr-2" />
+              <Plus className="w-3 h-3 mr-1" />
               Add First Transaction
             </button>
           </div>
@@ -657,27 +589,27 @@ const Transactions = () => {
           <>
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
+                <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Transaction
                     </th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                      Date & Time
+                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Date
                     </th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Location
                     </th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Details
                     </th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Reference
                     </th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                      Attachment
+                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      File
                     </th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Actions
                     </th>
                   </tr>
@@ -689,29 +621,26 @@ const Transactions = () => {
                       className={`hover:bg-blue-50 transition-colors duration-200 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'
                         }`}
                     >
-                      <td className="px-6 py-5 whitespace-nowrap">
+                      <td className="px-3 py-2 whitespace-nowrap">
                         <div className="flex items-center">
                           <div className="flex-shrink-0">
-                            <div className={`w-12 h-12 rounded-xl flex items-center justify-center shadow-sm ${transaction.transaction_type
-                              ? 'bg-gradient-to-r from-green-500 to-green-600'
-                              : 'bg-gradient-to-r from-red-500 to-red-600'
+                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${transaction.transaction_type
+                              ? 'bg-green-500'
+                              : 'bg-red-500'
                               }`}>
                               {transaction.transaction_type ? (
-                                <ArrowUpCircle className="w-6 h-6 text-white" />
+                                <ArrowUpCircle className="w-4 h-4 text-white" />
                               ) : (
-                                <ArrowDownCircle className="w-6 h-6 text-white" />
+                                <ArrowDownCircle className="w-4 h-4 text-white" />
                               )}
                             </div>
                           </div>
-                          <div className="ml-4">
-                            <div className="text-sm font-semibold text-gray-900">
+                          <div className="ml-2">
+                            <div className="text-xs font-medium text-gray-900">
                               {transaction.custom_id}
                             </div>
-                            <div className="flex items-center space-x-2 mt-1">
-                              <div className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
-                                ID: {transaction.id}
-                              </div>
-                              <div className={`text-xs px-2 py-1 rounded-full font-medium ${transaction.transaction_type
+                            <div className="flex items-center space-x-1 text-xs">
+                              <div className={`px-1.5 py-0.5 rounded-full text-xs font-medium ${transaction.transaction_type
                                 ? 'bg-green-100 text-green-800'
                                 : 'bg-red-100 text-red-800'
                                 }`}>
@@ -722,55 +651,50 @@ const Transactions = () => {
                         </div>
                       </td>
 
-                      <td className="px-6 py-5 whitespace-nowrap">
+                      <td className="px-3 py-2 whitespace-nowrap">
                         <div className="flex items-start">
-                          <Calendar className="w-4 h-4 text-blue-500 mt-1 mr-3 flex-shrink-0" />
+                          <Calendar className="w-3 h-3 text-blue-500 mt-0.5 mr-1.5 flex-shrink-0" />
                           <div>
-                            <div className="text-sm font-medium text-gray-900">
+                            <div className="text-xs font-medium text-gray-900">
                               {formatDate(transaction.date)}
                             </div>
-                            <div className="text-xs text-gray-500 mt-1">
-                              Created: {formatDate(transaction.created_at)}
+                            <div className="text-xs text-gray-500">
+                              {formatDate(transaction.created_at)}
                             </div>
-                            {transaction.user_id && (
-                              <div className="text-xs text-gray-500 mt-1">
-                                User ID: {transaction.user_id}
-                              </div>
-                            )}
                           </div>
                         </div>
                       </td>
 
-                      <td className="px-6 py-5 whitespace-nowrap">
+                      <td className="px-3 py-2 whitespace-nowrap">
                         <div className="flex items-start">
-                          <Warehouse className="w-4 h-4 text-indigo-500 mt-1 mr-3 flex-shrink-0" />
+                          <Warehouse className="w-3 h-3 text-indigo-500 mt-0.5 mr-1.5 flex-shrink-0" />
                           <div>
-                            <div className="text-sm font-medium text-gray-900">
+                            <div className="text-xs font-medium text-gray-900">
                               {transaction.warehouse?.name_en || transaction.warehouse?.name_ar || 'Unknown Warehouse'}
                             </div>
-                            <div className="text-xs text-gray-500 mt-1 flex items-center">
-                              <Building2 className="w-3 h-3 mr-1" />
-                              Branch ID: {transaction.warehouse?.branch_id}
+                            <div className="text-xs text-gray-500 flex items-center">
+                              <Building2 className="w-2.5 h-2.5 mr-0.5" />
+                              Branch: {transaction.warehouse?.branch_id}
                             </div>
                           </div>
                         </div>
                       </td>
 
-                      <td className="px-6 py-5">
+                      <td className="px-3 py-2">
                         <div className="max-w-xs">
-                          <div className="text-sm text-gray-900 font-medium truncate" title={transaction.description}>
-                            {transaction.description || 'No description provided'}
+                          <div className="text-xs text-gray-900 font-medium truncate" title={transaction.description}>
+                            {transaction.description || 'No description'}
                           </div>
-                          <div className="text-xs text-gray-500 mt-1">
-                            Transaction {transaction.transaction_type ? 'Inbound' : 'Outbound'}
+                          <div className="text-xs text-gray-500">
+                            {transaction.transaction_type ? 'Inbound' : 'Outbound'}
                           </div>
                         </div>
                       </td>
 
-                      <td className="px-6 py-5 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">
+                      <td className="px-3 py-2 whitespace-nowrap">
+                        <div className="text-xs text-gray-900">
                           {transaction.reference_number ? (
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
                               {transaction.reference_number}
                             </span>
                           ) : (
@@ -779,30 +703,30 @@ const Transactions = () => {
                         </div>
                       </td>
 
-                      <td className="px-6 py-5 whitespace-nowrap">
+                      <td className="px-3 py-2 whitespace-nowrap">
                         {transaction.attached_file ? (
                           <button
                             onClick={() => downloadAttachment(transaction.id, transaction.attached_file)}
-                            className="inline-flex items-center px-3 py-2 text-xs font-medium text-blue-700 bg-blue-100 rounded-lg hover:bg-blue-200 transition-colors duration-200"
+                            className="inline-flex items-center px-2 py-1 text-xs font-medium text-blue-700 bg-blue-100 rounded hover:bg-blue-200 transition-colors"
                           >
-                            <FileText className="w-4 h-4 mr-1.5" />
+                            <FileText className="w-3 h-3 mr-1" />
                             Download
                           </button>
                         ) : (
-                          <span className="inline-flex items-center px-3 py-2 text-xs font-medium text-gray-500 bg-gray-100 rounded-lg">
-                            <X className="w-3 h-3 mr-1" />
+                          <span className="inline-flex items-center px-2 py-1 text-xs font-medium text-gray-500 bg-gray-100 rounded">
+                            <X className="w-2.5 h-2.5 mr-1" />
                             No file
                           </span>
                         )}
                       </td>
 
-                      <td className="px-6 py-5 whitespace-nowrap text-right">
+                      <td className="px-3 py-2 whitespace-nowrap text-right">
                         <button
                           onClick={() => handleViewTransaction(transaction.id)}
-                          className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-indigo-500 to-indigo-600 rounded-lg hover:from-indigo-600 hover:to-indigo-700 transition-all duration-200 shadow-sm hover:shadow-md"
+                          className="inline-flex items-center px-2 py-1 text-xs font-medium text-white bg-indigo-500 rounded hover:bg-indigo-600 transition-all"
                           title="View transaction details"
                         >
-                          <Eye className="w-4 h-4 mr-2" />
+                          <Eye className="w-3 h-3 mr-1" />
                           View
                         </button>
                       </td>
@@ -812,25 +736,31 @@ const Transactions = () => {
               </table>
             </div>
 
-            {/* Enhanced Pagination */}
-            <div className="bg-gradient-to-r from-gray-50 to-gray-100 px-6 py-4 border-t border-gray-200">
+            {/* Compact Pagination */}
+            <div className="bg-gray-50 px-3 py-2 border-t border-gray-200">
               <div className="flex items-center justify-between">
-                <div className="flex items-center text-sm text-gray-700">
-                  <span className="font-medium">
-                    Showing {((pagination.page - 1) * pagination.per_page + 1)} - {Math.min(pagination.page * pagination.per_page, pagination.total)}
+                <div className="flex items-center text-xs text-gray-700">
+                  <span>
+                    Showing {((pagination.page - 1) * pagination.per_page + 1)} - {Math.min(pagination.page * pagination.per_page, pagination.total)} of {pagination.total}
                   </span>
-                  <span className="ml-1">of</span>
-                  <span className="ml-1 font-semibold text-gray-900">{pagination.total}</span>
-                  <span className="ml-1">transactions</span>
+                  <select
+                    value={filters.per_page}
+                    onChange={(e) => handlePerPageChange(parseInt(e.target.value))}
+                    className="ml-2 px-1 py-0.5 text-xs border border-gray-300 rounded"
+                  >
+                    <option value={10}>10</option>
+                    <option value={25}>25</option>
+                    <option value={50}>50</option>
+                    <option value={100}>100</option>
+                  </select>
                 </div>
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center space-x-1">
                   <button
                     onClick={() => handlePageChange(pagination.page - 1)}
                     disabled={pagination.page <= 1}
-                    className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm transition-colors duration-200"
+                    className="inline-flex items-center px-2 py-1 border border-gray-300 text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <ChevronLeft className="w-4 h-4 mr-1" />
-                    Previous
+                    <ChevronLeft className="w-3 h-3" />
                   </button>
 
                   <div className="flex space-x-1">
@@ -840,9 +770,9 @@ const Transactions = () => {
                         <button
                           key={page}
                           onClick={() => handlePageChange(page)}
-                          className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors duration-200 ${page === pagination.page
-                            ? 'bg-gradient-to-r from-indigo-500 to-indigo-600 text-white shadow-md'
-                            : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 shadow-sm'
+                          className={`px-2 py-1 text-xs font-medium rounded transition-colors ${page === pagination.page
+                            ? 'bg-indigo-500 text-white'
+                            : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50'
                             }`}
                         >
                           {page}
@@ -854,10 +784,9 @@ const Transactions = () => {
                   <button
                     onClick={() => handlePageChange(pagination.page + 1)}
                     disabled={pagination.page >= pagination.pages}
-                    className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm transition-colors duration-200"
+                    className="inline-flex items-center px-2 py-1 border border-gray-300 text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    Next
-                    <ChevronRight className="w-4 h-4 ml-1" />
+                    <ChevronRight className="w-3 h-3" />
                   </button>
                 </div>
               </div>
@@ -870,7 +799,7 @@ const Transactions = () => {
       <AddTransaction
         isOpen={showAddTransaction}
         onClose={() => setShowAddTransaction(false)}
-        onSuccess={handleTransactionAdded}
+        onTransactionAdded={handleTransactionAdded}
       />
 
       {/* View Transaction Modal */}
