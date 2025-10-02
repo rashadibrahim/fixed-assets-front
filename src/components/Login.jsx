@@ -7,11 +7,13 @@ import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { toast } from 'sonner';
 import { useAuth } from '../contexts/AuthContext';
+import { useErrorHandler } from '../hooks/useErrorHandler';
 import heroBuilding from '../assets/hero-building.jpg';
 import warehouseInterior from '../assets/warehouse-interior.jpg';
 
 const Login = () => {
   const { login, loading, connectionError } = useAuth();
+  const { handleError, handleSuccess } = useErrorHandler();
   const [formData, setFormData] = useState({
     email: '',
     password: ''
@@ -30,21 +32,23 @@ const Login = () => {
     
     try {
       await login(formData.email, formData.password);
-      toast.success('Login successful!');
+      handleSuccess('Login successful!');
     } catch (error) {
       console.error('Login error:', error);
       
       let errorMessage = 'Login failed. Please check your credentials and try again.';
       
-      if (error.message?.includes('Network')) {
+      if (error.message?.includes('Network') || error.isNetworkError) {
         errorMessage = 'Unable to connect to server. Please check your internet connection.';
-      } else if (error.message?.includes('401') || error.message?.includes('Unauthorized')) {
+      } else if (error.status === 401 || error.message?.includes('401') || error.message?.includes('Unauthorized')) {
         errorMessage = 'Invalid email or password. Please try again.';
-      } else if (error.message?.includes('404')) {
+      } else if (error.status === 404 || error.message?.includes('404')) {
         errorMessage = 'Service unavailable. Please contact your system administrator.';
+      } else if (error.message) {
+        errorMessage = error.message;
       }
       
-      toast.error(errorMessage);
+      handleError(errorMessage);
     } finally {
       setIsLoading(false);
     }

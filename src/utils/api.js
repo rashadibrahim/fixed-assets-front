@@ -17,41 +17,105 @@ class ApiClient {
     }
   }
 
+  // Enhanced error parsing based on backend response format
+  parseErrorMessage(errorData, defaultMessage = 'An error occurred') {
+    // Handle different error response formats from backend
+    if (typeof errorData === 'string') {
+      return errorData;
+    }
+
+    if (typeof errorData === 'object' && errorData !== null) {
+      // Priority order: message -> error -> errors -> msg -> default
+      if (errorData.message) {
+        return errorData.message;
+      }
+      
+      if (errorData.error) {
+        return errorData.error;
+      }
+      
+      // Handle validation errors object
+      if (errorData.errors && typeof errorData.errors === 'object') {
+        const firstField = Object.keys(errorData.errors)[0];
+        const firstError = errorData.errors[firstField];
+        if (Array.isArray(firstError)) {
+          return `${firstField}: ${firstError[0]}`; // Return field name with first validation error
+        }
+        return `${firstField}: ${firstError}`;
+      }
+
+      // Handle msg field (sometimes used by JWT errors)
+      if (errorData.msg) {
+        return errorData.msg;
+      }
+    }
+
+    return defaultMessage;
+  }
+
   async request(endpoint, options = {}) {
     const url = `${this.baseURL}${endpoint}`;
-
     const config = {
       headers: {
         'Content-Type': 'application/json',
+        'Accept': 'application/json',
         ...(this.token && { Authorization: `Bearer ${this.token}` }),
-        ...options.headers,
       },
+      mode: 'cors',
       ...options,
     };
 
     try {
-      // Debug: Log the request details
-      console.log('API Request:', {
-        url,
-        method: config.method,
-        headers: config.headers,
-        body: config.body
-      });
-
       const response = await fetch(url, config);
+      const responseText = await response.text();
 
       if (!response.ok) {
-        const errorData = await response.text();
-        throw new Error(`HTTP error! status: ${response.status}, body: ${errorData}`);
+        let errorData;
+        try {
+          errorData = JSON.parse(responseText);
+        } catch (e) {
+          // If JSON parsing fails, create error object from response text
+          errorData = { error: responseText || `HTTP ${response.status}: ${response.statusText}` };
+        }
+
+        const errorMessage = this.parseErrorMessage(errorData, `HTTP ${response.status}: ${response.statusText}`);
+        const error = new Error(errorMessage);
+        error.status = response.status;
+        error.data = errorData;
+        
+        // Handle specific HTTP status codes
+        if (response.status === 401) {
+          error.message = 'Session expired. Please log in again.';
+        } else if (response.status === 403) {
+          error.message = 'You do not have permission to perform this action.';
+        } else if (response.status === 404) {
+          error.message = errorMessage.includes('not found') ? errorMessage : 'The requested resource was not found.';
+        } else if (response.status === 422) {
+          // Validation errors - use parsed message from errors object
+          error.message = errorMessage;
+        } else if (response.status >= 500) {
+          error.message = 'Internal server error. Please try again later.';
+        }
+        
+        throw error;
       }
 
-      const data = await response.json();
-      return data;
-    } catch (error) {
-      if (error.name === 'TypeError' && error.message.includes('fetch')) {
-        throw new Error('Cannot connect to server. Please check if the backend is running.');
+      if (responseText) {
+        try {
+          return JSON.parse(responseText);
+        } catch (e) {
+          return responseText;
+        }
       }
-      throw error;
+
+      return {};
+    } catch (fetchError) {
+      if (fetchError.name === 'TypeError' && fetchError.message.includes('fetch')) {
+        const networkError = new Error('Network error: Please check your internet connection');
+        networkError.isNetworkError = true;
+        throw networkError;
+      }
+      throw fetchError;
     }
   }
 
@@ -398,6 +462,40 @@ class ApiClient {
 
   async getCategory(categoryId) {
     return this.request(`/categories/${categoryId}`);
+  }
+
+  // Transactions API
+  async getTransactions(params = {}) {
+    const queryString = new URLSearchParams(params).toString();
+    return this.request(`/transactions/${queryString ? `?${queryString}` : ''}`);
+  }
+
+  async createTransaction(formData) {
+    return this.request('/transactions/', {
+      method: 'POST',
+      body: formData,
+      headers: {
+        ...(this.token && { Authorization: `Bearer ${this.token}` }),
+        // Don't set Content-Type for FormData, let browser set it with boundary
+      },
+    });
+  }
+
+  async updateTransaction(transactionId, transactionData) {
+    return this.request(`/transactions/${transactionId}`, {
+      method: 'PUT',
+      body: JSON.stringify(transactionData),
+    });
+  }
+
+  async deleteTransaction(transactionId) {
+    return this.request(`/transactions/${transactionId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async getTransaction(transactionId) {
+    return this.request(`/transactions/${transactionId}`);
   }
 
   // Asset Transactions API - Show coming soon instead of failing

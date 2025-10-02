@@ -23,9 +23,11 @@ import { useAuth } from '../contexts/AuthContext';
 import AddTransaction from './AddTransaction';
 import ViewTransaction from './ViewTransaction';
 import apiClient from '../utils/api';
+import { useErrorHandler } from '../hooks/useErrorHandler';
 
 const Transactions = () => {
   const { user, logout } = useAuth();
+  const { handleError, handleSuccess } = useErrorHandler();
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -139,39 +141,7 @@ const Transactions = () => {
         }
       });
 
-      const url = `${apiClient.baseURL}/transactions/?${params.toString()}`;
-
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        mode: 'cors',
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-
-        let errorData;
-        try {
-          errorData = JSON.parse(errorText);
-        } catch (e) {
-          errorData = { message: errorText };
-        }
-
-        // Handle authentication errors
-        if (handleAuthError(response, errorData)) {
-          return;
-        }
-
-        const errorMessage = errorData.message || errorData.msg || errorData.error || errorText || `HTTP ${response.status}`;
-        setError(`Failed to load transactions: ${errorMessage}`);
-        return;
-      }
-
-      const data = await response.json();
+      const data = await apiClient.getTransactions(Object.fromEntries(params));
 
       if (data) {
         const items = data.items || [];
@@ -185,6 +155,24 @@ const Transactions = () => {
       }
     } catch (error) {
       console.error('Error loading transactions:', error);
+      
+      // Handle authentication errors
+      if (error.status === 401) {
+        console.error('401 Unauthorized - clearing tokens');
+        localStorage.removeItem('authToken');
+        setAuthError(true);
+        handleError('Session expired. Please log in again.');
+        return;
+      }
+      
+      if (error.status === 422 && error.message.includes('segments')) {
+        console.error('JWT Token format error - clearing tokens');
+        localStorage.removeItem('authToken');
+        setAuthError(true);
+        handleError('Token format invalid. Please log in again.');
+        return;
+      }
+
       setError(error.message || 'Failed to load transactions');
       setTransactions([]);
     } finally {
@@ -197,36 +185,11 @@ const Transactions = () => {
       const token = getValidToken();
       if (!token) return;
 
-      const url = `${apiClient.baseURL}/branches/`;
-
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        mode: 'cors',
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-
-        try {
-          const errorData = JSON.parse(errorText);
-          if (handleAuthError(response, errorData)) {
-            return;
-          }
-        } catch (e) {
-          // Ignore JSON parse error for branches - not critical
-        }
-        return;
-      }
-
-      const data = await response.json();
+      const data = await apiClient.getBranches();
       setBranches(data.items || data || []);
     } catch (error) {
       console.error('Error loading branches:', error);
+      handleError(error, 'Failed to load branches');
     }
   };
 
@@ -235,36 +198,11 @@ const Transactions = () => {
       const token = getValidToken();
       if (!token) return;
 
-      const url = `${apiClient.baseURL}/warehouses/`;
-
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        mode: 'cors',
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-
-        try {
-          const errorData = JSON.parse(errorText);
-          if (handleAuthError(response, errorData)) {
-            return;
-          }
-        } catch (e) {
-          // Ignore JSON parse error for warehouses - not critical
-        }
-        return;
-      }
-
-      const data = await response.json();
+      const data = await apiClient.getWarehouses();
       setWarehouses(data.items || data || []);
     } catch (error) {
       console.error('Error loading warehouses:', error);
+      handleError(error, 'Failed to load warehouses');
     }
   };
 
@@ -364,6 +302,7 @@ const Transactions = () => {
   };
 
   const handleTransactionAdded = () => {
+    handleSuccess('Transaction added successfully!');
     loadTransactions(); // Refresh the transactions list
   };
 

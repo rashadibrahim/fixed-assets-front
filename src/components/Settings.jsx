@@ -202,52 +202,43 @@ const Settings = () => {
   };
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-4 p-4">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-foreground flex items-center gap-2">
-            <SettingsIcon className="w-8 h-8 text-primary" />
+          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
+            <SettingsIcon className="w-6 h-6 text-primary" />
             Settings
           </h1>
-          <p className="text-muted-foreground mt-1">Configure system preferences and barcode settings</p>
         </div>
       </div>
 
-      <Tabs defaultValue="barcode" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3">
+      <Tabs defaultValue="barcode" className="space-y-4">
+        <TabsList className="grid w-full grid-cols-1">
           <TabsTrigger value="barcode" className="flex items-center gap-2">
             <QrCode className="w-4 h-4" />
             Barcode Settings
           </TabsTrigger>
-          <TabsTrigger value="system" className="flex items-center gap-2">
-            <SettingsIcon className="w-4 h-4" />
-            System Settings
-          </TabsTrigger>
-          <TabsTrigger value="appearance" className="flex items-center gap-2">
-            <Palette className="w-4 h-4" />
-            Appearance
-          </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="barcode" className="space-y-6">
+        <TabsContent value="barcode" className="space-y-4">
           <Card className="glass-card">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <QrCode className="w-5 h-5" />
-                Barcode Generation Settings
+            <CardHeader className="pb-4">
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <QrCode className="w-4 h-4" />
+                Barcode Settings
               </CardTitle>
-              <p className="text-sm text-muted-foreground">
-                Configure default settings for barcode generation. These settings will be used when printing barcodes from asset management.
+              <p className="text-xs text-muted-foreground">
+                Configure barcode generation defaults
               </p>
             </CardHeader>
-            <CardContent className="space-y-6">
+            <CardContent className="space-y-4">
               {/* Size Settings */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold flex items-center gap-2">
-                  <Maximize2 className="w-4 h-4" />
+              <div className="space-y-3">
+                <h3 className="text-sm font-semibold flex items-center gap-2">
+                  <Maximize2 className="w-3 h-3" />
                   Size Settings
                 </h3>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-4 gap-3">
                   <div>
                     <Label htmlFor="barcode-width">Width (px)</Label>
                     <Input
@@ -280,12 +271,12 @@ const Settings = () => {
               </div>
 
               {/* Font Settings */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold flex items-center gap-2">
-                  <Type className="w-4 h-4" />
+              <div className="space-y-3">
+                <h3 className="text-sm font-semibold flex items-center gap-2">
+                  <Type className="w-3 h-3" />
                   Font Settings
                 </h3>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-4 gap-3">
                   <div>
                     <Label htmlFor="font-size">Font Size (px)</Label>
                     <Input
@@ -300,7 +291,7 @@ const Settings = () => {
                       max="48"
                     />
                   </div>
-                  <div>
+                  <div className="col-span-2">
                     <Label htmlFor="font-family">Font Family</Label>
                     <Select
                       value={barcodeSettings.fontFamily}
@@ -326,13 +317,13 @@ const Settings = () => {
               </div>
 
               {/* Color Settings */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold flex items-center gap-2">
-                  <Palette className="w-4 h-4" />
+              <div className="space-y-3">
+                <h3 className="text-sm font-semibold flex items-center gap-2">
+                  <Palette className="w-3 h-3" />
                   Color Settings
                 </h3>
-                <div className="grid grid-cols-3 gap-4">
-                  <div>
+                <div className="grid grid-cols-6 gap-3">
+                  <div className="col-span-2">
                     <Label htmlFor="text-color">Text Color</Label>
                     <Input
                       id="text-color"
@@ -344,7 +335,7 @@ const Settings = () => {
                       }))}
                     />
                   </div>
-                  <div>
+                  <div className="col-span-2">
                     <Label htmlFor="barcode-color">Barcode Color</Label>
                     <Input
                       id="barcode-color"
@@ -356,7 +347,7 @@ const Settings = () => {
                       }))}
                     />
                   </div>
-                  <div>
+                  <div className="col-span-2">
                     <Label htmlFor="bg-color">Background</Label>
                     <Input
                       id="bg-color"
@@ -372,9 +363,9 @@ const Settings = () => {
               </div>
 
               {/* Text Options */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold">Text Options</h3>
-                <div className="space-y-3">
+              <div className="space-y-3">
+                <h3 className="text-sm font-semibold">Text Options</h3>
+                <div className="grid grid-cols-2 gap-4">
                   <div className="flex items-center space-x-2">
                     <input
                       type="checkbox"
@@ -398,7 +389,7 @@ const Settings = () => {
                           textPosition: value 
                         }))}
                       >
-                        <SelectTrigger className="w-48">
+                        <SelectTrigger>
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -413,68 +404,35 @@ const Settings = () => {
               </div>
 
               {/* Action Buttons */}
-              <div className="flex items-center justify-between pt-6 border-t border-border">
-                <div className="flex space-x-3">
+              <div className="flex items-center justify-between pt-4 border-t border-border">
+                <div className="flex space-x-2">
                   <Button 
                     variant="outline" 
+                    size="sm"
                     onClick={resetToDefaults}
-                    className="flex items-center gap-2"
+                    className="flex items-center gap-1"
                   >
-                    <RotateCcw className="w-4 h-4" />
-                    Reset to Defaults
+                    <RotateCcw className="w-3 h-3" />
+                    Reset
                   </Button>
                   <Button 
                     variant="outline" 
+                    size="sm"
                     onClick={generatePreviewBarcode}
-                    className="flex items-center gap-2"
+                    className="flex items-center gap-1"
                   >
-                    <Eye className="w-4 h-4" />
+                    <Eye className="w-3 h-3" />
                     Preview
                   </Button>
                 </div>
                 <Button 
+                  size="sm"
                   onClick={saveBarcodeSettings}
-                  className="btn-primary flex items-center gap-2"
+                  className="btn-primary flex items-center gap-1"
                 >
-                  <Save className="w-4 h-4" />
+                  <Save className="w-3 h-3" />
                   Save Settings
                 </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="system" className="space-y-6">
-          <Card className="glass-card">
-            <CardHeader>
-              <CardTitle>System Settings</CardTitle>
-              <p className="text-sm text-muted-foreground">
-                General system configuration options.
-              </p>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center py-12">
-                <SettingsIcon className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-xl font-semibold text-foreground mb-2">System Settings</h3>
-                <p className="text-muted-foreground">System settings coming soon...</p>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="appearance" className="space-y-6">
-          <Card className="glass-card">
-            <CardHeader>
-              <CardTitle>Appearance Settings</CardTitle>
-              <p className="text-sm text-muted-foreground">
-                Customize the look and feel of the application.
-              </p>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center py-12">
-                <Palette className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-xl font-semibold text-foreground mb-2">Appearance Settings</h3>
-                <p className="text-muted-foreground">Theme and appearance settings coming soon...</p>
               </div>
             </CardContent>
           </Card>

@@ -27,18 +27,22 @@ import { toast } from 'sonner';
 import apiClient from '../utils/api';
 import { ViewToggle } from '@/components/ui/view-toggle';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { useErrorHandler } from '../hooks/useErrorHandler';
 
 const AssetManagement = () => {
   const [assets, setAssets] = useState([]);
   const [categories, setCategories] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCategory, setFilterCategory] = useState('all');
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedAsset, setSelectedAsset] = useState(null);
   const [pagination, setPagination] = useState({ page: 1, pages: 1, total: 0 });
+  const [currentPage, setCurrentPage] = useState(1);
   const [viewMode, setViewMode] = useState('grid');
+  const itemsPerPage = 10;
+  const { handleError, handleSuccess } = useErrorHandler();
 
   // Form state matching API structure
   const [formData, setFormData] = useState({
@@ -59,20 +63,19 @@ const AssetManagement = () => {
       setLoading(true);
       const params = {
         page,
-        per_page: 10,
-        ...(filterCategory !== 'all' && { category: filterCategory })
+        per_page: 100 // Load more assets to avoid pagination issues with filtering
       };
 
       const response = await apiClient.getAssets(params);
-      setAssets(response.items || []);
+      setAssets(response.items || response || []);
       setPagination({
         page: response.page || 1,
         pages: response.pages || 1,
         total: response.total || 0
       });
     } catch (error) {
-      console.error('Error loading assets:', error);
-      toast.error('Failed to load assets');
+      handleError(error, 'Failed to load assets');
+      setAssets([]);
     } finally {
       setLoading(false);
     }
@@ -81,25 +84,43 @@ const AssetManagement = () => {
   const loadCategories = async () => {
     try {
       const response = await apiClient.getCategories();
-      setCategories(response.items || []);
+      setCategories(response.items || response || []);
     } catch (error) {
-      console.error('Error loading categories:', error);
-      toast.error('Failed to load categories');
+      handleError(error, 'Failed to load categories');
+      setCategories([]);
     }
   };
 
   const getCategoryName = (categoryId) => {
-    const category = categories.find(cat => cat.id === categoryId);
+    if (!categoryId || !categories.length) return 'Unknown Category';
+    const category = categories.find(cat => cat.id === parseInt(categoryId) || cat.id === categoryId);
     return category ? category.category : 'Unknown Category';
   };
 
-  const filteredAssets = assets.filter(asset => {
-    const matchesSearch = asset.name_en.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      asset.name_ar.includes(searchTerm) ||
-      getCategoryName(asset.category_id).toLowerCase().includes(searchTerm.toLowerCase());
+  const allFilteredAssets = assets.filter(asset => {
+    if (!asset) return false;
+    
+    const searchLower = searchTerm.toLowerCase();
+    const matchesSearch = !searchTerm || 
+      (asset.name_en && asset.name_en.toLowerCase().includes(searchLower)) ||
+      (asset.name_ar && asset.name_ar.includes(searchTerm)) ||
+      (asset.product_code && asset.product_code.toLowerCase().includes(searchLower)) ||
+      getCategoryName(asset.category_id).toLowerCase().includes(searchLower);
+    
     const matchesCategory = filterCategory === 'all' || asset.category_id?.toString() === filterCategory;
     return matchesSearch && matchesCategory;
   });
+
+  // Client-side pagination
+  const totalPages = Math.ceil(allFilteredAssets.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const filteredAssets = allFilteredAssets.slice(startIndex, endIndex);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, filterCategory]);
 
   const handleInputChange = useCallback((e) => {
     const { name, value, type, checked } = e.target;
@@ -126,6 +147,25 @@ const AssetManagement = () => {
     resetForm();
   }, []);
 
+  const validateForm = () => {
+    const errors = [];
+
+    if (!formData.name_en.trim()) {
+      errors.push('English name is required');
+    }
+    if (!formData.name_ar.trim()) {
+      errors.push('Arabic name is required');
+    }
+    if (!formData.category_id) {
+      errors.push('Category is required');
+    }
+    if (formData.product_code && (formData.product_code.length < 6 || formData.product_code.length > 11)) {
+      errors.push('Product code must be 6-11 digits');
+    }
+
+    return errors;
+  };
+
   const validateProductCode = (code) => {
     const numericCode = code.replace(/\D/g, '');
     if (numericCode.length < 6 || numericCode.length > 11) {
@@ -150,41 +190,21 @@ const AssetManagement = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    const errors = validateForm();
+    if (errors.length > 0) {
+      handleError(errors.join('. '));
+      return;
+    }
+
     try {
-      // Debug: Log current form data
-      console.log('Current form data:', formData);
-
-      // Validate required fields according to API schema
-      const requiredFields = [
-        'name_en', 'name_ar', 'category_id'
-      ];
-
-      for (const field of requiredFields) {
-        if (!formData[field] || formData[field].toString().trim() === '') {
-          console.log(`Validation failed for field: ${field}, value:`, formData[field]);
-          toast.error(`${field.replace('_', ' ')} is required`);
-          return;
-        }
-      }
-
-      // Validate product code format if provided
-      if (formData.product_code && formData.product_code.trim()) {
-        const validatedProductCode = validateProductCode(formData.product_code);
-        if (!validatedProductCode) {
-          return;
-        }
-      }
-
       setLoading(true);
 
-      // Transform the data to match backend expectations - ONLY SUPPORTED FIELDS
       const assetData = {
         name_en: formData.name_en.trim(),
         name_ar: formData.name_ar.trim(),
         category_id: parseInt(formData.category_id)
       };
 
-      // Add optional fields that are supported by backend
       if (formData.product_code && formData.product_code.trim()) {
         assetData.product_code = formData.product_code.trim();
       }
@@ -193,25 +213,20 @@ const AssetManagement = () => {
         assetData.is_active = formData.is_active;
       }
 
-      console.log('Sending minimal asset data:', assetData);
-      console.log('Original form data:', formData);
-
       if (selectedAsset) {
         await apiClient.updateAsset(selectedAsset.id, assetData);
-        toast.success('Asset updated successfully');
+        handleSuccess('Asset updated successfully');
         setShowEditModal(false);
       } else {
-        const result = await apiClient.createAsset(assetData);
-        console.log('Asset saved:', result);
-        toast.success('Asset created successfully');
+        await apiClient.createAsset(assetData);
+        handleSuccess('Asset created successfully');
         setShowAddModal(false);
       }
 
       loadAssets();
       resetForm();
     } catch (error) {
-      console.error('Error saving asset:', error);
-      toast.error(`Failed to save asset: ${error.message}`);
+      handleError(error, 'Failed to save asset');
     } finally {
       setLoading(false);
     }
@@ -234,11 +249,10 @@ const AssetManagement = () => {
     if (window.confirm('Are you sure you want to delete this asset?')) {
       try {
         await apiClient.deleteAsset(asset.id);
-        toast.success('Asset deleted successfully');
+        handleSuccess('Asset deleted successfully');
         loadAssets();
       } catch (error) {
-        console.error('Error deleting asset:', error);
-        toast.error('Failed to delete asset');
+        handleError(error, 'Failed to delete asset');
       }
     }
   };
@@ -734,7 +748,7 @@ const AssetManagement = () => {
               <SelectContent>
                 <SelectItem value="all">All Categories</SelectItem>
                 {categories.map(category => (
-                  <SelectItem key={category.id} value={category.category}>{category.category}</SelectItem>
+                  <SelectItem key={category.id} value={category.id.toString()}>{category.category}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -805,29 +819,29 @@ const AssetManagement = () => {
       )}
 
       {/* Pagination */}
-      {pagination.pages > 1 && (
+      {totalPages > 1 && (
         <div className="flex items-center justify-center space-x-2">
           <Button
             variant="outline"
-            onClick={() => loadAssets(pagination.page - 1)}
-            disabled={pagination.page <= 1}
+            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+            disabled={currentPage <= 1}
           >
             Previous
           </Button>
           <span className="text-sm text-muted-foreground">
-            Page {pagination.page} of {pagination.pages} ({pagination.total} total)
+            Page {currentPage} of {totalPages} ({allFilteredAssets.length} total)
           </span>
           <Button
             variant="outline"
-            onClick={() => loadAssets(pagination.page + 1)}
-            disabled={pagination.page >= pagination.pages}
+            onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+            disabled={currentPage >= totalPages}
           >
             Next
           </Button>
         </div>
       )}
 
-      {filteredAssets.length === 0 && (
+      {allFilteredAssets.length === 0 && (
         <div className="text-center py-12">
           <Package className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
           <h3 className="text-xl font-semibold text-foreground mb-2">No Assets Found</h3>

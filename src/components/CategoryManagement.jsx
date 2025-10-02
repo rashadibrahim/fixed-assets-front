@@ -19,6 +19,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ViewToggle } from '@/components/ui/view-toggle';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import apiClient from '../utils/api';
+import { useErrorHandler } from '../hooks/useErrorHandler';
 
 const CategoryManagement = () => {
   const [categories, setCategories] = useState([]);
@@ -33,6 +34,7 @@ const CategoryManagement = () => {
     total: 0
   });
   const [viewMode, setViewMode] = useState('grid');
+  const { handleError, handleSuccess } = useErrorHandler();
 
   const [formData, setFormData] = useState({
     name_en: '',
@@ -52,24 +54,12 @@ const CategoryManagement = () => {
 
       const token = localStorage.getItem('authToken');
       if (!token) {
-        setError('Authentication required');
+        handleError('Authentication required');
         return;
       }
 
-      const response = await fetch(`${apiClient.baseURL}/categories/?per_page=12&page=${page}`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        mode: 'cors',
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch categories');
-      }
-
-      const data = await response.json();
+      const response = await apiClient.getCategories({ per_page: 12, page });
+      const data = response;
 
       if (data.items) {
         // Transform the API response to match component expectations
@@ -93,8 +83,7 @@ const CategoryManagement = () => {
         setCategories([]);
       }
     } catch (error) {
-      console.error('Error loading categories:', error);
-      setError('Failed to load categories. Please try again.');
+      handleError(error, 'Failed to load categories');
       setCategories([]);
     } finally {
       setLoading(false);
@@ -139,97 +128,62 @@ const CategoryManagement = () => {
     return errors;
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-
-    const validationErrors = validateForm();
-    if (validationErrors.length > 0) {
-      toast.error(validationErrors.join(' '));
-      return;
-    }
+  const handleSubmit = async () => {
+    if (loading) return;
 
     try {
       setLoading(true);
+      setError(null);
+
       const token = localStorage.getItem('authToken');
       if (!token) {
-        toast.error('Authentication required');
+        handleError('Authentication required');
         return;
       }
 
-      // Check for duplicate category names
-      const checkResponse = await fetch(`${apiClient.baseURL}/categories/?per_page=1000&page=1`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        mode: 'cors',
-      });
+      const errors = validateForm();
+      if (errors.length > 0) {
+        setError(errors.join('. '));
+        return;
+      }
 
-      if (checkResponse.ok) {
-        const existingData = await checkResponse.json();
-        const existingCategories = existingData.items || [];
-
-        // Check for duplicate names
-        const duplicateCategory = existingCategories.find(cat =>
-          cat.category &&
-          cat.category.toLowerCase().trim() === formData.name_en.toLowerCase().trim() &&
+      // Check for duplicate names
+      if (formData.name_en.trim()) {
+        const duplicateCategory = categories.find(cat => 
+          cat.category?.toLowerCase() === formData.name_en.trim().toLowerCase() && 
           (!editingCategory || cat.id !== editingCategory.id)
         );
 
         if (duplicateCategory) {
-          toast.error(`Category name "${formData.name_en}" already exists`);
-          setLoading(false);
+          handleError(`Category name "${formData.name_en}" already exists`);
           return;
         }
       }
 
-      // Proceed with create/update
-      const url = editingCategory
-        ? `${apiClient.baseURL}/categories/${editingCategory.id}`
-        : `${apiClient.baseURL}/categories/`;
-
-      const method = editingCategory ? 'PUT' : 'POST';
-
-      // Prepare the request body
       const requestBody = {
         category: formData.name_en.trim() || null,
-        subcategory: formData.name_ar.trim() || null // Send as null if empty
+        subcategory: formData.name_ar.trim() || null
       };
 
-      // If subcategory is empty string or just whitespace, explicitly set to null
       if (!requestBody.subcategory) {
         requestBody.subcategory = null;
       }
 
-      const response = await fetch(url, {
-        method: method,
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestBody),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to save category');
+      if (editingCategory) {
+        await apiClient.updateCategory(editingCategory.id, requestBody);
+        handleSuccess('Category updated successfully!');
+      } else {
+        await apiClient.createCategory(requestBody);
+        handleSuccess('Category created successfully!');
       }
 
-      const result = await response.json();
-      console.log('Category saved:', result);
-
-      toast.success(editingCategory ? 'Category updated successfully!' : 'Category created successfully!');
-
-      // Reset form and reload data
       setFormData({ name_en: '', name_ar: '', description: '', parent_id: '' });
       setEditingCategory(null);
       setDialogOpen(false);
       loadCategories();
 
     } catch (error) {
-      console.error('Error saving category:', error);
-      toast.error(error.message || 'Failed to save category');
+      handleError(error);
     } finally {
       setLoading(false);
     }

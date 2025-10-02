@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import apiClient from '../utils/api';
+import { useErrorHandler } from '../hooks/useErrorHandler';
 import { 
   X, 
   Plus, 
@@ -14,6 +15,7 @@ import {
 } from 'lucide-react';
 
 const AddTransaction = ({ isOpen, onClose, onTransactionAdded }) => {
+  const { handleError, handleSuccess } = useErrorHandler();
   const [formData, setFormData] = useState({
     date: new Date().toISOString().split('T')[0],
     description: '',
@@ -47,9 +49,9 @@ const AddTransaction = ({ isOpen, onClose, onTransactionAdded }) => {
   const fetchWarehouses = async () => {
     try {
       const response = await apiClient.getWarehouses();
-      setWarehouses(response.data || []);
+      setWarehouses(response.items || response.data || response || []);
     } catch (error) {
-      console.error('Error fetching warehouses:', error);
+      handleError(error, 'Failed to load warehouses');
     }
   };
 
@@ -98,11 +100,11 @@ const AddTransaction = ({ isOpen, onClose, onTransactionAdded }) => {
     try {
       const response = await apiClient.getAssets({ search: query, per_page: 10 });
       updateAssetTransaction(index, {
-        searchResults: response.data || [],
+        searchResults: response.items || response.data || response || [],
         searchLoading: false
       });
     } catch (error) {
-      console.error('Error searching assets:', error);
+      handleError(error, 'Failed to search assets');
       updateAssetTransaction(index, { searchResults: [], searchLoading: false });
     }
   };
@@ -127,6 +129,17 @@ const AddTransaction = ({ isOpen, onClose, onTransactionAdded }) => {
     setLoading(true);
 
     try {
+      // Validate form
+      if (!formData.warehouse_id) {
+        handleError('Please select a warehouse');
+        return;
+      }
+
+      if (assetTransactions.some(at => !at.asset_id)) {
+        handleError('Please select assets for all transaction lines');
+        return;
+      }
+
       const transactionData = new FormData();
       
       Object.keys(formData).forEach(key => {
@@ -135,16 +148,22 @@ const AddTransaction = ({ isOpen, onClose, onTransactionAdded }) => {
         }
       });
 
-      transactionData.append('asset_transactions', JSON.stringify(
-        assetTransactions.map(transaction => ({
+      transactionData.append('data', JSON.stringify({
+        date: formData.date,
+        description: formData.description,
+        reference_number: formData.reference_number,
+        warehouse_id: parseInt(formData.warehouse_id),
+        transaction_type: assetTransactions[0]?.transaction_type ?? true,
+        asset_transactions: assetTransactions.map(transaction => ({
           asset_id: transaction.asset_id,
           quantity: transaction.quantity,
-          amount: transaction.amount,
-          transaction_type: transaction.transaction_type
+          amount: transaction.amount || 0
         }))
-      ));
+      }));
 
-      await apiClient.createAssetTransaction(transactionData);
+      await apiClient.createTransaction(transactionData);
+      
+      handleSuccess('Transaction created successfully!');
       
       if (onTransactionAdded) {
         onTransactionAdded();
@@ -173,12 +192,7 @@ const AddTransaction = ({ isOpen, onClose, onTransactionAdded }) => {
       
       onClose();
     } catch (error) {
-      console.error('Error creating transaction:', error);
-      if (error.message === 'Transaction features are coming soon!') {
-        alert('Transaction features are coming soon! This feature is still in development.');
-      } else {
-        alert('Error creating transaction: ' + error.message);
-      }
+      handleError(error, 'Failed to create transaction');
     } finally {
       setLoading(false);
     }

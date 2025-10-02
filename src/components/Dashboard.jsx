@@ -686,19 +686,6 @@ const Dashboard = () => {
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        <header className="bg-card border-b border-border px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              {/* Header content */}
-            </div>
-            <div className="flex items-center space-x-3">
-              <Button variant="ghost" size="sm">
-                <SettingsIcon className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-        </header>
-
         <main className="flex-1 overflow-y-auto p-6">
           {renderContent()}
         </main>

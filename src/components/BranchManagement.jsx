@@ -20,8 +20,10 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ViewToggle } from '@/components/ui/view-toggle';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import apiClient from '../utils/api';
+import { useErrorHandler } from '../hooks/useErrorHandler';
 
 const BranchManagement = () => {
+  const { handleError, handleSuccess } = useErrorHandler();
   const [branches, setBranches] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
