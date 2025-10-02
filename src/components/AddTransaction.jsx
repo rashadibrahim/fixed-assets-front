@@ -14,7 +14,7 @@ import {
   Search
 } from 'lucide-react';
 
-const AddTransaction = ({ isOpen, onClose, onTransactionAdded }) => {
+const AddTransaction = ({ isOpen, onClose, onTransactionAdded, defaultTransactionType = 'IN' }) => {
   const { handleError, handleSuccess } = useErrorHandler();
   const [formData, setFormData] = useState({
     date: new Date().toISOString().split('T')[0],
@@ -31,7 +31,7 @@ const AddTransaction = ({ isOpen, onClose, onTransactionAdded }) => {
     quantity: 1,
     amount: 0,
     total: 0,
-    transaction_type: true,
+    transaction_type: defaultTransactionType === 'IN' ? true : false,
     searchQuery: '',
     searchResults: [],
     searchLoading: false

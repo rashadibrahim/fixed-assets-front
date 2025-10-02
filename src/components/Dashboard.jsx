@@ -25,6 +25,7 @@ import {
   Shield,
   FolderOpen,
   ArrowUpCircle,
+  ArrowDownCircle,
   FileText,
   RefreshCw
 } from 'lucide-react';
@@ -44,7 +45,8 @@ import UserManagement from './UserManagement';
 import JobRoleManagement from './JobRoleManagement';
 import CategoryManagement from './CategoryManagement';
 import ErrorBoundary from './ErrorBoundary';
-import Transactions from './Transactions';
+import TransactionsIn from './TransactionsIn';
+import TransactionsOut from './TransactionsOut';
 import Settings from './Settings';
 
 const Dashboard = () => {
@@ -215,8 +217,11 @@ const Dashboard = () => {
     { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
     // Only show assets if user can read assets
     ...(canReadAssets() ? [{ id: 'assets', label: 'Fixed Assets', icon: Package }] : []),
-    // Always show transactions and reports for now (they are coming soon anyway)
-    { id: 'transactions', label: 'Transactions', icon: ArrowUpCircle },
+    // Show separated transaction screens for users who can read assets
+    ...(canReadAssets() ? [
+      { id: 'transactions-in', label: 'Transactions IN', icon: ArrowUpCircle },
+      { id: 'transactions-out', label: 'Transactions OUT', icon: ArrowDownCircle },
+    ] : []),
     { id: 'reports', label: 'Reports', icon: FileText, comingSoon: true },
     // Only show warehouses if user can read warehouses
     ...(canReadWarehouses() ? [{ id: 'warehouses', label: 'Warehouses', icon: Warehouse }] : []),
@@ -580,8 +585,10 @@ const Dashboard = () => {
     switch (activeTab) {
       case 'dashboard':
         return <DashboardView />;
-      case 'transactions':
-        return <Transactions />;
+      case 'transactions-in':
+        return <ErrorBoundary><TransactionsIn /></ErrorBoundary>;
+      case 'transactions-out':
+        return <ErrorBoundary><TransactionsOut /></ErrorBoundary>;
       case 'assets':
         return <ErrorBoundary><AssetManagement /></ErrorBoundary>;
       case 'reports':
