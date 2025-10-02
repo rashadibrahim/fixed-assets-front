@@ -23,10 +23,12 @@ import AddTransaction from './AddTransaction';
 import ViewTransaction from './ViewTransaction';
 import apiClient from '../utils/api';
 import { useErrorHandler } from '../hooks/useErrorHandler';
+import { useTokenExpiry } from '../hooks/useTokenExpiry';
 
 const TransactionsIn = () => {
   const { user, logout } = useAuth();
   const { handleError, handleSuccess } = useErrorHandler();
+  useTokenExpiry(); // This will automatically handle token expiry warnings
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
