@@ -472,7 +472,7 @@ const CategoryManagement = () => {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => handleDelete(category.id, `${category.name_en} - ${category.name_ar}`)}
+                          onClick={() => handleDelete(category.id, category.category)}
                           className="h-8 w-8 p-0 text-destructive hover:text-destructive"
                         >
                           <Trash2 className="h-4 w-4" />

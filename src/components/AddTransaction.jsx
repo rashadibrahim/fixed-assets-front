@@ -14,8 +14,9 @@ import {
   Search
 } from 'lucide-react';
 
-const AddTransaction = ({ isOpen, onClose, onTransactionAdded, defaultTransactionType = 'IN' }) => {
+const AddTransaction = ({ isOpen, onClose, onTransactionAdded, defaultTransactionType = 'IN', editTransactionId = null }) => {
   const { handleError, handleSuccess } = useErrorHandler();
+  const [isEditMode, setIsEditMode] = useState(false);
   const [formData, setFormData] = useState({
     date: new Date().toISOString().split('T')[0],
     description: '',
@@ -47,22 +48,35 @@ const AddTransaction = ({ isOpen, onClose, onTransactionAdded, defaultTransactio
   useEffect(() => {
     if (isOpen) {
       fetchWarehouses();
-      // Reset form when modal opens to ensure correct transaction type
-      setAssetTransactions([{
-        id: Date.now(),
-        asset_id: '',
-        asset: null,
-        quantity: 1,
-        amount: 0,
-        total: 0,
-        transaction_type: transactionType,
-        searchQuery: '',
-        searchResults: [],
-        searchLoading: false,
-        loadingAverage: false
-      }]);
+      if (editTransactionId) {
+        setIsEditMode(true);
+        loadTransactionForEdit(editTransactionId);
+      } else {
+        setIsEditMode(false);
+        // Reset form when modal opens to ensure correct transaction type
+        setFormData({
+          date: new Date().toISOString().split('T')[0],
+          description: '',
+          reference_number: '',
+          warehouse_id: '',
+          attached_file: null
+        });
+        setAssetTransactions([{
+          id: Date.now(),
+          asset_id: '',
+          asset: null,
+          quantity: 1,
+          amount: 0,
+          total: 0,
+          transaction_type: transactionType,
+          searchQuery: '',
+          searchResults: [],
+          searchLoading: false,
+          loadingAverage: false
+        }]);
+      }
     }
-  }, [isOpen, transactionType]);
+  }, [isOpen, transactionType, editTransactionId]);
 
   const fetchWarehouses = async () => {
     try {
@@ -70,6 +84,59 @@ const AddTransaction = ({ isOpen, onClose, onTransactionAdded, defaultTransactio
       setWarehouses(response.items || response.data || response || []);
     } catch (error) {
       handleError(error, 'Failed to load warehouses');
+    }
+  };
+
+  const loadTransactionForEdit = async (transactionId) => {
+    try {
+      setLoading(true);
+      const transaction = await apiClient.getTransaction(transactionId);
+      
+      // Set form data
+      setFormData({
+        date: transaction.date ? transaction.date.split('T')[0] : new Date().toISOString().split('T')[0],
+        description: transaction.description || '',
+        reference_number: transaction.reference_number || '',
+        warehouse_id: transaction.warehouse_id || '',
+        attached_file: null // File will be handled separately for existing transactions
+      });
+
+      // Load asset transactions
+      if (transaction.asset_transactions && transaction.asset_transactions.length > 0) {
+        const editAssetTransactions = transaction.asset_transactions.map((assetTx, index) => ({
+          id: assetTx.id || Date.now() + index,
+          asset_id: assetTx.asset_id || '',
+          asset: assetTx.asset || null,
+          quantity: assetTx.quantity || 1,
+          amount: assetTx.amount || 0,
+          total: assetTx.total_value || (assetTx.quantity * assetTx.amount) || 0,
+          transaction_type: transaction.transaction_type,
+          searchQuery: assetTx.asset?.name_en || assetTx.asset?.name_ar || '',
+          searchResults: [],
+          searchLoading: false,
+          loadingAverage: false
+        }));
+        setAssetTransactions(editAssetTransactions);
+      } else {
+        // If no asset transactions, create one empty
+        setAssetTransactions([{
+          id: Date.now(),
+          asset_id: '',
+          asset: null,
+          quantity: 1,
+          amount: 0,
+          total: 0,
+          transaction_type: transaction.transaction_type,
+          searchQuery: '',
+          searchResults: [],
+          searchLoading: false,
+          loadingAverage: false
+        }]);
+      }
+    } catch (error) {
+      handleError(error, 'Failed to load transaction for editing');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -198,35 +265,49 @@ const AddTransaction = ({ isOpen, onClose, onTransactionAdded, defaultTransactio
         return;
       }
 
-      const transactionData = new FormData();
-      
-      Object.keys(formData).forEach(key => {
-        if (formData[key] !== null && formData[key] !== '') {
-          transactionData.append(key, formData[key]);
-        }
-      });
+      if (isEditMode && editTransactionId) {
+        // Update existing transaction - only update transaction metadata
+        const updateData = {
+          date: formData.date,
+          description: formData.description,
+          reference_number: formData.reference_number,
+          warehouse_id: parseInt(formData.warehouse_id)
+        };
 
-      transactionData.append('data', JSON.stringify({
-        date: formData.date,
-        description: formData.description,
-        reference_number: formData.reference_number,
-        warehouse_id: parseInt(formData.warehouse_id),
-        transaction_type: transactionType,
-        asset_transactions: assetTransactions.map(transaction => ({
-          asset_id: transaction.asset_id,
-          quantity: transaction.quantity,
-          amount: transaction.amount || 0
-        }))
-      }));
+        await apiClient.updateTransaction(editTransactionId, updateData);
+        handleSuccess('Transaction updated successfully!');
+      } else {
+        // Create new transaction
+        const transactionData = new FormData();
+        
+        Object.keys(formData).forEach(key => {
+          if (formData[key] !== null && formData[key] !== '') {
+            transactionData.append(key, formData[key]);
+          }
+        });
 
-      await apiClient.createTransaction(transactionData);
-      
-      handleSuccess('Transaction created successfully!');
+        transactionData.append('data', JSON.stringify({
+          date: formData.date,
+          description: formData.description,
+          reference_number: formData.reference_number,
+          warehouse_id: parseInt(formData.warehouse_id),
+          transaction_type: transactionType,
+          asset_transactions: assetTransactions.map(transaction => ({
+            asset_id: transaction.asset_id,
+            quantity: transaction.quantity,
+            amount: transaction.amount || 0
+          }))
+        }));
+
+        await apiClient.createTransaction(transactionData);
+        handleSuccess('Transaction created successfully!');
+      }
       
       if (onTransactionAdded) {
         onTransactionAdded();
       }
       
+      // Reset form
       setFormData({
         date: new Date().toISOString().split('T')[0],
         description: '',
@@ -251,7 +332,7 @@ const AddTransaction = ({ isOpen, onClose, onTransactionAdded, defaultTransactio
       
       onClose();
     } catch (error) {
-      handleError(error, 'Failed to create transaction');
+      handleError(error, `Failed to ${isEditMode ? 'update' : 'create'} transaction`);
     } finally {
       setLoading(false);
     }
@@ -266,10 +347,10 @@ const AddTransaction = ({ isOpen, onClose, onTransactionAdded, defaultTransactio
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-xl font-semibold text-gray-900">
-                Add New {transactionType ? 'In' : 'Out'} Transaction
+                {isEditMode ? 'Edit' : 'Add New'} {transactionType ? 'In' : 'Out'} Transaction
               </h1>
               <p className="text-sm text-gray-600">
-                Create a new asset {transactionType ? 'incoming' : 'outgoing'} transaction record
+                {isEditMode ? 'Update the' : 'Create a new'} asset {transactionType ? 'incoming' : 'outgoing'} transaction record
               </p>
             </div>
             <button
@@ -395,17 +476,24 @@ const AddTransaction = ({ isOpen, onClose, onTransactionAdded, defaultTransactio
                     <Package className="w-4 h-4 text-green-600" />
                     <div>
                       <h2 className="text-sm font-semibold text-gray-900">Asset Items</h2>
-                      <p className="text-xs text-gray-600">Add assets to this transaction</p>
+                      <p className="text-xs text-gray-600">
+                        {isEditMode 
+                          ? "Asset transactions cannot be modified in edit mode" 
+                          : "Add assets to this transaction"
+                        }
+                      </p>
                     </div>
                   </div>
-                  <button
-                    type="button"
-                    onClick={addAssetTransaction}
-                    className="flex items-center px-2 py-1 bg-green-600 text-white rounded-md hover:bg-green-700 text-xs"
-                  >
-                    <Plus className="w-3 h-3 mr-1" />
-                    Add Asset
-                  </button>
+                  {!isEditMode && (
+                    <button
+                      type="button"
+                      onClick={addAssetTransaction}
+                      className="flex items-center px-2 py-1 bg-green-600 text-white rounded-md hover:bg-green-700 text-xs"
+                    >
+                      <Plus className="w-3 h-3 mr-1" />
+                      Add Asset
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -428,7 +516,7 @@ const AddTransaction = ({ isOpen, onClose, onTransactionAdded, defaultTransactio
                         <div className="w-5 h-5 bg-blue-500 text-white rounded-full flex items-center justify-center text-xs font-bold">
                           {index + 1}
                         </div>
-                        {assetTransactions.length > 1 && (
+                        {!isEditMode && assetTransactions.length > 1 && (
                           <button
                             type="button"
                             onClick={() => removeAssetTransaction(index)}
@@ -444,7 +532,7 @@ const AddTransaction = ({ isOpen, onClose, onTransactionAdded, defaultTransactio
                         <input
                           type="text"
                           value={transaction.searchQuery}
-                          onChange={(e) => {
+                          onChange={isEditMode ? undefined : (e) => {
                             const query = e.target.value;
                             updateAssetTransaction(index, { searchQuery: query });
                             if (query.length >= 1) {
@@ -453,8 +541,12 @@ const AddTransaction = ({ isOpen, onClose, onTransactionAdded, defaultTransactio
                               updateAssetTransaction(index, { searchResults: [] });
                             }
                           }}
-                          className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                          placeholder="Search asset name or barcode..."
+                          disabled={isEditMode}
+                          className={`w-full px-2 py-1.5 text-xs border rounded-md ${isEditMode 
+                            ? 'border-gray-200 bg-gray-50 text-gray-500 cursor-not-allowed'
+                            : 'border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500'
+                          }`}
+                          placeholder={isEditMode ? "Asset cannot be changed in edit mode" : "Search asset name or barcode..."}
                         />
                         <Search className="w-3 h-3 absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400" />
 
@@ -497,17 +589,20 @@ const AddTransaction = ({ isOpen, onClose, onTransactionAdded, defaultTransactio
                           min="1"
                           max={transaction.transaction_type === false && transaction.asset ? transaction.asset.quantity : undefined}
                           value={transaction.quantity}
-                          onChange={(e) => {
+                          onChange={isEditMode ? undefined : (e) => {
                             const newQuantity = parseInt(e.target.value) || 0;
                             updateAssetTransaction(index, { quantity: newQuantity });
                           }}
-                          className={`w-full px-2 py-1.5 text-xs border rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 ${transaction.transaction_type === false &&
+                          disabled={isEditMode}
+                          className={`w-full px-2 py-1.5 text-xs border rounded-md ${isEditMode 
+                            ? 'border-gray-200 bg-gray-50 text-gray-500' 
+                            : `focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 ${transaction.transaction_type === false &&
                             transaction.asset &&
                             transaction.quantity > transaction.asset.quantity
                             ? 'border-red-300 bg-red-50'
                             : 'border-gray-300'
-                            }`}
-                          required
+                            }`}`}
+                          required={!isEditMode}
                         />
                         {transaction.asset && transaction.transaction_type === false && (
                           <div className="text-xs text-gray-500 mt-0.5">
@@ -530,15 +625,16 @@ const AddTransaction = ({ isOpen, onClose, onTransactionAdded, defaultTransactio
                           min="0"
                           step="0.01"
                           value={transaction.amount}
-                          onChange={(e) => updateAssetTransaction(index, { amount: parseFloat(e.target.value) || 0 })}
+                          onChange={isEditMode ? undefined : (e) => updateAssetTransaction(index, { amount: parseFloat(e.target.value) || 0 })}
+                          disabled={isEditMode || !transactionType}
                           className={`w-full px-2 py-1.5 text-xs border rounded-md ${
-                            !transactionType 
-                              ? 'bg-gray-100 border-gray-300 cursor-not-allowed' 
+                            isEditMode || !transactionType 
+                              ? 'bg-gray-100 border-gray-300 cursor-not-allowed text-gray-500' 
                               : 'border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500'
                           }`}
                           placeholder={!transactionType ? "Auto from average" : "0.00"}
-                          readOnly={!transactionType}
-                          required
+                          readOnly={isEditMode || !transactionType}
+                          required={!isEditMode}
                         />
                         {!transactionType && (
                           <div className="text-xs text-gray-500 mt-1 flex items-center">
@@ -593,12 +689,12 @@ const AddTransaction = ({ isOpen, onClose, onTransactionAdded, defaultTransactio
                   {loading ? (
                     <>
                       <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white mr-2"></div>
-                      Creating...
+                      {isEditMode ? 'Updating...' : 'Creating...'}
                     </>
                   ) : (
                     <>
                       <Save className="w-3 h-3 mr-2" />
-                      Create Transaction
+                      {isEditMode ? 'Update Transaction' : 'Create Transaction'}
                     </>
                   )}
                 </button>

@@ -253,47 +253,21 @@ const Transactions = () => {
     }
   };
 
-  const downloadAttachment = (transactionId, filename) => {
-    if (transactionId) {
-      const token = localStorage.getItem('authToken');
-      if (!token) {
-        toast.error('Authentication required to download file');
-        return;
-      }
-
-      // Create a temporary link element to trigger download
+  const downloadAttachment = async (transactionId, filename) => {
+    try {
+      const blob = await apiClient.downloadTransactionFile(transactionId);
+      const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
-      link.href = `${apiClient.baseURL}/transactions/${transactionId}/download`;
-      link.target = '_blank';
-
-      // Add authorization header by creating a fetch request instead
-      fetch(`${apiClient.baseURL}/transactions/${transactionId}/download`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      })
-        .then(response => {
-          if (!response.ok) {
-            throw new Error(`HTTP ${response.status}`);
-          }
-          return response.blob();
-        })
-        .then(blob => {
-          // Create blob URL and trigger download
-          const url = window.URL.createObjectURL(blob);
-          const link = document.createElement('a');
-          link.href = url;
-          link.download = filename || 'transaction-file';
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-          window.URL.revokeObjectURL(url);
-        })
-        .catch(error => {
-          console.error('Error downloading file:', error);
-          toast.error('Failed to download file');
-        });
+      link.href = url;
+      link.download = filename || `transaction_${transactionId}_file`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      toast.success('File downloaded successfully');
+    } catch (error) {
+      console.error('Error downloading file:', error);
+      toast.error('Failed to download file');
     }
   };
 

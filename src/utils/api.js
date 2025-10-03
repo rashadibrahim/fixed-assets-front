@@ -570,10 +570,6 @@ class ApiClient {
     throw new Error('Reporting features are coming soon!');
   }
 
-  async generateTransactionReport(params = {}) {
-    throw new Error('Reporting features are coming soon!');
-  }
-
   async generateAssetReport(params = {}) {
     throw new Error('Reporting features are coming soon!');
   }
