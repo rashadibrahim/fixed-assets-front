@@ -63,6 +63,8 @@ const Dashboard = () => {
   const canEditAssets = () => isAdmin() || user?.can_edit_asset;
   const canEditWarehouses = () => isAdmin() || user?.can_edit_warehouse;
   const canEditBranches = () => isAdmin() || user?.can_edit_branch;
+  const canMakeReports = () => isAdmin() || user?.can_make_report;
+  const canMakeTransactions = () => isAdmin() || user?.can_make_transaction;
 
   // Dashboard stats from API
   const [dashboardStats, setDashboardStats] = useState({
@@ -222,7 +224,8 @@ const Dashboard = () => {
       { id: 'transactions-in', label: 'Transactions IN', icon: ArrowUpCircle },
       { id: 'transactions-out', label: 'Transactions OUT', icon: ArrowDownCircle },
     ] : []),
-    { id: 'reports', label: 'Reports', icon: FileText, comingSoon: true },
+    // Only show reports if user can make reports
+    ...(canMakeReports() ? [{ id: 'reports', label: 'Reports', icon: FileText, comingSoon: true }] : []),
     // Only show warehouses if user can read warehouses
     ...(canReadWarehouses() ? [{ id: 'warehouses', label: 'Warehouses', icon: Warehouse }] : []),
     // Only show branches if user can read branches

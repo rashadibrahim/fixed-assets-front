@@ -71,6 +71,7 @@ const TransactionsIn = () => {
   const canReadAssets = () => isAdmin() || user?.can_read_asset;
   const canEditTransactions = () => isAdmin() || user?.can_write_asset;
   const canDeleteTransactions = () => isAdmin() || user?.can_delete_asset;
+  const canMakeTransactions = () => isAdmin() || user?.can_make_transaction;
 
   // Check and validate token
   const getValidToken = () => {
@@ -349,13 +350,15 @@ const TransactionsIn = () => {
           <p className="text-sm text-gray-600">Track all incoming asset transactions</p>
         </div>
         <div className="flex items-center space-x-2">
-          <button
-            onClick={() => setShowAddTransaction(true)}
-            className="flex items-center px-3 py-1.5 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm"
-          >
-            <Plus className="w-3 h-3 mr-1" />
-            Add IN Transaction
-          </button>
+          {canMakeTransactions() && (
+            <button
+              onClick={() => setShowAddTransaction(true)}
+              className="flex items-center px-3 py-1.5 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm"
+            >
+              <Plus className="w-3 h-3 mr-1" />
+              Add IN Transaction
+            </button>
+          )}
           <button
             onClick={() => setShowFilters(!showFilters)}
             className={`flex items-center px-3 py-1.5 rounded-md border transition-colors text-sm ${showFilters
@@ -511,13 +514,15 @@ const TransactionsIn = () => {
           <div className="p-6 text-center">
             <ArrowUpCircle className="w-6 h-6 text-gray-400 mx-auto mb-2" />
             <h3 className="text-sm font-medium text-gray-900 mb-2">No incoming transactions found</h3>
-            <button
-              onClick={() => setShowAddTransaction(true)}
-              className="inline-flex items-center px-3 py-1.5 bg-green-600 text-white font-medium rounded-lg hover:bg-green-700 transition-colors text-sm"
-            >
-              <Plus className="w-3 h-3 mr-1" />
-              Add First IN Transaction
-            </button>
+            {canMakeTransactions() && (
+              <button
+                onClick={() => setShowAddTransaction(true)}
+                className="inline-flex items-center px-3 py-1.5 bg-green-600 text-white font-medium rounded-lg hover:bg-green-700 transition-colors text-sm"
+              >
+                <Plus className="w-3 h-3 mr-1" />
+                Add First IN Transaction
+              </button>
+            )}
           </div>
         ) : (
           <>

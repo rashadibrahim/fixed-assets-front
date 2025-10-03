@@ -9,7 +9,6 @@ import {
   User,
   Search,
   Loader2,
-  AlertCircle
 } from 'lucide-react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -59,6 +58,8 @@ const UserManagement = () => {
     can_edit_asset: false,
     can_delete_asset: false,
     can_print_barcode: false,
+    can_make_report: false,
+    can_make_transaction: false,
   });
 
   useEffect(() => {
@@ -122,7 +123,7 @@ const UserManagement = () => {
       
       // Load all users without pagination for real-time filtering
       const [usersResponse, rolesResponse] = await Promise.all([
-        apiClient.getUsers({ per_page: 1000 }).catch(err => { // Load up to 1000 users
+        apiClient.getUsers({ per_page: 100 }).catch(err => { // Load up to 100 users (API maximum)
           console.warn('Failed to load users:', err);
           return { data: [], items: [], total: 0, pages: 1 };
         }),
@@ -181,6 +182,8 @@ const UserManagement = () => {
       can_edit_asset: false,
       can_delete_asset: false,
       can_print_barcode: false,
+      can_make_report: false,
+      can_make_transaction: false,
     });
     setDialogOpen(true);
   };
@@ -202,6 +205,8 @@ const UserManagement = () => {
       can_edit_asset: user.can_edit_asset ?? false,
       can_delete_asset: user.can_delete_asset ?? false,
       can_print_barcode: user.can_print_barcode ?? false,
+      can_make_report: user.can_make_report ?? false,
+      can_make_transaction: user.can_make_transaction ?? false,
     });
     setDialogOpen(true);
   };
@@ -237,7 +242,9 @@ const UserManagement = () => {
         can_read_asset: selectedRole.can_read_asset ?? false,
         can_edit_asset: selectedRole.can_edit_asset ?? false,
         can_delete_asset: selectedRole.can_delete_asset ?? false,
-        can_print_barcode: selectedRole.can_print_barcode ?? false
+        can_print_barcode: selectedRole.can_print_barcode ?? false,
+        can_make_report: selectedRole.can_make_report ?? false,
+        can_make_transaction: selectedRole.can_make_transaction ?? false
       }));
     } else {
       setFormData(prev => ({ ...prev, role: roleName }));
@@ -340,7 +347,9 @@ const UserManagement = () => {
             can_read_asset: formData.can_read_asset,
             can_edit_asset: formData.can_edit_asset,
             can_delete_asset: formData.can_delete_asset,
-            can_print_barcode: formData.can_print_barcode
+            can_print_barcode: formData.can_print_barcode,
+            can_make_report: formData.can_make_report,
+            can_make_transaction: formData.can_make_transaction
           }
         };
         console.log('Updating user with data:', updateData);
@@ -471,6 +480,12 @@ const UserManagement = () => {
                     )}
                     {user.can_print_barcode && (
                       <Badge variant="outline" className="text-xs">Barcode</Badge>
+                    )}
+                    {user.can_make_report && (
+                      <Badge variant="outline" className="text-xs">Reports</Badge>
+                    )}
+                    {user.can_make_transaction && (
+                      <Badge variant="outline" className="text-xs">Transactions</Badge>
                     )}
                   </div>
                 </TableCell>
@@ -640,6 +655,14 @@ const UserManagement = () => {
                   
                   {user.can_print_barcode && (
                     <Badge variant="outline" className="text-xs">Barcode</Badge>
+                  )}
+                  
+                  {user.can_make_report && (
+                    <Badge variant="outline" className="text-xs">Reports</Badge>
+                  )}
+                  
+                  {user.can_make_transaction && (
+                    <Badge variant="outline" className="text-xs">Transactions</Badge>
                   )}
                 </div>
               </div>
@@ -909,6 +932,22 @@ const UserManagement = () => {
                       onCheckedChange={(checked) => handlePermissionChange('can_print_barcode', checked)}
                     />
                     <Label htmlFor="can_print_barcode" className="text-sm">Print Barcodes</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Switch
+                      id="can_make_report"
+                      checked={formData.can_make_report}
+                      onCheckedChange={(checked) => handlePermissionChange('can_make_report', checked)}
+                    />
+                    <Label htmlFor="can_make_report" className="text-sm">Make Reports</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Switch
+                      id="can_make_transaction"
+                      checked={formData.can_make_transaction}
+                      onCheckedChange={(checked) => handlePermissionChange('can_make_transaction', checked)}
+                    />
+                    <Label htmlFor="can_make_transaction" className="text-sm">Make Transactions</Label>
                   </div>
                 </div>
               </div>
