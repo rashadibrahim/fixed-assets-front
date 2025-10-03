@@ -24,6 +24,9 @@ const AddTransaction = ({ isOpen, onClose, onTransactionAdded, defaultTransactio
     attached_file: null
   });
 
+  // Fixed transaction type based on the screen that opens the modal
+  const transactionType = defaultTransactionType === 'IN' ? true : false;
+
   const [assetTransactions, setAssetTransactions] = useState([{
     id: Date.now(),
     asset_id: '',
@@ -31,10 +34,11 @@ const AddTransaction = ({ isOpen, onClose, onTransactionAdded, defaultTransactio
     quantity: 1,
     amount: 0,
     total: 0,
-    transaction_type: defaultTransactionType === 'IN' ? true : false,
+    transaction_type: transactionType,
     searchQuery: '',
     searchResults: [],
-    searchLoading: false
+    searchLoading: false,
+    loadingAverage: false
   }]);
 
   const [warehouses, setWarehouses] = useState([]);
@@ -43,8 +47,22 @@ const AddTransaction = ({ isOpen, onClose, onTransactionAdded, defaultTransactio
   useEffect(() => {
     if (isOpen) {
       fetchWarehouses();
+      // Reset form when modal opens to ensure correct transaction type
+      setAssetTransactions([{
+        id: Date.now(),
+        asset_id: '',
+        asset: null,
+        quantity: 1,
+        amount: 0,
+        total: 0,
+        transaction_type: transactionType,
+        searchQuery: '',
+        searchResults: [],
+        searchLoading: false,
+        loadingAverage: false
+      }]);
     }
-  }, [isOpen]);
+  }, [isOpen, transactionType]);
 
   const fetchWarehouses = async () => {
     try {
@@ -63,10 +81,11 @@ const AddTransaction = ({ isOpen, onClose, onTransactionAdded, defaultTransactio
       quantity: 1,
       amount: 0,
       total: 0,
-      transaction_type: assetTransactions[0]?.transaction_type ?? true,
+      transaction_type: transactionType,
       searchQuery: '',
       searchResults: [],
-      searchLoading: false
+      searchLoading: false,
+      loadingAverage: false
     };
     setAssetTransactions(prev => [...prev, newTransaction]);
   };
@@ -98,7 +117,7 @@ const AddTransaction = ({ isOpen, onClose, onTransactionAdded, defaultTransactio
     updateAssetTransaction(index, { searchLoading: true });
 
     try {
-      const response = await apiClient.getAssets({ search: query, per_page: 10 });
+      const response = await apiClient.searchAssets({ q: query, per_page: 10 });
       updateAssetTransaction(index, {
         searchResults: response.items || response.data || response || [],
         searchLoading: false
@@ -109,15 +128,54 @@ const AddTransaction = ({ isOpen, onClose, onTransactionAdded, defaultTransactio
     }
   };
 
-  const handleAssetSelect = (index, asset) => {
+  const handleAssetSelect = async (index, asset) => {
+    // Set initial values
     updateAssetTransaction(index, {
       asset_id: asset.id,
       asset: asset,
-      amount: asset.unit_price || 0,
       searchQuery: asset.name_en || asset.name_ar || '',
       searchResults: [],
-      total: (assetTransactions[index]?.quantity || 1) * (asset.unit_price || 0)
+      amount: 0, // Will be updated below
+      loadingAverage: false
     });
+
+    // For OUT transactions, fetch average cost from backend
+    if (!transactionType) { // false = OUT transaction
+      updateAssetTransaction(index, { loadingAverage: true });
+      
+      try {
+        const averageResponse = await apiClient.getAssetAverage(asset.id);
+        const averageCost = typeof averageResponse === 'number' ? averageResponse : (averageResponse.average || 0);
+        
+        updateAssetTransaction(index, {
+          amount: averageCost,
+          total: (assetTransactions[index]?.quantity || 1) * averageCost,
+          loadingAverage: false
+        });
+        
+        if (averageCost > 0) {
+          handleSuccess(`Asset average cost loaded: $${averageCost.toFixed(2)}`);
+        } else {
+          handleError('No average cost available for this asset');
+        }
+      } catch (error) {
+        console.warn('Could not fetch asset average cost:', error);
+        handleError('Could not fetch asset average cost. Please enter amount manually.');
+        // Fallback to manual entry
+        updateAssetTransaction(index, {
+          amount: 0,
+          total: 0,
+          loadingAverage: false
+        });
+      }
+    } else {
+      // For IN transactions, user can enter amount manually
+      updateAssetTransaction(index, {
+        amount: 0,
+        total: 0,
+        loadingAverage: false
+      });
+    }
   };
 
   const calculateGrandTotal = () => {
@@ -153,7 +211,7 @@ const AddTransaction = ({ isOpen, onClose, onTransactionAdded, defaultTransactio
         description: formData.description,
         reference_number: formData.reference_number,
         warehouse_id: parseInt(formData.warehouse_id),
-        transaction_type: assetTransactions[0]?.transaction_type ?? true,
+        transaction_type: transactionType,
         asset_transactions: assetTransactions.map(transaction => ({
           asset_id: transaction.asset_id,
           quantity: transaction.quantity,
@@ -184,10 +242,11 @@ const AddTransaction = ({ isOpen, onClose, onTransactionAdded, defaultTransactio
         quantity: 1,
         amount: 0,
         total: 0,
-        transaction_type: true,
+        transaction_type: transactionType,
         searchQuery: '',
         searchResults: [],
-        searchLoading: false
+        searchLoading: false,
+        loadingAverage: false
       }]);
       
       onClose();
@@ -206,8 +265,12 @@ const AddTransaction = ({ isOpen, onClose, onTransactionAdded, defaultTransactio
         <div className="sticky top-0 bg-white border-b border-gray-200 px-4 py-3 z-10">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-xl font-semibold text-gray-900">Add New Transaction</h1>
-              <p className="text-sm text-gray-600">Create a comprehensive asset transaction record</p>
+              <h1 className="text-xl font-semibold text-gray-900">
+                Add New {transactionType ? 'In' : 'Out'} Transaction
+              </h1>
+              <p className="text-sm text-gray-600">
+                Create a new asset {transactionType ? 'incoming' : 'outgoing'} transaction record
+              </p>
             </div>
             <button
               onClick={onClose}
@@ -279,45 +342,18 @@ const AddTransaction = ({ isOpen, onClose, onTransactionAdded, defaultTransactio
                   </select>
                 </div>
 
-                {/* Transaction Type */}
+                {/* Transaction Type - Read Only Display */}
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-1">
                     <Package className="w-3 h-3 inline mr-1" />
-                    Type *
+                    Type
                   </label>
-                  <div className="flex space-x-1">
-                    <label className={`flex-1 flex items-center justify-center p-1.5 rounded-md border cursor-pointer text-xs font-medium transition-all ${assetTransactions[0]?.transaction_type === true
+                  <div className={`flex items-center justify-center p-1.5 rounded-md border text-xs font-medium ${
+                    transactionType 
                       ? 'border-green-500 bg-green-50 text-green-700'
-                      : 'border-gray-200 hover:border-green-300'
-                      }`}>
-                      <input
-                        type="radio"
-                        checked={assetTransactions[0]?.transaction_type === true}
-                        onChange={() => {
-                          setAssetTransactions(prev =>
-                            prev.map(t => ({ ...t, transaction_type: true }))
-                          );
-                        }}
-                        className="sr-only"
-                      />
-                      In
-                    </label>
-                    <label className={`flex-1 flex items-center justify-center p-1.5 rounded-md border cursor-pointer text-xs font-medium transition-all ${assetTransactions[0]?.transaction_type === false
-                      ? 'border-red-500 bg-red-50 text-red-700'
-                      : 'border-gray-200 hover:border-red-300'
-                      }`}>
-                      <input
-                        type="radio"
-                        checked={assetTransactions[0]?.transaction_type === false}
-                        onChange={() => {
-                          setAssetTransactions(prev =>
-                            prev.map(t => ({ ...t, transaction_type: false }))
-                          );
-                        }}
-                        className="sr-only"
-                      />
-                      Out
-                    </label>
+                      : 'border-red-500 bg-red-50 text-red-700'
+                  }`}>
+                    {transactionType ? 'In' : 'Out'}
                   </div>
                 </div>
 
@@ -495,10 +531,23 @@ const AddTransaction = ({ isOpen, onClose, onTransactionAdded, defaultTransactio
                           step="0.01"
                           value={transaction.amount}
                           onChange={(e) => updateAssetTransaction(index, { amount: parseFloat(e.target.value) || 0 })}
-                          className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                          placeholder="0.00"
+                          className={`w-full px-2 py-1.5 text-xs border rounded-md ${
+                            !transactionType 
+                              ? 'bg-gray-100 border-gray-300 cursor-not-allowed' 
+                              : 'border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500'
+                          }`}
+                          placeholder={!transactionType ? "Auto from average" : "0.00"}
+                          readOnly={!transactionType}
                           required
                         />
+                        {!transactionType && (
+                          <div className="text-xs text-gray-500 mt-1 flex items-center">
+                            {transaction.loadingAverage && (
+                              <div className="w-3 h-3 border border-gray-400 border-t-transparent rounded-full animate-spin mr-1"></div>
+                            )}
+                            {transaction.loadingAverage ? 'Loading average cost...' : 'Amount auto-filled from asset average cost'}
+                          </div>
+                        )}
                       </div>
 
                       {/* Total */}

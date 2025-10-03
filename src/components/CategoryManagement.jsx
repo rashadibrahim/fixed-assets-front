@@ -12,6 +12,7 @@ import {
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
@@ -37,11 +38,13 @@ const CategoryManagement = () => {
   const { handleError, handleSuccess } = useErrorHandler();
 
   const [formData, setFormData] = useState({
-    name_en: '',
-    name_ar: '',
+    category: '', // Main Category (optional, from dropdown)
+    subcategory: '', // Category Name (what user sees as main)
     description: '',
     parent_id: ''
   });
+
+  const [existingMainCategories, setExistingMainCategories] = useState([]);
 
   useEffect(() => {
     loadCategories();
@@ -65,15 +68,22 @@ const CategoryManagement = () => {
         // Transform the API response to match component expectations
         const transformedCategories = data.items.map(item => ({
           id: item.id,
-          name_en: item.category || '', // Map category to name_en
-          name_ar: item.subcategory || '', // Map subcategory to name_ar for now
-          category: item.category,
-          subcategory: item.subcategory,
+          category: item.category, // Main Category (optional)
+          subcategory: item.subcategory, // Category Name (main display)
           description: '', // API doesn't provide description
           parent_id: null // API doesn't provide parent_id
         }));
 
         setCategories(transformedCategories);
+        
+        // Extract unique main categories for dropdown
+        const uniqueMainCategories = [...new Set(
+          data.items
+            .map(item => item.category)
+            .filter(category => category && category.trim() !== '')
+        )].sort();
+        setExistingMainCategories(uniqueMainCategories);
+
         setPagination({
           page: data.page || 1,
           pages: data.pages || 1,
@@ -81,6 +91,7 @@ const CategoryManagement = () => {
         });
       } else {
         setCategories([]);
+        setExistingMainCategories([]);
       }
     } catch (error) {
       handleError(error, 'Failed to load categories');
@@ -98,8 +109,8 @@ const CategoryManagement = () => {
   const openAddDialog = () => {
     setEditingCategory(null);
     setFormData({
-      name_en: '',
-      name_ar: '',
+      category: '__none__', // Main Category (optional)
+      subcategory: '', // Category Name (required)
       description: '',
       parent_id: ''
     });
@@ -109,8 +120,8 @@ const CategoryManagement = () => {
   const openEditDialog = (category) => {
     setEditingCategory(category);
     setFormData({
-      name_en: category.category || '', // Use category field
-      name_ar: category.subcategory || '', // Use subcategory field
+      category: category.category || '__none__', // Main Category
+      subcategory: category.subcategory || '', // Category Name
       description: category.description || '',
       parent_id: category.parent_id || ''
     });
@@ -121,7 +132,7 @@ const CategoryManagement = () => {
   const validateForm = () => {
     const errors = [];
 
-    if (!formData.name_en.trim()) {
+    if (!formData.subcategory.trim()) {
       errors.push('Category name is required');
     }
 
@@ -148,25 +159,25 @@ const CategoryManagement = () => {
       }
 
       // Check for duplicate names
-      if (formData.name_en.trim()) {
+      if (formData.subcategory.trim()) {
         const duplicateCategory = categories.find(cat => 
-          cat.category?.toLowerCase() === formData.name_en.trim().toLowerCase() && 
+          cat.category?.toLowerCase() === formData.subcategory.trim().toLowerCase() && 
           (!editingCategory || cat.id !== editingCategory.id)
         );
 
         if (duplicateCategory) {
-          handleError(`Category name "${formData.name_en}" already exists`);
+          handleError(`Category name "${formData.subcategory}" already exists`);
           return;
         }
       }
 
       const requestBody = {
-        category: formData.name_en.trim() || null,
-        subcategory: formData.name_ar.trim() || null
+        subcategory: formData.category.trim() === '__none__' ? null : formData.category.trim() || null, // Main Category (optional)
+        category: formData.subcategory.trim() || null // Category Name (required)
       };
 
-      if (!requestBody.subcategory) {
-        requestBody.subcategory = null;
+      if (!requestBody.category) {
+        requestBody.category = null;
       }
 
       if (editingCategory) {
@@ -177,7 +188,7 @@ const CategoryManagement = () => {
         handleSuccess('Category created successfully!');
       }
 
-      setFormData({ name_en: '', name_ar: '', description: '', parent_id: '' });
+      setFormData({ category: '__none__', subcategory: '', description: '', parent_id: '' });
       setEditingCategory(null);
       setDialogOpen(false);
       loadCategories();
@@ -243,8 +254,8 @@ const CategoryManagement = () => {
           <TableHeader>
             <TableRow>
               <TableHead>ID</TableHead>
-              <TableHead>Category (EN)</TableHead>
-              <TableHead>Category (AR)</TableHead>
+              <TableHead>Category Name</TableHead>
+              <TableHead>Main Category</TableHead>
               <TableHead>Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -263,7 +274,7 @@ const CategoryManagement = () => {
                   </div>
                 </TableCell>
                 <TableCell>
-                  <span className="text-muted-foreground">{category.subcategory || 'No subcategory'}</span>
+                  <span className="text-muted-foreground">{category.subcategory || 'None'}</span>
                 </TableCell>
                 <TableCell>
                   <div className="flex gap-2">
@@ -326,30 +337,51 @@ const CategoryManagement = () => {
               </DialogHeader>
 
               <div className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4">
                   <div>
-                    <Label htmlFor="name_en">Category Name *</Label>
+                    <Label htmlFor="subcategory">Category Name *</Label>
                     <Input
-                      id="name_en"
-                      name="name_en"
-                      value={formData.name_en}
+                      id="subcategory"
+                      name="subcategory"
+                      value={formData.subcategory}
                       onChange={handleInputChange}
                       placeholder="Enter category name"
                       className="mt-1"
-                      required={!formData.name_ar.trim()}
+                      required
                     />
                   </div>
 
                   <div>
-                    <Label htmlFor="name_ar">Subcategory Name</Label>
-                    <Input
-                      id="name_ar"
-                      name="name_ar"
-                      value={formData.name_ar}
-                      onChange={handleInputChange}
-                      placeholder="Enter subcategory name (optional)"
-                      className="mt-1"
-                    />
+                    <Label htmlFor="category">Main Category (Optional)</Label>
+                    <div className="mt-1">
+                      <Select 
+                        value={formData.category} 
+                        onValueChange={(value) => setFormData(prev => ({ ...prev, category: value }))}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select main category or leave empty" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__none__">-- No Main Category --</SelectItem>
+                          {existingMainCategories.map(mainCat => (
+                            <SelectItem key={mainCat} value={mainCat}>
+                              {mainCat}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="mt-1">
+                      <Input
+                        placeholder="Or enter new main category"
+                        value={formData.category === '__none__' ? '' : formData.category}
+                        onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value || '__none__' }))}
+                        className="text-sm"
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      You can select from existing categories or type a new one
+                    </p>
                   </div>
                 </div>
 
@@ -458,7 +490,7 @@ const CategoryManagement = () => {
                         {category.category}
                       </h3>
                       <p className="text-muted-foreground text-sm">
-                        {category.subcategory || 'No subcategory'}
+                        Main Category: {category.subcategory || 'None'}
                       </p>
                     </div>
                   </CardContent>

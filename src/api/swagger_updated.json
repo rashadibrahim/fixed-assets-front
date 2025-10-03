@@ -1,0 +1,1117 @@
+{
+  "swagger": "2.0",
+  "basePath": "/",
+  "paths": {
+    "/asset-transactions/{asset_transaction_id}": {
+      "parameters": [
+        {
+          "name": "asset_transaction_id",
+          "in": "path",
+          "required": true,
+          "type": "integer"
+        }
+      ],
+      "get": {
+        "responses": {
+          "503": {
+            "description": "Service Unavailable",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "404": {
+            "description": "Asset transaction not found",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "200": {
+            "description": "Successfully retrieved asset transaction",
+            "schema": {
+              "$ref": "#/definitions/AssetTransaction"
+            }
+          }
+        },
+        "summary": "Get a specific asset transaction",
+        "operationId": "get_asset_transaction",
+        "security": [
+          {
+            "Bearer Auth": []
+          }
+        ],
+        "tags": [
+          "asset-transactions"
+        ]
+      },
+      "put": {
+        "responses": {
+          "503": {
+            "description": "Service Unavailable",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "409": {
+            "description": "Conflict - Insufficient quantity",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "404": {
+            "description": "Asset transaction/Asset not found",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "200": {
+            "description": "Successfully updated asset transaction",
+            "schema": {
+              "$ref": "#/definitions/AssetTransaction"
+            }
+          }
+        },
+        "summary": "Update an asset transaction",
+        "operationId": "update_asset_transaction",
+        "parameters": [
+          {
+            "name": "payload",
+            "required": true,
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/AssetTransactionInput"
+            }
+          }
+        ],
+        "security": [
+          {
+            "Bearer Auth": []
+          }
+        ],
+        "tags": [
+          "asset-transactions"
+        ]
+      },
+      "delete": {
+        "responses": {
+          "503": {
+            "description": "Service Unavailable",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "404": {
+            "description": "Asset transaction not found",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "200": {
+            "description": "Successfully deleted asset transaction",
+            "schema": {
+              "$ref": "#/definitions/SuccessResponse"
+            }
+          }
+        },
+        "summary": "Delete an asset transaction",
+        "operationId": "delete_asset_transaction",
+        "security": [
+          {
+            "Bearer Auth": []
+          }
+        ],
+        "tags": [
+          "asset-transactions"
+        ]
+      }
+    },
+    "/assets/": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Success",
+            "schema": {
+              "$ref": "#/definitions/PaginationResponse"
+            }
+          }
+        },
+        "summary": "Get all fixed assets with pagination and optional category filtering",
+        "operationId": "list_assets",
+        "parameters": [
+          {
+            "type": "integer",
+            "in": "query",
+            "description": "Filter assets by category ID",
+            "name": "category_id"
+          },
+          {
+            "type": "integer",
+            "default": 10,
+            "in": "query",
+            "description": "Items per page",
+            "name": "per_page"
+          },
+          {
+            "type": "integer",
+            "default": 1,
+            "in": "query",
+            "description": "Page number",
+            "name": "page"
+          }
+        ],
+        "security": [
+          {
+            "Bearer Auth": []
+          }
+        ],
+        "tags": [
+          "assets"
+        ]
+      },
+      "post": {
+        "responses": {
+          "201": {
+            "description": "Success",
+            "schema": {
+              "$ref": "#/definitions/FixedAsset"
+            }
+          }
+        },
+        "summary": "Create a new fixed asset",
+        "operationId": "create_asset",
+        "parameters": [
+          {
+            "name": "payload",
+            "required": true,
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/FixedAssetInput"
+            }
+          }
+        ],
+        "security": [
+          {
+            "Bearer Auth": []
+          }
+        ],
+        "tags": [
+          "assets"
+        ]
+      }
+    },
+    "/assets/search": {
+      "get": {
+        "responses": {
+          "400": {
+            "description": "Missing Search Query",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "200": {
+            "description": "Success",
+            "schema": {
+              "$ref": "#/definitions/AssetSearchResponse"
+            }
+          }
+        },
+        "summary": "Search assets by name (text) or product code/barcode (number)",
+        "description": "- If query contains letters: searches in name_ar and name_en fields\n- If query is numeric: searches by exact product_code match",
+        "operationId": "search_assets",
+        "parameters": [
+          {
+            "type": "integer",
+            "default": 10,
+            "in": "query",
+            "description": "Items per page",
+            "name": "per_page"
+          },
+          {
+            "type": "integer",
+            "default": 1,
+            "in": "query",
+            "description": "Page number",
+            "name": "page"
+          },
+          {
+            "required": true,
+            "type": "string",
+            "in": "query",
+            "description": "Search query (text for name search or number for barcode search)",
+            "name": "q"
+          }
+        ],
+        "security": [
+          {
+            "Bearer Auth": []
+          }
+        ],
+        "tags": [
+          "assets"
+        ]
+      }
+    },
+    "/assets/{asset_id}/barcode": {
+      "parameters": [
+        {
+          "name": "asset_id",
+          "in": "path",
+          "required": true,
+          "type": "integer"
+        }
+      ],
+      "get": {
+        "responses": {
+          "404": {
+            "description": "Asset not found",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "200": {
+            "description": "Successfully generated barcode",
+            "schema": {
+              "$ref": "#/definitions/BarcodeResponse"
+            }
+          }
+        },
+        "summary": "Generate a barcode for a specific asset",
+        "operationId": "get_asset_barcode",
+        "security": [
+          {
+            "Bearer Auth": []
+          }
+        ],
+        "tags": [
+          "assets"
+        ]
+      }
+    },
+    "/transactions/": {
+      "get": {
+        "responses": {
+          "503": {
+            "description": "Service Unavailable",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "200": {
+            "description": "Successfully retrieved transactions",
+            "schema": {
+              "$ref": "#/definitions/PaginationResponse"
+            }
+          }
+        },
+        "summary": "Get all transactions with pagination and filtering",
+        "operationId": "list_transactions",
+        "parameters": [
+          {
+            "type": "string",
+            "in": "query",
+            "description": "Search in description or reference number",
+            "name": "search"
+          },
+          {
+            "type": "string",
+            "in": "query",
+            "description": "Filter transactions to date (YYYY-MM-DD)",
+            "name": "date_to"
+          },
+          {
+            "type": "string",
+            "in": "query",
+            "description": "Filter transactions from date (YYYY-MM-DD)",
+            "name": "date_from"
+          },
+          {
+            "type": "integer",
+            "in": "query",
+            "description": "Filter by warehouse ID",
+            "name": "warehouse_id"
+          },
+          {
+            "type": "integer",
+            "in": "query",
+            "description": "Filter by branch ID",
+            "name": "branch_id"
+          },
+          {
+            "type": "integer",
+            "default": 10,
+            "in": "query",
+            "description": "Items per page",
+            "name": "per_page"
+          },
+          {
+            "type": "integer",
+            "default": 1,
+            "in": "query",
+            "description": "Page number",
+            "name": "page"
+          }
+        ],
+        "security": [
+          {
+            "Bearer Auth": []
+          }
+        ],
+        "tags": [
+          "transactions"
+        ]
+      },
+      "post": {
+        "responses": {
+          "503": {
+            "description": "Service Unavailable",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "409": {
+            "description": "Conflict - Insufficient quantity",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "404": {
+            "description": "Warehouse/Asset not found",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "201": {
+            "description": "Successfully created transaction",
+            "schema": {
+              "$ref": "#/definitions/Transaction"
+            }
+          }
+        },
+        "summary": "Create a new transaction with asset transactions",
+        "operationId": "create_transaction",
+        "parameters": [
+          {
+            "name": "attached_file",
+            "in": "formData",
+            "type": "file",
+            "description": "File attachment"
+          },
+          {
+            "name": "data",
+            "in": "formData",
+            "type": "string",
+            "description": "Transaction data as JSON string"
+          }
+        ],
+        "security": [
+          {
+            "Bearer Auth": []
+          }
+        ],
+        "consumes": [
+          "multipart/form-data"
+        ],
+        "tags": [
+          "transactions"
+        ]
+      }
+    },
+    "/transactions/summary": {
+      "get": {
+        "responses": {
+          "503": {
+            "description": "Service Unavailable",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "200": {
+            "description": "Successfully retrieved transaction summary"
+          }
+        },
+        "summary": "Get transaction summary statistics",
+        "operationId": "get_transaction_summary",
+        "parameters": [
+          {
+            "type": "string",
+            "in": "query",
+            "description": "Summary to date (YYYY-MM-DD)",
+            "name": "date_to"
+          },
+          {
+            "type": "string",
+            "in": "query",
+            "description": "Summary from date (YYYY-MM-DD)",
+            "name": "date_from"
+          },
+          {
+            "type": "integer",
+            "in": "query",
+            "description": "Filter by warehouse ID",
+            "name": "warehouse_id"
+          },
+          {
+            "type": "integer",
+            "in": "query",
+            "description": "Filter by branch ID",
+            "name": "branch_id"
+          }
+        ],
+        "security": [
+          {
+            "Bearer Auth": []
+          }
+        ],
+        "tags": [
+          "transactions"
+        ]
+      }
+    },
+    "/transactions/generate-report": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "summary": "Generate comprehensive transaction report with asset-level analysis",
+        "description": "Returns asset-wise summary including:\n- Asset name and details\n- Total quantity IN and OUT\n- Total amount IN and OUT  \n- Total cost (quantity × amount) IN and OUT\n- Overall totals\n\nREQUIRED: date parameter must be provided\nOptional filters can be combined:\n- Categories: ?category_ids=1,2,3\n- Branch/Warehouse: ?branch_id=1 or ?warehouse_id=1",
+        "operationId": "generate_report",
+        "parameters": [
+          {
+            "type": "integer",
+            "in": "query",
+            "description": "Filter by warehouse ID",
+            "name": "warehouse_id"
+          },
+          {
+            "type": "integer",
+            "in": "query",
+            "description": "Filter by branch ID",
+            "name": "branch_id"
+          },
+          {
+            "type": "string",
+            "in": "query",
+            "description": "Filter by category IDs (comma-separated, e.g., \"1,2,3\")",
+            "name": "category_ids"
+          },
+          {
+            "type": "string",
+            "required": true,
+            "in": "query",
+            "description": "Filter by exact date (YYYY-MM-DD) - REQUIRED",
+            "name": "date"
+          }
+        ],
+        "security": [
+          {
+            "Bearer Auth": []
+          }
+        ],
+        "tags": [
+          "transactions"
+        ]
+      }
+    },
+    "/transactions/asset-average/{asset_id}": {
+      "parameters": [
+        {
+          "name": "asset_id",
+          "in": "path",
+          "required": true,
+          "type": "integer"
+        }
+      ],
+      "get": {
+        "responses": {
+          "503": {
+            "description": "Service Unavailable",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "200": {
+            "description": "Successfully retrieved asset average"
+          }
+        },
+        "summary": "Get average cost for asset from IN transactions",
+        "operationId": "get_asset_average",
+        "tags": [
+          "transactions"
+        ]
+      }
+    },
+    "/transactions/{transaction_id}/download": {
+      "parameters": [
+        {
+          "name": "transaction_id",
+          "in": "path",
+          "required": true,
+          "type": "integer"
+        }
+      ],
+      "get": {
+        "responses": {
+          "503": {
+            "description": "Service Unavailable",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "404": {
+            "description": "Transaction/File not found",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "200": {
+            "description": "Successfully downloaded file"
+          }
+        },
+        "summary": "Download the attached file for a transaction",
+        "operationId": "download_transaction_file",
+        "security": [
+          {
+            "Bearer Auth": []
+          }
+        ],
+        "tags": [
+          "transactions"
+        ]
+      }
+    }
+  },
+  "info": {
+    "title": "Fixed Assets Management API",
+    "version": "1.0",
+    "description": "A comprehensive API for managing fixed assets, warehouses, branches, users, and job roles with role-based permissions",
+    "contact": {
+      "name": "API Support",
+      "email": "support@example.com",
+      "url": null
+    },
+    "license": {
+      "name": "MIT",
+      "url": "https://opensource.org/licenses/MIT"
+    }
+  },
+  "produces": [
+    "application/json"
+  ],
+  "consumes": [
+    "application/json"
+  ],
+  "securityDefinitions": {
+    "Bearer Auth": {
+      "type": "apiKey",
+      "in": "header",
+      "name": "Authorization",
+      "description": "JWT Authorization header using the Bearer scheme. Example: \"Authorization: Bearer {token}\""
+    }
+  },
+  "security": [
+    {
+      "Bearer Auth": []
+    }
+  ],
+  "tags": [
+    {
+      "name": "branches",
+      "description": "Branch management operations"
+    },
+    {
+      "name": "warehouses",
+      "description": "Warehouse management operations"
+    },
+    {
+      "name": "categories",
+      "description": "Category management operations"
+    },
+    {
+      "name": "assets",
+      "description": "Fixed asset management operations"
+    },
+    {
+      "name": "auth",
+      "description": "Authentication and user management operations"
+    },
+    {
+      "name": "jobroles",
+      "description": "Job role and permissions management operations"
+    },
+    {
+      "name": "transactions",
+      "description": "Transaction operations"
+    },
+    {
+      "name": "asset-transactions",
+      "description": "Asset transaction operations"
+    }
+  ],
+  "definitions": {
+    "ErrorResponse": {
+      "properties": {
+        "error": {
+          "type": "string",
+          "description": "Error message"
+        },
+        "errors": {
+          "type": "object",
+          "description": "Validation errors (object with field names as keys)"
+        }
+      },
+      "type": "object"
+    },
+    "PaginationResponse": {
+      "properties": {
+        "items": {
+          "type": "object",
+          "description": "List of items"
+        },
+        "total": {
+          "type": "integer",
+          "description": "Total number of items"
+        },
+        "page": {
+          "type": "integer",
+          "description": "Current page number"
+        },
+        "pages": {
+          "type": "integer",
+          "description": "Total number of pages"
+        }
+      },
+      "type": "object"
+    },
+    "SuccessResponse": {
+      "properties": {
+        "message": {
+          "type": "string",
+          "description": "Success message"
+        }
+      },
+      "type": "object"
+    },
+    "FixedAsset": {
+      "required": [
+        "category_id",
+        "is_active",
+        "name_ar",
+        "name_en",
+        "quantity"
+      ],
+      "properties": {
+        "id": {
+          "type": "integer",
+          "description": "Asset unique identifier",
+          "readOnly": true
+        },
+        "name_ar": {
+          "type": "string",
+          "description": "Asset name in Arabic"
+        },
+        "name_en": {
+          "type": "string",
+          "description": "Asset name in English"
+        },
+        "quantity": {
+          "type": "integer",
+          "description": "Asset quantity",
+          "default": 1
+        },
+        "product_code": {
+          "type": "string",
+          "description": "Product code or serial number (used for barcode)"
+        },
+        "category_id": {
+          "type": "integer",
+          "description": "Category ID this asset belongs to"
+        },
+        "is_active": {
+          "type": "boolean",
+          "description": "Whether the asset is active"
+        }
+      },
+      "type": "object"
+    },
+    "FixedAssetInput": {
+      "required": [
+        "category_id",
+        "name_ar",
+        "name_en"
+      ],
+      "properties": {
+        "name_ar": {
+          "type": "string",
+          "description": "Asset name in Arabic"
+        },
+        "name_en": {
+          "type": "string",
+          "description": "Asset name in English"
+        },
+        "quantity": {
+          "type": "integer",
+          "description": "Asset quantity",
+          "default": 1
+        },
+        "product_code": {
+          "type": "string",
+          "description": "Product code or serial number"
+        },
+        "category_id": {
+          "type": "integer",
+          "description": "Category ID this asset belongs to"
+        },
+        "is_active": {
+          "type": "boolean",
+          "description": "Whether the asset is active",
+          "default": true
+        }
+      },
+      "type": "object"
+    },
+    "AssetSearchResponse": {
+      "properties": {
+        "items": {
+          "type": "array",
+          "description": "List of found assets",
+          "items": {
+            "$ref": "#/definitions/FixedAsset"
+          }
+        },
+        "total": {
+          "type": "integer",
+          "description": "Total number of matching assets"
+        },
+        "page": {
+          "type": "integer",
+          "description": "Current page number"
+        },
+        "pages": {
+          "type": "integer",
+          "description": "Total number of pages"
+        }
+      },
+      "type": "object"
+    },
+    "BarcodeResponse": {
+      "properties": {
+        "product_code": {
+          "type": "string",
+          "description": "Product code used for the barcode"
+        },
+        "barcode_image": {
+          "type": "string",
+          "description": "Base64 encoded barcode image"
+        }
+      },
+      "type": "object"
+    },
+    "Transaction": {
+      "required": [
+        "custom_id",
+        "date",
+        "id",
+        "transaction_type",
+        "warehouse_id"
+      ],
+      "properties": {
+        "id": {
+          "type": "integer",
+          "description": "Transaction ID"
+        },
+        "custom_id": {
+          "type": "string",
+          "description": "Custom transaction ID (Branch-specific)"
+        },
+        "date": {
+          "type": "string",
+          "format": "date",
+          "description": "Transaction date"
+        },
+        "description": {
+          "type": "string",
+          "description": "Transaction description"
+        },
+        "reference_number": {
+          "type": "string",
+          "description": "Reference number"
+        },
+        "warehouse_id": {
+          "type": "integer",
+          "description": "Warehouse ID"
+        },
+        "user_id": {
+          "type": "integer",
+          "description": "User ID who created the transaction"
+        },
+        "attached_file": {
+          "type": "string",
+          "description": "Attached file path/URL"
+        },
+        "transaction_type": {
+          "type": "boolean",
+          "description": "Transaction type (true=IN, false=OUT)"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Creation timestamp"
+        },
+        "asset_transactions": {
+          "type": "array",
+          "description": "Asset transactions",
+          "items": {
+            "$ref": "#/definitions/AssetTransaction"
+          }
+        }
+      },
+      "type": "object"
+    },
+    "AssetTransaction": {
+      "required": [
+        "asset_id",
+        "id",
+        "quantity",
+        "transaction_id"
+      ],
+      "properties": {
+        "id": {
+          "type": "integer",
+          "description": "Asset Transaction ID"
+        },
+        "transaction_id": {
+          "type": "integer",
+          "description": "Transaction ID"
+        },
+        "asset_id": {
+          "type": "integer",
+          "description": "Asset ID"
+        },
+        "quantity": {
+          "type": "integer",
+          "description": "Quantity"
+        },
+        "amount": {
+          "type": "number",
+          "description": "Unit amount/price"
+        },
+        "total_value": {
+          "type": "number",
+          "description": "Total value (quantity * amount)"
+        },
+        "asset": {
+          "description": "Asset details",
+          "allOf": [
+            {
+              "$ref": "#/definitions/FixedAsset"
+            }
+          ]
+        }
+      },
+      "type": "object"
+    },
+    "AssetTransactionInput": {
+      "required": [
+        "asset_id",
+        "quantity"
+      ],
+      "properties": {
+        "asset_id": {
+          "type": "integer",
+          "description": "Asset ID"
+        },
+        "quantity": {
+          "type": "integer",
+          "description": "Quantity",
+          "minimum": 1
+        },
+        "amount": {
+          "type": "number",
+          "description": "Unit amount/price"
+        }
+      },
+      "type": "object"
+    }
+  }
+}

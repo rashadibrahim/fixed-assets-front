@@ -156,6 +156,13 @@ class ApiClient {
     return this.request(endpoint);
   }
 
+  // Search assets by name or product code/barcode
+  async searchAssets(params = {}) {
+    const queryString = new URLSearchParams(params).toString();
+    const endpoint = `/assets/search${queryString ? `?${queryString}` : ''}`;
+    return this.request(endpoint);
+  }
+
   async createAsset(assetData) {
     return this.request('/assets/', {
       method: 'POST',
@@ -180,21 +187,9 @@ class ApiClient {
     return this.request(`/assets/${assetId}`);
   }
 
-  async getAssetBarcode(assetId, options = {}) {
-    const params = new URLSearchParams();
-
-    // Add barcode customization parameters
-    if (options.product_code) params.append('product_code', options.product_code);
-    if (options.barcode_type) params.append('barcode_type', options.barcode_type);
-    if (options.width) params.append('width', options.width);
-    if (options.height) params.append('height', options.height);
-    if (options.color) params.append('color', options.color);
-    if (options.font_size) params.append('font_size', options.font_size);
-
-    const queryString = params.toString();
-    const endpoint = `/assets/${assetId}/barcode${queryString ? `?${queryString}` : ''}`;
-
-    return this.request(endpoint);
+  // Generate barcode for asset
+  async getAssetBarcode(assetId) {
+    return this.request(`/assets/${assetId}/barcode`);
   }
 
   // File attachment methods
@@ -498,29 +493,66 @@ class ApiClient {
     return this.request(`/transactions/${transactionId}`);
   }
 
-  // Asset Transactions API - Show coming soon instead of failing
-  async getAssetTransactions(assetId = null, params = {}) {
-    // Return empty data instead of making request
-    console.log('Asset transactions endpoint not ready - showing coming soon message');
-    return {
-      items: [],
-      page: 1,
-      pages: 1,
-      total: 0,
-      message: 'Coming soon'
-    };
+  // Asset Transactions API
+  async getAssetTransaction(assetTransactionId) {
+    return this.request(`/asset-transactions/${assetTransactionId}`);
   }
 
-  async createAssetTransaction(formData) {
-    throw new Error('Transaction features are coming soon!');
+  async updateAssetTransaction(assetTransactionId, assetTransactionData) {
+    return this.request(`/asset-transactions/${assetTransactionId}`, {
+      method: 'PUT',
+      body: JSON.stringify(assetTransactionData),
+    });
   }
 
-  async updateAssetTransaction(transactionId, transactionData) {
-    throw new Error('Transaction features are coming soon!');
+  async deleteAssetTransaction(assetTransactionId) {
+    return this.request(`/asset-transactions/${assetTransactionId}`, {
+      method: 'DELETE',
+    });
   }
 
-  async deleteAssetTransaction(transactionId) {
-    throw new Error('Transaction features are coming soon!');
+  // Get transaction assets (asset transactions for a specific transaction)
+  async getTransactionAssets(transactionId, params = {}) {
+    const queryString = new URLSearchParams(params).toString();
+    return this.request(`/transactions/${transactionId}/assets${queryString ? `?${queryString}` : ''}`);
+  }
+
+  // Add asset transaction to existing transaction
+  async addAssetToTransaction(transactionId, assetTransactionData) {
+    return this.request(`/transactions/${transactionId}/assets`, {
+      method: 'POST',
+      body: JSON.stringify(assetTransactionData),
+    });
+  }
+
+  // Transaction reporting and summary endpoints
+  async getTransactionSummary(params = {}) {
+    const queryString = new URLSearchParams(params).toString();
+    return this.request(`/transactions/summary${queryString ? `?${queryString}` : ''}`);
+  }
+
+  async generateTransactionReport(params = {}) {
+    const queryString = new URLSearchParams(params).toString();
+    return this.request(`/transactions/generate-report${queryString ? `?${queryString}` : ''}`);
+  }
+
+  async getAssetAverage(assetId) {
+    return this.request(`/transactions/asset-average/${assetId}`);
+  }
+
+  // Download transaction file
+  async downloadTransactionFile(transactionId) {
+    const response = await fetch(`${this.baseURL}/transactions/${transactionId}/download`, {
+      headers: {
+        ...(this.token && { Authorization: `Bearer ${this.token}` }),
+      },
+    });
+    
+    if (!response.ok) {
+      throw new Error('Failed to download file');
+    }
+    
+    return response.blob();
   }
 
   async getTransactionFile(transactionId) {

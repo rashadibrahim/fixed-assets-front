@@ -40,35 +40,7 @@ const ViewTransaction = ({ isOpen, onClose, transactionId }) => {
       setLoading(true);
       setError(null);
 
-      const token = getValidToken();
-      if (!token) {
-        setError('Authentication required');
-        return;
-      }
-
-      const response = await fetch(`${apiClient.baseURL}/transactions/${transactionId}`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        mode: 'cors',
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        let errorMessage = 'Failed to load transaction';
-        try {
-          const errorData = JSON.parse(errorText);
-          errorMessage = errorData.message || errorData.error || errorMessage;
-        } catch (e) {
-          errorMessage = errorText || errorMessage;
-        }
-        throw new Error(errorMessage);
-      }
-
-      const data = await response.json();
+      const data = await apiClient.getTransaction(transactionId);
       setTransaction(data);
       console.log('Transaction data loaded:', data);
     } catch (error) {
@@ -106,40 +78,23 @@ const ViewTransaction = ({ isOpen, onClose, transactionId }) => {
     }
   };
 
-  const downloadAttachment = () => {
+  const downloadAttachment = async () => {
     if (transaction?.attached_file && transaction?.id) {
-      const token = getValidToken();
-      if (!token) {
-        toast.error('Authentication required to download file');
-        return;
+      try {
+        const blob = await apiClient.downloadTransactionFile(transaction.id);
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = transaction.attached_file;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+        toast.success('File downloaded successfully');
+      } catch (error) {
+        console.error('Error downloading file:', error);
+        toast.error('Failed to download file');
       }
-
-      fetch(`${apiClient.baseURL}/transactions/${transaction.id}/download`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      })
-        .then(response => {
-          if (!response.ok) {
-            throw new Error(`HTTP ${response.status}`);
-          }
-          return response.blob();
-        })
-        .then(blob => {
-          const url = window.URL.createObjectURL(blob);
-          const link = document.createElement('a');
-          link.href = url;
-          link.download = transaction.attached_file;
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-          window.URL.revokeObjectURL(url);
-        })
-        .catch(error => {
-          console.error('Error downloading file:', error);
-          toast.error('Failed to download file');
-        });
     }
   };
 
