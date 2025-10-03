@@ -626,13 +626,12 @@ const TransactionsOut = () => {
       </div>
 
       {/* Add Transaction Modal */}
-      {showAddTransaction && (
-        <AddTransaction
-          onClose={() => setShowAddTransaction(false)}
-          onTransactionAdded={handleTransactionAdded}
-          defaultTransactionType="OUT"
-        />
-      )}
+      <AddTransaction
+        isOpen={showAddTransaction}
+        onClose={() => setShowAddTransaction(false)}
+        onTransactionAdded={handleTransactionAdded}
+        defaultTransactionType="OUT"
+      />
 
       {/* View Transaction Modal */}
       {showViewTransaction && selectedTransactionId && (

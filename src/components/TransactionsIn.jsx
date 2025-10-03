@@ -628,13 +628,12 @@ const TransactionsIn = () => {
       </div>
 
       {/* Add Transaction Modal */}
-      {showAddTransaction && (
-        <AddTransaction
-          onClose={() => setShowAddTransaction(false)}
-          onTransactionAdded={handleTransactionAdded}
-          defaultTransactionType="IN"
-        />
-      )}
+      <AddTransaction
+        isOpen={showAddTransaction}
+        onClose={() => setShowAddTransaction(false)}
+        onTransactionAdded={handleTransactionAdded}
+        defaultTransactionType="IN"
+      />
 
       {/* View Transaction Modal */}
       {showViewTransaction && selectedTransactionId && (
