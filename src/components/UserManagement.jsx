@@ -356,14 +356,50 @@ const UserManagement = () => {
         await apiClient.updateUser(editingUser.id, updateData);
         toast.success('User updated successfully!');
       } else {
-        // Create new user using UserInput schema
-        const userData = {
+        // First create user with basic data (without permissions)
+        const basicUserData = {
           full_name: formData.full_name,
           email: formData.email,
           password: formData.password,
           role: formData.role
         };
-        await apiClient.createUser(userData);
+        console.log('Creating user with basic data:', basicUserData);
+        
+        // Create the user first
+        const createdUser = await apiClient.createUser(basicUserData);
+        console.log('User created:', createdUser);
+        
+        // Then update with permissions if the user has custom permissions
+        const hasCustomPermissions = 
+          formData.can_read_branch || formData.can_edit_branch || formData.can_delete_branch ||
+          formData.can_read_warehouse || formData.can_edit_warehouse || formData.can_delete_warehouse ||
+          formData.can_read_asset || formData.can_edit_asset || formData.can_delete_asset ||
+          formData.can_print_barcode || formData.can_make_report || formData.can_make_transaction;
+        
+        if (hasCustomPermissions && createdUser.id) {
+          const permissionsUpdate = {
+            full_name: formData.full_name,
+            email: formData.email,
+            role: formData.role,
+            permissions: {
+              can_read_branch: formData.can_read_branch,
+              can_edit_branch: formData.can_edit_branch,
+              can_delete_branch: formData.can_delete_branch,
+              can_read_warehouse: formData.can_read_warehouse,
+              can_edit_warehouse: formData.can_edit_warehouse,
+              can_delete_warehouse: formData.can_delete_warehouse,
+              can_read_asset: formData.can_read_asset,
+              can_edit_asset: formData.can_edit_asset,
+              can_delete_asset: formData.can_delete_asset,
+              can_print_barcode: formData.can_print_barcode,
+              can_make_report: formData.can_make_report,
+              can_make_transaction: formData.can_make_transaction
+            }
+          };
+          console.log('Updating user permissions:', permissionsUpdate);
+          await apiClient.updateUser(createdUser.id, permissionsUpdate);
+        }
+        
         toast.success('User created successfully!');
       }
 

@@ -193,7 +193,9 @@ const JobRoleManagement = () => {
         can_read_asset: formData.can_read_asset,
         can_edit_asset: formData.can_edit_asset,
         can_delete_asset: formData.can_delete_asset,
-        can_print_barcode: formData.can_print_barcode
+        can_print_barcode: formData.can_print_barcode,
+        can_make_report: formData.can_make_report,
+        can_make_transaction: formData.can_make_transaction
       };
 
       console.log('Submitting role data:', roleData);

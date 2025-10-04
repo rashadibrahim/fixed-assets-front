@@ -6,7 +6,6 @@ import {
   Trash2,
   Eye,
   Filter,
-  Download,
   Search,
   Calendar,
   DollarSign,
@@ -603,10 +602,6 @@ const AssetManagement = () => {
         </div>
         <div className="flex items-center space-x-3">
           <ViewToggle view={viewMode} onViewChange={setViewMode} />
-          <Button variant="outline" size="sm">
-            <Download className="h-4 w-4 mr-2" />
-            Export
-          </Button>
           <Dialog open={showAddModal} onOpenChange={setShowAddModal}>
             <DialogTrigger asChild>
               <Button className="btn-primary">
