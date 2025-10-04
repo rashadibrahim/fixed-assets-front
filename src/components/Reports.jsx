@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Calendar,
   Download,
@@ -12,7 +12,9 @@ import {
   Search,
   RefreshCw,
   AlertCircle,
-  Eye
+  Eye,
+  ChevronDown,
+  X
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -34,6 +36,19 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { toast } from 'sonner';
 import apiClient from '../utils/api';
 
@@ -41,20 +56,42 @@ const Reports = () => {
   const [loading, setLoading] = useState(false);
   const [reportData, setReportData] = useState(null);
   const [filters, setFilters] = useState({
-    date: new Date().toISOString().split('T')[0], // Today's date
-    category_ids: 'all',
+    date: new Date().toISOString().split('T')[0],
+    category: 'all',           // Changed from category_ids to category
+    subcategory: 'all',        // Keep subcategory as is
     branch_id: 'all',
     warehouse_id: 'all'
   });
 
-  // Options for dropdowns
+  // Options for searchable dropdowns
   const [categories, setCategories] = useState([]);
+  const [subcategories, setSubcategories] = useState([]);
   const [branches, setBranches] = useState([]);
   const [warehouses, setWarehouses] = useState([]);
-  const [loadingOptions, setLoadingOptions] = useState(true);
+
+  // Loading states for each dropdown
+  const [loadingCategories, setLoadingCategories] = useState(false);
+  const [loadingSubcategories, setLoadingSubcategories] = useState(false);
+  const [loadingBranches, setLoadingBranches] = useState(false);
+  const [loadingWarehouses, setLoadingWarehouses] = useState(false);
+
+  // Search states
+  const [categorySearch, setCategorySearch] = useState('');
+  const [subcategorySearch, setSubcategorySearch] = useState('');
+  const [branchSearch, setBranchSearch] = useState('');
+  const [warehouseSearch, setWarehouseSearch] = useState('');
+
+  // Dropdown open states
+  const [categoryOpen, setCategoryOpen] = useState(false);
+  const [subcategoryOpen, setSubcategoryOpen] = useState(false);
+  const [branchOpen, setBranchOpen] = useState(false);
+  const [warehouseOpen, setWarehouseOpen] = useState(false);
 
   useEffect(() => {
-    loadFilterOptions();
+    // Load initial data with empty search
+    loadCategories('');
+    loadBranches('');
+    loadWarehouses('');
   }, []);
 
   // Load report settings from localStorage
@@ -96,106 +133,230 @@ const Reports = () => {
     }
   });
 
-  const loadFilterOptions = async () => {
+  // Debounced search functions
+  const useDebounce = (value, delay) => {
+    const [debouncedValue, setDebouncedValue] = useState(value);
+
+    useEffect(() => {
+      const handler = setTimeout(() => {
+        setDebouncedValue(value);
+      }, delay);
+
+      return () => {
+        clearTimeout(handler);
+      };
+    }, [value, delay]);
+
+    return debouncedValue;
+  };
+
+  const debouncedCategorySearch = useDebounce(categorySearch, 300);
+  const debouncedSubcategorySearch = useDebounce(subcategorySearch, 300);
+  const debouncedBranchSearch = useDebounce(branchSearch, 300);
+  const debouncedWarehouseSearch = useDebounce(warehouseSearch, 300);
+
+  // Load categories with search
+  const loadCategories = async (searchTerm = '') => {
     try {
-      setLoadingOptions(true);
-      console.log('Loading filter options...');
+      setLoadingCategories(true);
+      console.log('Loading categories with search:', searchTerm);
 
-      try {
-        // Load categories - use existing apiClient method
-        console.log('Fetching categories...');
-        const categoriesResponse = await apiClient.getCategories();
-        console.log('Categories response:', categoriesResponse);
-        if (categoriesResponse && categoriesResponse.items) {
-          setCategories(categoriesResponse.items);
-          console.log('Categories set:', categoriesResponse.items);
-        } else {
-          console.warn('Categories data has unexpected structure:', categoriesResponse);
-          setCategories([]);
-        }
-      } catch (error) {
-        console.error('Error fetching categories:', error);
-        toast.error('Error loading categories');
+      const params = { per_page: 100, page: 1 };
+      if (searchTerm.trim()) {
+        params.search = searchTerm.trim();
       }
 
-      try {
-        // Load ALL branches with pagination
-        console.log('Fetching all branches...');
-        const allBranches = await loadAllItemsPaginated('/branches/');
-        setBranches(allBranches);
-        console.log('All branches set:', allBranches);
-      } catch (error) {
-        console.error('Error fetching branches:', error);
-        toast.error('Error loading branches');
-      }
+      const response = await apiClient.getCategories(params);
+      console.log('Categories response:', response);
 
-      try {
-        // Load ALL warehouses with pagination
-        console.log('Fetching all warehouses...');
-        const allWarehouses = await loadAllItemsPaginated('/warehouses/');
-        setWarehouses(allWarehouses);
-        console.log('All warehouses set:', allWarehouses);
-      } catch (error) {
-        console.error('Error fetching warehouses:', error);
-        toast.error('Error loading warehouses');
+      if (response && response.items) {
+        setCategories(response.items);
+        console.log('Categories set:', response.items);
+      } else {
+        console.warn('Categories data has unexpected structure:', response);
+        setCategories([]);
       }
-
     } catch (error) {
-      console.error('Error loading filter options:', error);
-      toast.error('Failed to load filter options');
+      console.error('Error fetching categories:', error);
+      toast.error('Error loading categories');
+      setCategories([]);
     } finally {
-      setLoadingOptions(false);
-      console.log('Final state - Categories:', categories.length, 'Branches:', branches.length, 'Warehouses:', warehouses.length);
+      setLoadingCategories(false);
     }
   };
 
-  // Helper function to load all items using pagination
-  const loadAllItemsPaginated = async (endpoint) => {
-    const token = localStorage.getItem('authToken');
-    const allItems = [];
-    let currentPage = 1;
-    let totalPages = 1;
+  // Load subcategories with search
+  const loadSubcategories = async (searchTerm = '') => {
+    try {
+      setLoadingSubcategories(true);
+      console.log('Loading subcategories with search:', searchTerm);
 
-    do {
-      try {
-        console.log(`Fetching ${endpoint} page ${currentPage}...`);
-        const response = await fetch(`${apiClient.baseURL}${endpoint}?per_page=100&page=${currentPage}`, {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-          },
-          mode: 'cors',
-        });
-
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error(`${endpoint} page ${currentPage} failed:`, response.status, errorText);
-          break;
-        }
-
-        const data = await response.json();
-        console.log(`${endpoint} page ${currentPage} response:`, data);
-
-        if (data && data.items && data.items.length > 0) {
-          allItems.push(...data.items);
-          totalPages = data.pages || 1;
-          console.log(`Added ${data.items.length} items from page ${currentPage}. Total pages: ${totalPages}`);
-        } else {
-          console.log(`No items found on page ${currentPage}`);
-          break;
-        }
-
-        currentPage++;
-      } catch (error) {
-        console.error(`Error fetching ${endpoint} page ${currentPage}:`, error);
-        break;
+      const params = { per_page: 100, page: 1 };
+      if (searchTerm.trim()) {
+        params.subcategory = searchTerm.trim();
       }
-    } while (currentPage <= totalPages);
 
-    console.log(`Total ${endpoint} items loaded:`, allItems.length);
-    return allItems;
+      const response = await apiClient.getCategories(params);
+      console.log('Subcategories response:', response);
+
+      if (response && response.items) {
+        // Extract unique subcategories
+        const uniqueSubcategories = [...new Set(
+          response.items
+            .filter(item => item.subcategory)
+            .map(item => item.subcategory)
+        )];
+        setSubcategories(uniqueSubcategories.map(sub => ({ subcategory: sub })));
+        console.log('Subcategories set:', uniqueSubcategories);
+      } else {
+        console.warn('Subcategories data has unexpected structure:', response);
+        setSubcategories([]);
+      }
+    } catch (error) {
+      console.error('Error fetching subcategories:', error);
+      toast.error('Error loading subcategories');
+      setSubcategories([]);
+    } finally {
+      setLoadingSubcategories(false);
+    }
+  };
+
+  // Load branches with search
+  const loadBranches = async (searchTerm = '') => {
+    try {
+      setLoadingBranches(true);
+      console.log('Loading branches with search:', searchTerm);
+
+      const token = localStorage.getItem('authToken');
+      const params = new URLSearchParams({ per_page: 100, page: 1 });
+      if (searchTerm.trim()) {
+        params.append('search', searchTerm.trim());
+      }
+
+      const response = await fetch(`${apiClient.baseURL}/branches/?${params}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        mode: 'cors',
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      console.log('Branches response:', data);
+
+      if (data && data.items) {
+        setBranches(data.items);
+        console.log('Branches set:', data.items);
+      } else {
+        console.warn('Branches data has unexpected structure:', data);
+        setBranches([]);
+      }
+    } catch (error) {
+      console.error('Error fetching branches:', error);
+      toast.error('Error loading branches');
+      setBranches([]);
+    } finally {
+      setLoadingBranches(false);
+    }
+  };
+
+  // Load warehouses with search
+  const loadWarehouses = async (searchTerm = '') => {
+    try {
+      setLoadingWarehouses(true);
+      console.log('Loading warehouses with search:', searchTerm);
+
+      const token = localStorage.getItem('authToken');
+      const params = new URLSearchParams({ per_page: 100, page: 1 });
+      if (searchTerm.trim()) {
+        params.append('search', searchTerm.trim());
+      }
+
+      const response = await fetch(`${apiClient.baseURL}/warehouses/?${params}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        mode: 'cors',
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      console.log('Warehouses response:', data);
+
+      if (data && data.items) {
+        setWarehouses(data.items);
+        console.log('Warehouses set:', data.items);
+      } else {
+        console.warn('Warehouses data has unexpected structure:', data);
+        setWarehouses([]);
+      }
+    } catch (error) {
+      console.error('Error fetching warehouses:', error);
+      toast.error('Error loading warehouses');
+      setWarehouses([]);
+    } finally {
+      setLoadingWarehouses(false);
+    }
+  };
+
+  // Effect for debounced searches
+  useEffect(() => {
+    if (categoryOpen) {
+      loadCategories(debouncedCategorySearch);
+    }
+  }, [debouncedCategorySearch, categoryOpen]);
+
+  useEffect(() => {
+    if (subcategoryOpen) {
+      loadSubcategories(debouncedSubcategorySearch);
+    }
+  }, [debouncedSubcategorySearch, subcategoryOpen]);
+
+  useEffect(() => {
+    if (branchOpen) {
+      loadBranches(debouncedBranchSearch);
+    }
+  }, [debouncedBranchSearch, branchOpen]);
+
+  useEffect(() => {
+    if (warehouseOpen) {
+      loadWarehouses(debouncedWarehouseSearch);
+    }
+  }, [debouncedWarehouseSearch, warehouseOpen]);
+
+  // Helper function to get display text for selected items
+  const getSelectedCategoryText = () => {
+    if (filters.category === 'all') return 'All Categories';
+    return filters.category || 'Select category';
+  };
+
+  const getSelectedSubcategoryText = () => {
+    if (filters.subcategory === 'all') return 'All main categories';
+    return filters.subcategory || 'Select main category';
+  };
+
+  const getSelectedBranchText = () => {
+    if (filters.branch_id === 'all') return 'All Branches';
+    const branch = branches.find(b => b.id.toString() === filters.branch_id);
+    return branch ? `${branch.name_en} (${branch.name_ar})` : 'Select branch';
+  };
+
+  const getSelectedWarehouseText = () => {
+    if (filters.warehouse_id === 'all') return 'All Warehouses';
+    const warehouse = warehouses.find(w => w.id.toString() === filters.warehouse_id);
+    return warehouse ? `${warehouse.name_en} (${warehouse.name_ar})` : 'Select warehouse';
   };
 
   const generateReport = async () => {
@@ -212,9 +373,16 @@ const Reports = () => {
         date: filters.date
       });
 
-      if (filters.category_ids && filters.category_ids !== 'all') {
-        queryParams.append('category_ids', filters.category_ids);
+      // Add category name (not ID) if selected
+      if (filters.category && filters.category !== 'all') {
+        queryParams.append('category', filters.category);
       }
+
+      // Add subcategory name if selected
+      if (filters.subcategory && filters.subcategory !== 'all') {
+        queryParams.append('subcategory', filters.subcategory);
+      }
+
       if (filters.branch_id && filters.branch_id !== 'all') {
         queryParams.append('branch_id', filters.branch_id);
       }
@@ -264,7 +432,7 @@ const Reports = () => {
       // Create the PDF window
       const pdfWindow = window.open('', '_blank', 'width=1000,height=800');
 
-      // Generate the HTML content for PDF
+      // Generate the HTML content for PDF (keeping the existing PDF generation code)
       const htmlContent = `
         <!DOCTYPE html>
         <html>
@@ -287,7 +455,7 @@ const Reports = () => {
               }
               
               .page {
-                width: 210mm;
+                width: 215mm;
                 min-height: 297mm;
                 margin: 0 auto;
                 background: white;
@@ -729,11 +897,16 @@ const Reports = () => {
   const clearFilters = () => {
     setFilters({
       date: new Date().toISOString().split('T')[0],
-      category_ids: 'all',
+      category: 'all',          // Changed from category_ids to category
+      subcategory: 'all',
       branch_id: 'all',
       warehouse_id: 'all'
     });
     setReportData(null);
+    setCategorySearch('');
+    setSubcategorySearch('');
+    setBranchSearch('');
+    setWarehouseSearch('');
   };
 
   return (
@@ -767,7 +940,7 @@ const Reports = () => {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
             {/* Date Filter - Required */}
             <div className="space-y-2">
               <Label htmlFor="date">Date *</Label>
@@ -780,108 +953,227 @@ const Reports = () => {
               />
             </div>
 
-            {/* Category Filter */}
+            {/* Category Filter with Search */}
             <div className="space-y-2">
-              <Label htmlFor="category">Category</Label>
-              <Select
-                value={filters.category_ids}
-                onValueChange={(value) => {
-                  console.log('Category selected:', value);
-                  setFilters({ ...filters, category_ids: value });
-                }}
-                disabled={loadingOptions}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder={loadingOptions ? "Loading..." : "Select category"} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Categories</SelectItem>
-                  {categories.length > 0 ? categories.map(category => {
-                    console.log('Rendering category:', category);
-                    return (
-                      <SelectItem key={category.id} value={category.id.toString()}>
-                        {category.category} {category.subcategory ? `- ${category.subcategory}` : ''}
-                      </SelectItem>
-                    );
-                  }) : (
-                    !loadingOptions && (
-                      <SelectItem value="no-categories" disabled>
-                        No categories available
-                      </SelectItem>
-                    )
-                  )}
-                </SelectContent>
-              </Select>
+              <Label>Category</Label>
+              <Popover open={categoryOpen} onOpenChange={setCategoryOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={categoryOpen}
+                    className="w-full justify-between"
+                  >
+                    <span className="truncate">{getSelectedCategoryText()}</span>
+                    <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[300px] p-0">
+                  <Command>
+                    <CommandInput
+                      placeholder="Search categories..."
+                      value={categorySearch}
+                      onValueChange={setCategorySearch}
+                    />
+                    <CommandList>
+                      <CommandEmpty>
+                        {loadingCategories ? "Loading..." : "No categories found."}
+                      </CommandEmpty>
+                      <CommandGroup>
+                        <CommandItem
+                          onSelect={() => {
+                            setFilters({ ...filters, category: 'all' });
+                            setCategoryOpen(false);
+                            setCategorySearch('');
+                          }}
+                        >
+                          All Categories
+                        </CommandItem>
+                        {categories.map((category) => (
+                          <CommandItem
+                            key={category.id}
+                            onSelect={() => {
+                              setFilters({ ...filters, category: category.category });
+                              setCategoryOpen(false);
+                              setCategorySearch('');
+                            }}
+                          >
+                            {category.category} {category.subcategory ? `- ${category.subcategory}` : ''}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
               <p className="text-xs text-muted-foreground">Categories loaded: {categories.length}</p>
             </div>
 
-            {/* Branch Filter */}
+            {/* Subcategory Filter with Search */}
             <div className="space-y-2">
-              <Label htmlFor="branch">Branch</Label>
-              <Select
-                value={filters.branch_id}
-                onValueChange={(value) => {
-                  console.log('Branch selected:', value);
-                  setFilters({ ...filters, branch_id: value });
-                }}
-                disabled={loadingOptions}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder={loadingOptions ? "Loading..." : "Select branch"} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Branches</SelectItem>
-                  {branches.length > 0 ? branches.map(branch => {
-                    console.log('Rendering branch:', branch);
-                    return (
-                      <SelectItem key={branch.id} value={branch.id.toString()}>
-                        {branch.name_en} ({branch.name_ar})
-                      </SelectItem>
-                    );
-                  }) : (
-                    !loadingOptions && (
-                      <SelectItem value="no-branches" disabled>
-                        No branches available
-                      </SelectItem>
-                    )
-                  )}
-                </SelectContent>
-              </Select>
+              <Label>Main Category</Label>
+              <Popover open={subcategoryOpen} onOpenChange={setSubcategoryOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={subcategoryOpen}
+                    className="w-full justify-between"
+                  >
+                    <span className="truncate">{getSelectedSubcategoryText()}</span>
+                    <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[300px] p-0">
+                  <Command>
+                    <CommandInput
+                      placeholder="Search main categories..."
+                      value={subcategorySearch}
+                      onValueChange={setSubcategorySearch}
+                    />
+                    <CommandList>
+                      <CommandEmpty>
+                        {loadingSubcategories ? "Loading..." : "No main categories found."}
+                      </CommandEmpty>
+                      <CommandGroup>
+                        <CommandItem
+                          onSelect={() => {
+                            setFilters({ ...filters, subcategory: 'all' });
+                            setSubcategoryOpen(false);
+                            setSubcategorySearch('');
+                          }}
+                        >
+                          All main categories
+                        </CommandItem>
+                        {subcategories.map((subcategory, index) => (
+                          <CommandItem
+                            key={index}
+                            onSelect={() => {
+                              setFilters({ ...filters, subcategory: subcategory.subcategory });
+                              setSubcategoryOpen(false);
+                              setSubcategorySearch('');
+                            }}
+                          >
+                            {subcategory.subcategory}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+              <p className="text-xs text-muted-foreground">Main categories loaded: {subcategories.length}</p>
+            </div>
+
+            {/* Branch Filter with Search */}
+            <div className="space-y-2">
+              <Label>Branch</Label>
+              <Popover open={branchOpen} onOpenChange={setBranchOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={branchOpen}
+                    className="w-full justify-between"
+                  >
+                    <span className="truncate">{getSelectedBranchText()}</span>
+                    <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[300px] p-0">
+                  <Command>
+                    <CommandInput
+                      placeholder="Search branches..."
+                      value={branchSearch}
+                      onValueChange={setBranchSearch}
+                    />
+                    <CommandList>
+                      <CommandEmpty>
+                        {loadingBranches ? "Loading..." : "No branches found."}
+                      </CommandEmpty>
+                      <CommandGroup>
+                        <CommandItem
+                          onSelect={() => {
+                            setFilters({ ...filters, branch_id: 'all' });
+                            setBranchOpen(false);
+                            setBranchSearch('');
+                          }}
+                        >
+                          All Branches
+                        </CommandItem>
+                        {branches.map((branch) => (
+                          <CommandItem
+                            key={branch.id}
+                            onSelect={() => {
+                              setFilters({ ...filters, branch_id: branch.id.toString() });
+                              setBranchOpen(false);
+                              setBranchSearch('');
+                            }}
+                          >
+                            {branch.name_en} ({branch.name_ar})
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
               <p className="text-xs text-muted-foreground">Branches loaded: {branches.length}</p>
             </div>
 
-            {/* Warehouse Filter */}
+            {/* Warehouse Filter with Search */}
             <div className="space-y-2">
-              <Label htmlFor="warehouse">Warehouse</Label>
-              <Select
-                value={filters.warehouse_id}
-                onValueChange={(value) => {
-                  console.log('Warehouse selected:', value);
-                  setFilters({ ...filters, warehouse_id: value });
-                }}
-                disabled={loadingOptions}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder={loadingOptions ? "Loading..." : "Select warehouse"} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Warehouses</SelectItem>
-                  {warehouses.length > 0 ? warehouses.map(warehouse => {
-                    console.log('Rendering warehouse:', warehouse);
-                    return (
-                      <SelectItem key={warehouse.id} value={warehouse.id.toString()}>
-                        {warehouse.name_en} ({warehouse.name_ar})
-                      </SelectItem>
-                    );
-                  }) : (
-                    !loadingOptions && (
-                      <SelectItem value="no-warehouses" disabled>
-                        No warehouses available
-                      </SelectItem>
-                    )
-                  )}
-                </SelectContent>
-              </Select>
+              <Label>Warehouse</Label>
+              <Popover open={warehouseOpen} onOpenChange={setWarehouseOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={warehouseOpen}
+                    className="w-full justify-between"
+                  >
+                    <span className="truncate">{getSelectedWarehouseText()}</span>
+                    <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[300px] p-0">
+                  <Command>
+                    <CommandInput
+                      placeholder="Search warehouses..."
+                      value={warehouseSearch}
+                      onValueChange={setWarehouseSearch}
+                    />
+                    <CommandList>
+                      <CommandEmpty>
+                        {loadingWarehouses ? "Loading..." : "No warehouses found."}
+                      </CommandEmpty>
+                      <CommandGroup>
+                        <CommandItem
+                          onSelect={() => {
+                            setFilters({ ...filters, warehouse_id: 'all' });
+                            setWarehouseOpen(false);
+                            setWarehouseSearch('');
+                          }}
+                        >
+                          All Warehouses
+                        </CommandItem>
+                        {warehouses.map((warehouse) => (
+                          <CommandItem
+                            key={warehouse.id}
+                            onSelect={() => {
+                              setFilters({ ...filters, warehouse_id: warehouse.id.toString() });
+                              setWarehouseOpen(false);
+                              setWarehouseSearch('');
+                            }}
+                          >
+                            {warehouse.name_en} ({warehouse.name_ar})
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
               <p className="text-xs text-muted-foreground">Warehouses loaded: {warehouses.length}</p>
             </div>
           </div>
