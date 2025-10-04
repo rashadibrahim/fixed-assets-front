@@ -25,6 +25,7 @@ import {
   Shield,
   FolderOpen,
   ArrowUpCircle,
+  ArrowDownCircle,
   FileText,
   RefreshCw
 } from 'lucide-react';
@@ -44,7 +45,8 @@ import UserManagement from './UserManagement';
 import JobRoleManagement from './JobRoleManagement';
 import CategoryManagement from './CategoryManagement';
 import ErrorBoundary from './ErrorBoundary';
-import Transactions from './Transactions';
+import TransactionsIn from './TransactionsIn';
+import TransactionsOut from './TransactionsOut';
 import Settings from './Settings';
 
 const Dashboard = () => {
@@ -61,6 +63,8 @@ const Dashboard = () => {
   const canEditAssets = () => isAdmin() || user?.can_edit_asset;
   const canEditWarehouses = () => isAdmin() || user?.can_edit_warehouse;
   const canEditBranches = () => isAdmin() || user?.can_edit_branch;
+  const canMakeReports = () => isAdmin() || user?.can_make_report;
+  const canMakeTransactions = () => isAdmin() || user?.can_make_transaction;
 
   // Dashboard stats from API
   const [dashboardStats, setDashboardStats] = useState({
@@ -215,9 +219,13 @@ const Dashboard = () => {
     { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
     // Only show assets if user can read assets
     ...(canReadAssets() ? [{ id: 'assets', label: 'Fixed Assets', icon: Package }] : []),
-    // Always show transactions and reports for now (they are coming soon anyway)
-    { id: 'transactions', label: 'Transactions', icon: ArrowUpCircle },
-    { id: 'reports', label: 'Reports', icon: FileText, comingSoon: true },
+    // Show separated transaction screens for users who can read assets
+    ...(canReadAssets() ? [
+      { id: 'transactions-in', label: 'Transactions IN', icon: ArrowUpCircle },
+      { id: 'transactions-out', label: 'Transactions OUT', icon: ArrowDownCircle },
+    ] : []),
+    // Only show reports if user can make reports - REMOVED comingSoon: true
+    ...(canMakeReports() ? [{ id: 'reports', label: 'Reports', icon: FileText }] : []),
     // Only show warehouses if user can read warehouses
     ...(canReadWarehouses() ? [{ id: 'warehouses', label: 'Warehouses', icon: Warehouse }] : []),
     // Only show branches if user can read branches
@@ -273,7 +281,7 @@ const Dashboard = () => {
             <ArrowUpCircle className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
             {loading ? 'Refreshing...' : 'Refresh'}
           </Button>
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" onClick={() => setActiveTab('reports')}>
             <Download className="h-4 w-4 mr-2" />
             Export Report
           </Button>
@@ -489,11 +497,11 @@ const Dashboard = () => {
                     Manage Branches
                   </Button>
                 )}
-                <Button variant="outline" className="w-full" onClick={() => setActiveTab('transactions')}>
+                <Button variant="outline" className="w-full" onClick={() => setActiveTab('transactions-in')}>
                   <ArrowUpCircle className="h-4 w-4 mr-2" />
                   View Transactions
                 </Button>
-                <Button variant="outline" className="w-full">
+                <Button variant="outline" className="w-full" onClick={() => setActiveTab('reports')}>
                   <Download className="h-4 w-4 mr-2" />
                   Generate Report
                 </Button>
@@ -580,8 +588,10 @@ const Dashboard = () => {
     switch (activeTab) {
       case 'dashboard':
         return <DashboardView />;
-      case 'transactions':
-        return <Transactions />;
+      case 'transactions-in':
+        return <ErrorBoundary><TransactionsIn /></ErrorBoundary>;
+      case 'transactions-out':
+        return <ErrorBoundary><TransactionsOut /></ErrorBoundary>;
       case 'assets':
         return <ErrorBoundary><AssetManagement /></ErrorBoundary>;
       case 'reports':
@@ -686,19 +696,6 @@ const Dashboard = () => {
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        <header className="bg-card border-b border-border px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              {/* Header content */}
-            </div>
-            <div className="flex items-center space-x-3">
-              <Button variant="ghost" size="sm">
-                <SettingsIcon className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-        </header>
-
         <main className="flex-1 overflow-y-auto p-6">
           {renderContent()}
         </main>

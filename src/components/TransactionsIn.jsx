@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
   ArrowUpCircle,
-  ArrowDownCircle,
   Search,
   Filter,
   Download,
@@ -16,7 +15,10 @@ import {
   X,
   AlertCircle,
   LogOut,
-  Plus
+  Plus,
+  Edit3,
+  Trash2,
+  MoreVertical
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '../contexts/AuthContext';
@@ -24,10 +26,12 @@ import AddTransaction from './AddTransaction';
 import ViewTransaction from './ViewTransaction';
 import apiClient from '../utils/api';
 import { useErrorHandler } from '../hooks/useErrorHandler';
+import { useTokenExpiry } from '../hooks/useTokenExpiry';
 
-const Transactions = () => {
+const TransactionsIn = () => {
   const { user, logout } = useAuth();
   const { handleError, handleSuccess } = useErrorHandler();
+  useTokenExpiry(); // This will automatically handle token expiry warnings
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -36,18 +40,19 @@ const Transactions = () => {
     total: 0,
     page: 1,
     pages: 1,
-    per_page: 25 // Increased default per page
+    per_page: 25
   });
 
   // Filter states
   const [filters, setFilters] = useState({
     page: 1,
-    per_page: 25, // Increased default per page
+    per_page: 25,
     branch_id: '',
     warehouse_id: '',
     date_from: '',
     date_to: '',
-    search: ''
+    search: '',
+    transaction_type: 'IN' // Fixed to IN transactions only
   });
 
   const [branches, setBranches] = useState([]);
@@ -55,23 +60,26 @@ const Transactions = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [showAddTransaction, setShowAddTransaction] = useState(false);
   const [showViewTransaction, setShowViewTransaction] = useState(false);
+  const [showEditTransaction, setShowEditTransaction] = useState(false);
   const [selectedTransactionId, setSelectedTransactionId] = useState(null);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [transactionToDelete, setTransactionToDelete] = useState(null);
+  const [deletingTransaction, setDeletingTransaction] = useState(false);
 
   // Permission checks
   const isAdmin = () => user?.role?.toLowerCase() === 'admin';
   const canReadAssets = () => isAdmin() || user?.can_read_asset;
+  const canEditTransactions = () => isAdmin() || user?.can_write_asset;
+  const canDeleteTransactions = () => isAdmin() || user?.can_delete_asset;
   const canMakeTransactions = () => isAdmin() || user?.can_make_transaction;
 
   // Check and validate token
   const getValidToken = () => {
-    // Token is stored as 'authToken'
     let token = localStorage.getItem('authToken');
-
     if (!token) {
       console.error('No token found in localStorage');
       return null;
     }
-
     return token;
   };
 
@@ -134,9 +142,9 @@ const Transactions = () => {
         return;
       }
 
-      // Build query parameters - only include non-empty values
+      // Build query parameters - only include non-empty values and force transaction_type to 'IN'
       const params = new URLSearchParams();
-      Object.entries(filters).forEach(([key, value]) => {
+      Object.entries({...filters, transaction_type: 'IN'}).forEach(([key, value]) => {
         if (value && value !== '' && value !== 0) {
           params.append(key, value.toString());
         }
@@ -146,36 +154,20 @@ const Transactions = () => {
 
       if (data) {
         const items = data.items || [];
-        setTransactions(items);
+        // Additional filtering on frontend to ensure only IN transactions
+        const inTransactions = items.filter(transaction => transaction.transaction_type === true);
+        setTransactions(inTransactions);
         setPagination({
           total: data.total || 0,
           page: data.page || 1,
           pages: data.pages || 1,
-          per_page: filters.per_page
+          per_page: data.per_page || 25
         });
       }
     } catch (error) {
       console.error('Error loading transactions:', error);
-      
-      // Handle authentication errors
-      if (error.status === 401) {
-        console.error('401 Unauthorized - clearing tokens');
-        localStorage.removeItem('authToken');
-        setAuthError(true);
-        handleError('Session expired. Please log in again.');
-        return;
-      }
-      
-      if (error.status === 422 && error.message.includes('segments')) {
-        console.error('JWT Token format error - clearing tokens');
-        localStorage.removeItem('authToken');
-        setAuthError(true);
-        handleError('Token format invalid. Please log in again.');
-        return;
-      }
-
       setError(error.message || 'Failed to load transactions');
-      setTransactions([]);
+      handleError(error, 'Failed to load incoming transactions');
     } finally {
       setLoading(false);
     }
@@ -183,27 +175,19 @@ const Transactions = () => {
 
   const loadBranches = async () => {
     try {
-      const token = getValidToken();
-      if (!token) return;
-
-      const data = await apiClient.getBranches();
+      const data = await apiClient.getBranches({ per_page: 100 });
       setBranches(data.items || data || []);
     } catch (error) {
       console.error('Error loading branches:', error);
-      handleError(error, 'Failed to load branches');
     }
   };
 
   const loadWarehouses = async () => {
     try {
-      const token = getValidToken();
-      if (!token) return;
-
-      const data = await apiClient.getWarehouses();
+      const data = await apiClient.getWarehouses({ per_page: 100 });
       setWarehouses(data.items || data || []);
     } catch (error) {
       console.error('Error loading warehouses:', error);
-      handleError(error, 'Failed to load warehouses');
     }
   };
 
@@ -214,10 +198,11 @@ const Transactions = () => {
     }));
   };
 
-  const handleSearch = () => {
-    if (canReadAssets()) {
-      loadTransactions();
-    }
+  const handlePageChange = (newPage) => {
+    setFilters(prev => ({
+      ...prev,
+      page: newPage
+    }));
   };
 
   const clearFilters = () => {
@@ -228,48 +213,26 @@ const Transactions = () => {
       warehouse_id: '',
       date_from: '',
       date_to: '',
-      search: ''
+      search: '',
+      transaction_type: 'IN' // Keep IN filter
     });
-    setError(null);
-    setAuthError(false);
   };
 
-  const handlePageChange = (newPage) => {
-    setFilters(prev => ({ ...prev, page: newPage }));
-  };
-
-  const handlePerPageChange = (newPerPage) => {
-    setFilters(prev => ({ ...prev, per_page: newPerPage, page: 1 }));
+  const handleSearch = () => {
+    // Trigger search by resetting to page 1
+    setFilters(prev => ({ ...prev, page: 1 }));
   };
 
   const formatDate = (dateString) => {
-    try {
-      return new Date(dateString).toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric'
-      });
-    } catch (error) {
-      return dateString;
-    }
+    if (!dateString) return 'N/A';
+    const date = new Date(dateString);
+    return date.toLocaleDateString();
   };
 
-  const downloadAttachment = async (transactionId, filename) => {
-    try {
-      const blob = await apiClient.downloadTransactionFile(transactionId);
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = filename || `transaction_${transactionId}_file`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-      toast.success('File downloaded successfully');
-    } catch (error) {
-      console.error('Error downloading file:', error);
-      toast.error('Failed to download file');
-    }
+  const formatTime = (dateString) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
   const handleLogout = () => {
@@ -277,13 +240,70 @@ const Transactions = () => {
   };
 
   const handleTransactionAdded = () => {
-    handleSuccess('Transaction added successfully!');
+    handleSuccess('Incoming transaction added successfully!');
     loadTransactions(); // Refresh the transactions list
   };
 
   const handleViewTransaction = (transactionId) => {
     setSelectedTransactionId(transactionId);
     setShowViewTransaction(true);
+  };
+
+  const handleEditTransaction = (transactionId) => {
+    setSelectedTransactionId(transactionId);
+    setShowEditTransaction(true);
+  };
+
+  const handleDeleteTransaction = (transaction) => {
+    setTransactionToDelete(transaction);
+    setShowDeleteDialog(true);
+  };
+
+  const confirmDeleteTransaction = async () => {
+    if (!transactionToDelete) return;
+
+    try {
+      setDeletingTransaction(true);
+      await apiClient.deleteTransaction(transactionToDelete.id);
+      handleSuccess('Transaction deleted successfully!');
+      loadTransactions(); // Refresh the transactions list
+      setShowDeleteDialog(false);
+      setTransactionToDelete(null);
+    } catch (error) {
+      handleError(error, 'Failed to delete transaction');
+    } finally {
+      setDeletingTransaction(false);
+    }
+  };
+
+  const handleTransactionUpdated = () => {
+    handleSuccess('Transaction updated successfully!');
+    setShowEditTransaction(false);
+    loadTransactions(); // Refresh the transactions list
+  };
+
+  const handleDownloadFile = async (transactionId, fileName) => {
+    try {
+      const blob = await apiClient.downloadTransactionFile(transactionId);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = fileName || `transaction_${transactionId}_file`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      handleSuccess('File downloaded successfully');
+    } catch (error) {
+      handleError(error, 'Failed to download file');
+    }
+  };
+
+  // Helper function to get branch name by ID
+  const getBranchName = (branchId) => {
+    if (!branchId) return 'N/A';
+    const branch = branches.find(b => b.id === branchId);
+    return branch?.name_en || branch?.name_ar || 'N/A';
   };
 
   // Check permissions
@@ -326,7 +346,8 @@ const Transactions = () => {
       {/* Compact Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-gray-900">Transactions</h1>
+          <h1 className="text-xl font-semibold text-gray-900">Incoming Transactions</h1>
+          <p className="text-sm text-gray-600">Track all incoming asset transactions</p>
         </div>
         <div className="flex items-center space-x-2">
           {canMakeTransactions() && (
@@ -335,7 +356,7 @@ const Transactions = () => {
               className="flex items-center px-3 py-1.5 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm"
             >
               <Plus className="w-3 h-3 mr-1" />
-              Add
+              Add IN Transaction
             </button>
           )}
           <button
@@ -376,7 +397,7 @@ const Transactions = () => {
       {showFilters && (
         <div className="bg-white p-3 rounded-lg border border-gray-200 shadow-sm">
           <div className="flex items-center justify-between mb-2">
-            <h3 className="text-sm font-medium text-gray-900">Filter Transactions</h3>
+            <h3 className="text-sm font-medium text-gray-900">Filter Incoming Transactions</h3>
             <button
               onClick={() => setShowFilters(false)}
               className="text-gray-400 hover:text-gray-600"
@@ -475,7 +496,7 @@ const Transactions = () => {
         {loading ? (
           <div className="p-6 text-center">
             <RefreshCw className="w-6 h-6 text-blue-600 animate-spin mx-auto mb-2" />
-            <p className="text-sm text-gray-600">Loading transactions...</p>
+            <p className="text-sm text-gray-600">Loading incoming transactions...</p>
           </div>
         ) : error ? (
           <div className="p-6 text-center">
@@ -492,14 +513,14 @@ const Transactions = () => {
         ) : transactions.length === 0 ? (
           <div className="p-6 text-center">
             <ArrowUpCircle className="w-6 h-6 text-gray-400 mx-auto mb-2" />
-            <h3 className="text-sm font-medium text-gray-900 mb-2">No transactions found</h3>
+            <h3 className="text-sm font-medium text-gray-900 mb-2">No incoming transactions found</h3>
             {canMakeTransactions() && (
               <button
                 onClick={() => setShowAddTransaction(true)}
                 className="inline-flex items-center px-3 py-1.5 bg-green-600 text-white font-medium rounded-lg hover:bg-green-700 transition-colors text-sm"
               >
                 <Plus className="w-3 h-3 mr-1" />
-                Add First Transaction
+                Add First IN Transaction
               </button>
             )}
           </div>
@@ -536,21 +557,14 @@ const Transactions = () => {
                   {transactions.map((transaction, index) => (
                     <tr
                       key={transaction.id}
-                      className={`hover:bg-blue-50 transition-colors duration-200 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'
+                      className={`hover:bg-green-50 transition-colors duration-200 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'
                         }`}
                     >
                       <td className="px-3 py-2 whitespace-nowrap">
                         <div className="flex items-center">
                           <div className="flex-shrink-0">
-                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${transaction.transaction_type
-                              ? 'bg-green-500'
-                              : 'bg-red-500'
-                              }`}>
-                              {transaction.transaction_type ? (
-                                <ArrowUpCircle className="w-4 h-4 text-white" />
-                              ) : (
-                                <ArrowDownCircle className="w-4 h-4 text-white" />
-                              )}
+                            <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-green-500">
+                              <ArrowUpCircle className="w-4 h-4 text-white" />
                             </div>
                           </div>
                           <div className="ml-2">
@@ -558,11 +572,8 @@ const Transactions = () => {
                               {transaction.custom_id}
                             </div>
                             <div className="flex items-center space-x-1 text-xs">
-                              <div className={`px-1.5 py-0.5 rounded-full text-xs font-medium ${transaction.transaction_type
-                                ? 'bg-green-100 text-green-800'
-                                : 'bg-red-100 text-red-800'
-                                }`}>
-                                {transaction.transaction_type ? 'IN' : 'OUT'}
+                              <div className="px-1.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                IN
                               </div>
                             </div>
                           </div>
@@ -577,76 +588,99 @@ const Transactions = () => {
                               {formatDate(transaction.date)}
                             </div>
                             <div className="text-xs text-gray-500">
-                              {formatDate(transaction.created_at)}
+                              {formatTime(transaction.date)}
                             </div>
                           </div>
                         </div>
                       </td>
 
                       <td className="px-3 py-2 whitespace-nowrap">
-                        <div className="flex items-start">
-                          <Warehouse className="w-3 h-3 text-indigo-500 mt-0.5 mr-1.5 flex-shrink-0" />
-                          <div>
-                            <div className="text-xs font-medium text-gray-900">
-                              {transaction.warehouse?.name_en || transaction.warehouse?.name_ar || 'Unknown Warehouse'}
-                            </div>
-                            <div className="text-xs text-gray-500 flex items-center">
-                              <Building2 className="w-2.5 h-2.5 mr-0.5" />
-                              Branch: {transaction.warehouse?.branch_id}
-                            </div>
+                        <div className="space-y-1">
+                          <div className="flex items-center text-xs">
+                            <Building2 className="w-3 h-3 text-gray-400 mr-1" />
+                            <span className="text-gray-900">
+                              {getBranchName(transaction.warehouse?.branch_id)}
+                            </span>
+                          </div>
+                          <div className="flex items-center text-xs">
+                            <Warehouse className="w-3 h-3 text-gray-400 mr-1" />
+                            <span className="text-gray-500">
+                              {transaction.warehouse?.name_en || transaction.warehouse?.name_ar || 'N/A'}
+                            </span>
                           </div>
                         </div>
                       </td>
 
                       <td className="px-3 py-2">
-                        <div className="max-w-xs">
-                          <div className="text-xs text-gray-900 font-medium truncate" title={transaction.description}>
+                        <div className="space-y-1">
+                          <div className="text-xs font-medium text-gray-900">
                             {transaction.description || 'No description'}
                           </div>
-                          <div className="text-xs text-gray-500">
-                            {transaction.transaction_type ? 'Inbound' : 'Outbound'}
-                          </div>
-                        </div>
-                      </td>
-
-                      <td className="px-3 py-2 whitespace-nowrap">
-                        <div className="text-xs text-gray-900">
-                          {transaction.reference_number ? (
-                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
-                              {transaction.reference_number}
-                            </span>
-                          ) : (
-                            <span className="text-gray-400 italic">No reference</span>
+                          {transaction.notes && (
+                            <div className="text-xs text-gray-500 truncate max-w-48">
+                              {transaction.notes}
+                            </div>
                           )}
                         </div>
                       </td>
 
                       <td className="px-3 py-2 whitespace-nowrap">
+                        <div className="text-xs">
+                          <div className="font-medium text-gray-900">
+                            {transaction.reference_number || 'N/A'}
+                          </div>
+                        </div>
+                      </td>
+
+                      <td className="px-3 py-2 whitespace-nowrap">
                         {transaction.attached_file ? (
-                          <button
-                            onClick={() => downloadAttachment(transaction.id, transaction.attached_file)}
-                            className="inline-flex items-center px-2 py-1 text-xs font-medium text-blue-700 bg-blue-100 rounded hover:bg-blue-200 transition-colors"
-                          >
-                            <FileText className="w-3 h-3 mr-1" />
-                            Download
-                          </button>
+                          <div className="flex items-center text-xs">
+                            <FileText className="w-3 h-3 text-green-500 mr-1" />
+                            <button
+                              onClick={() => handleDownloadFile(transaction.id, transaction.attached_file)}
+                              className="text-green-600 hover:text-green-800 truncate max-w-20 underline cursor-pointer"
+                            >
+                              View File
+                            </button>
+                          </div>
                         ) : (
-                          <span className="inline-flex items-center px-2 py-1 text-xs font-medium text-gray-500 bg-gray-100 rounded">
-                            <X className="w-2.5 h-2.5 mr-1" />
-                            No file
-                          </span>
+                          <div className="text-xs text-gray-400">No file</div>
                         )}
                       </td>
 
-                      <td className="px-3 py-2 whitespace-nowrap text-right">
-                        <button
-                          onClick={() => handleViewTransaction(transaction.id)}
-                          className="inline-flex items-center px-2 py-1 text-xs font-medium text-white bg-indigo-500 rounded hover:bg-indigo-600 transition-all"
-                          title="View transaction details"
-                        >
-                          <Eye className="w-3 h-3 mr-1" />
-                          View
-                        </button>
+                      <td className="px-3 py-2 whitespace-nowrap">
+                        <div className="flex items-center space-x-1">
+                          <button
+                            onClick={() => handleViewTransaction(transaction.id)}
+                            className="inline-flex items-center px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors"
+                            title="View Transaction"
+                          >
+                            <Eye className="w-3 h-3 mr-1" />
+                            View
+                          </button>
+                          
+                          {canEditTransactions() && (
+                            <button
+                              onClick={() => handleEditTransaction(transaction.id)}
+                              className="inline-flex items-center px-2 py-1 text-xs bg-yellow-100 text-yellow-700 rounded hover:bg-yellow-200 transition-colors"
+                              title="Edit Transaction"
+                            >
+                              <Edit3 className="w-3 h-3 mr-1" />
+                              Edit
+                            </button>
+                          )}
+                          
+                          {canDeleteTransactions() && (
+                            <button
+                              onClick={() => handleDeleteTransaction(transaction)}
+                              className="inline-flex items-center px-2 py-1 text-xs bg-red-100 text-red-700 rounded hover:bg-red-200 transition-colors"
+                              title="Delete Transaction"
+                            >
+                              <Trash2 className="w-3 h-3 mr-1" />
+                              Delete
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -654,61 +688,35 @@ const Transactions = () => {
               </table>
             </div>
 
-            {/* Compact Pagination */}
-            <div className="bg-gray-50 px-3 py-2 border-t border-gray-200">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center text-xs text-gray-700">
-                  <span>
-                    Showing {((pagination.page - 1) * pagination.per_page + 1)} - {Math.min(pagination.page * pagination.per_page, pagination.total)} of {pagination.total}
-                  </span>
-                  <select
-                    value={filters.per_page}
-                    onChange={(e) => handlePerPageChange(parseInt(e.target.value))}
-                    className="ml-2 px-1 py-0.5 text-xs border border-gray-300 rounded"
-                  >
-                    <option value={10}>10</option>
-                    <option value={25}>25</option>
-                    <option value={50}>50</option>
-                    <option value={100}>100</option>
-                  </select>
+            {/* Pagination */}
+            {pagination.pages > 1 && (
+              <div className="px-4 py-3 bg-gray-50 border-t border-gray-200 flex items-center justify-between">
+                <div className="text-xs text-gray-600">
+                  Showing {((pagination.page - 1) * pagination.per_page) + 1} to{' '}
+                  {Math.min(pagination.page * pagination.per_page, pagination.total)} of{' '}
+                  {pagination.total} incoming transactions
                 </div>
-                <div className="flex items-center space-x-1">
+                <div className="flex items-center space-x-2">
                   <button
                     onClick={() => handlePageChange(pagination.page - 1)}
                     disabled={pagination.page <= 1}
-                    className="inline-flex items-center px-2 py-1 border border-gray-300 text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="inline-flex items-center px-2 py-1 text-xs border border-gray-300 rounded-md bg-white text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <ChevronLeft className="w-3 h-3" />
                   </button>
-
-                  <div className="flex space-x-1">
-                    {Array.from({ length: Math.min(pagination.pages, 5) }, (_, i) => {
-                      const page = i + 1;
-                      return (
-                        <button
-                          key={page}
-                          onClick={() => handlePageChange(page)}
-                          className={`px-2 py-1 text-xs font-medium rounded transition-colors ${page === pagination.page
-                            ? 'bg-indigo-500 text-white'
-                            : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50'
-                            }`}
-                        >
-                          {page}
-                        </button>
-                      );
-                    })}
-                  </div>
-
+                  <span className="text-xs text-gray-600">
+                    Page {pagination.page} of {pagination.pages}
+                  </span>
                   <button
                     onClick={() => handlePageChange(pagination.page + 1)}
                     disabled={pagination.page >= pagination.pages}
-                    className="inline-flex items-center px-2 py-1 border border-gray-300 text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="inline-flex items-center px-2 py-1 text-xs border border-gray-300 rounded-md bg-white text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <ChevronRight className="w-3 h-3" />
                   </button>
                 </div>
               </div>
-            </div>
+            )}
           </>
         )}
       </div>
@@ -718,19 +726,91 @@ const Transactions = () => {
         isOpen={showAddTransaction}
         onClose={() => setShowAddTransaction(false)}
         onTransactionAdded={handleTransactionAdded}
+        defaultTransactionType="IN"
       />
 
       {/* View Transaction Modal */}
-      <ViewTransaction
-        isOpen={showViewTransaction}
-        onClose={() => {
-          setShowViewTransaction(false);
-          setSelectedTransactionId(null);
-        }}
-        transactionId={selectedTransactionId}
-      />
+      {showViewTransaction && selectedTransactionId && (
+        <ViewTransaction
+          isOpen={showViewTransaction}
+          transactionId={selectedTransactionId}
+          onClose={() => setShowViewTransaction(false)}
+        />
+      )}
+
+      {/* Edit Transaction Modal */}
+      {showEditTransaction && selectedTransactionId && (
+        <AddTransaction
+          isOpen={showEditTransaction}
+          onClose={() => setShowEditTransaction(false)}
+          onTransactionAdded={handleTransactionUpdated}
+          editTransactionId={selectedTransactionId}
+          defaultTransactionType="IN"
+        />
+      )}
+
+      {/* Delete Confirmation Dialog */}
+      {showDeleteDialog && transactionToDelete && (
+        <div className="fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
+            <div className="flex items-center mb-4">
+              <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center mr-3">
+                <Trash2 className="w-5 h-5 text-red-600" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900">Delete Transaction</h3>
+            </div>
+            
+            <div className="mb-6">
+              <p className="text-gray-600 mb-4">
+                Are you sure you want to delete this transaction? This action cannot be undone.
+              </p>
+              <div className="bg-gray-50 rounded-lg p-3">
+                <div className="text-sm font-medium text-gray-900 mb-1">
+                  Transaction: {transactionToDelete.custom_id}
+                </div>
+                <div className="text-sm text-gray-600">
+                  Date: {formatDate(transactionToDelete.date)}
+                </div>
+                <div className="text-sm text-gray-600">
+                  Description: {transactionToDelete.description || 'No description'}
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={() => {
+                  setShowDeleteDialog(false);
+                  setTransactionToDelete(null);
+                }}
+                disabled={deletingTransaction}
+                className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDeleteTransaction}
+                disabled={deletingTransaction}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center"
+              >
+                {deletingTransaction ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                    Deleting...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Delete Transaction
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
 
-export default Transactions;
+export default TransactionsIn;

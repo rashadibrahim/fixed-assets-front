@@ -1967,6 +1967,14 @@
                 "can_print_barcode": {
                     "type": "boolean",
                     "description": "Permission to print barcodes"
+                },
+                "can_make_report": {
+                    "type": "boolean",
+                    "description": "Permission to make reports"
+                },
+                "can_make_transaction": {
+                    "type": "boolean",
+                    "description": "Permission to make transactions"
                 }
             },
             "type": "object"
@@ -2071,6 +2079,14 @@
                 "can_print_barcode": {
                     "type": "boolean",
                     "description": "Permission to print barcodes"
+                },
+                "can_make_report": {
+                    "type": "boolean",
+                    "description": "Permission to make reports"
+                },
+                "can_make_transaction": {
+                    "type": "boolean",
+                    "description": "Permission to make transactions"
                 }
             },
             "type": "object"
@@ -2166,6 +2182,16 @@
                     "type": "boolean",
                     "description": "Permission to print barcodes",
                     "default": false
+                },
+                "can_make_report": {
+                    "type": "boolean",
+                    "description": "Permission to make reports",
+                    "default": false
+                },
+                "can_make_transaction": {
+                    "type": "boolean",
+                    "description": "Permission to make transactions",
+                    "default": false
                 }
             },
             "type": "object"
@@ -2178,6 +2204,8 @@
                 "can_edit_asset",
                 "can_edit_branch",
                 "can_edit_warehouse",
+                "can_make_report",
+                "can_make_transaction",
                 "can_print_barcode",
                 "can_read_asset",
                 "can_read_branch",
@@ -2233,6 +2261,14 @@
                 "can_print_barcode": {
                     "type": "boolean",
                     "description": "Permission to print barcodes"
+                },
+                "can_make_report": {
+                    "type": "boolean",
+                    "description": "Permission to make reports"
+                },
+                "can_make_transaction": {
+                    "type": "boolean",
+                    "description": "Permission to make transactions"
                 }
             },
             "type": "object"

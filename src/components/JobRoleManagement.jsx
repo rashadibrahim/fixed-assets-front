@@ -116,7 +116,9 @@ const JobRoleManagement = () => {
       can_read_asset: false,
       can_edit_asset: false,
       can_delete_asset: false,
-      can_print_barcode: false
+      can_print_barcode: false,
+      can_make_report: false,
+      can_make_transaction: false
     });
     setDialogOpen(true);
   }, []);
@@ -134,7 +136,9 @@ const JobRoleManagement = () => {
       can_read_asset: role.can_read_asset || false,
       can_edit_asset: role.can_edit_asset || false,
       can_delete_asset: role.can_delete_asset || false,
-      can_print_barcode: role.can_print_barcode || false
+      can_print_barcode: role.can_print_barcode || false,
+      can_make_report: role.can_make_report || false,
+      can_make_transaction: role.can_make_transaction || false
     });
     setDialogOpen(true);
   }, []);
@@ -269,7 +273,9 @@ const JobRoleManagement = () => {
     {
       title: "Other Permissions",
       permissions: [
-        { key: 'can_print_barcode', label: 'Print Barcodes', required: false }
+        { key: 'can_print_barcode', label: 'Print Barcodes', required: false },
+        { key: 'can_make_report', label: 'Make Reports', required: false },
+        { key: 'can_make_transaction', label: 'Make Transactions', required: false }
       ]
     }
   ];
@@ -539,10 +545,27 @@ const JobRoleManagement = () => {
                         </div>
                       </div>
                       
-                      {role.can_print_barcode && (
-                        <div className="flex items-center gap-2 text-sm pt-2 border-t">
-                          <PermissionIcon hasPermission={true} />
-                          <span>Can Print Barcodes</span>
+                      {/* Additional Permissions */}
+                      {(role.can_print_barcode || role.can_make_report || role.can_make_transaction) && (
+                        <div className="space-y-1 pt-2 border-t">
+                          {role.can_print_barcode && (
+                            <div className="flex items-center gap-2 text-sm">
+                              <PermissionIcon hasPermission={true} />
+                              <span>Can Print Barcodes</span>
+                            </div>
+                          )}
+                          {role.can_make_report && (
+                            <div className="flex items-center gap-2 text-sm">
+                              <PermissionIcon hasPermission={true} />
+                              <span>Can Make Reports</span>
+                            </div>
+                          )}
+                          {role.can_make_transaction && (
+                            <div className="flex items-center gap-2 text-sm">
+                              <PermissionIcon hasPermission={true} />
+                              <span>Can Make Transactions</span>
+                            </div>
+                          )}
                         </div>
                       )}
                     </CardContent>

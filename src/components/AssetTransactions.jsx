@@ -116,7 +116,7 @@ const AssetTransactions = () => {
       const token = getValidToken();
       if (!token) return;
 
-      const response = await fetch(`${apiClient.baseURL}/assets/?per_page=1000&page=1`, {
+      const response = await fetch(`${apiClient.baseURL}/assets/?per_page=100&page=1`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
