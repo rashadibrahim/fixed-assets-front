@@ -24,6 +24,9 @@ import AddTransaction from './AddTransaction';
 import ViewTransaction from './ViewTransaction';
 import apiClient from '../utils/api';
 import { useErrorHandler } from '../hooks/useErrorHandler';
+import { DynamicSearchableSelect } from '@/components/ui/dynamic-searchable-select';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 
 const TransactionsOut = () => {
   const { user, logout } = useAuth();
@@ -370,82 +373,77 @@ const TransactionsOut = () => {
             <div>
               <div className="relative">
                 <Search className="w-3 h-3 absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                <input
+                <Input
                   type="text"
                   placeholder="Search..."
                   value={filters.search}
                   onChange={(e) => handleFilterChange('search', e.target.value)}
-                  className="w-full pl-7 pr-2 py-1.5 text-xs border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  className="w-full pl-7 pr-2 py-1.5 text-xs"
                 />
               </div>
             </div>
 
             {/* Branch Filter */}
             <div>
-              <select
+              <DynamicSearchableSelect
                 value={filters.branch_id}
-                onChange={(e) => handleFilterChange('branch_id', e.target.value)}
-                className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-              >
-                <option value="">All Branches</option>
-                {branches.map((branch) => (
-                  <option key={branch.id} value={branch.id}>
-                    {branch.name_en || branch.name_ar || `Branch ${branch.id}`}
-                  </option>
-                ))}
-              </select>
+                onValueChange={(value) => handleFilterChange('branch_id', value)}
+                placeholder="All Branches"
+                searchPlaceholder="Search branches..."
+                apiEndpoint="branches"
+                className="w-full text-xs"
+              />
             </div>
 
             {/* Warehouse Filter */}
             <div>
-              <select
+              <DynamicSearchableSelect
                 value={filters.warehouse_id}
-                onChange={(e) => handleFilterChange('warehouse_id', e.target.value)}
-                className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-              >
-                <option value="">All Warehouses</option>
-                {warehouses.map((warehouse) => (
-                  <option key={warehouse.id} value={warehouse.id}>
-                    {warehouse.name_en || warehouse.name_ar || `Warehouse ${warehouse.id}`}
-                  </option>
-                ))}
-              </select>
+                onValueChange={(value) => handleFilterChange('warehouse_id', value)}
+                placeholder="All Warehouses"
+                searchPlaceholder="Search warehouses..."
+                apiEndpoint="warehouses"
+                className="w-full text-xs"
+              />
             </div>
 
             {/* Date From */}
             <div>
-              <input
+              <Input
                 type="date"
                 value={filters.date_from}
                 onChange={(e) => handleFilterChange('date_from', e.target.value)}
-                className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                className="w-full px-2 py-1.5 text-xs"
               />
             </div>
 
             {/* Date To */}
             <div>
-              <input
+              <Input
                 type="date"
                 value={filters.date_to}
                 onChange={(e) => handleFilterChange('date_to', e.target.value)}
-                className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                className="w-full px-2 py-1.5 text-xs"
               />
             </div>
           </div>
 
           <div className="flex items-center justify-between mt-2">
-            <button
+            <Button
               onClick={clearFilters}
-              className="px-3 py-1 text-xs text-gray-600 hover:text-gray-800 transition-colors"
+              variant="ghost"
+              size="sm"
+              className="px-3 py-1 text-xs"
             >
               Clear All
-            </button>
-            <button
+            </Button>
+            <Button
               onClick={handleSearch}
-              className="px-4 py-1 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors text-xs"
+              size="sm"
+              className="px-4 py-1 text-xs"
             >
               Apply
-            </button>
+            </Button>
           </div>
         </div>
       )}
