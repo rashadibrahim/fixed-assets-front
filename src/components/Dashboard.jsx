@@ -131,7 +131,7 @@ const Dashboard = () => {
       }
     } catch (error) {
       console.error('Error loading transaction summary:', error);
-      toast.error('Failed to load transaction summary');
+      // Silently handle the error - don't show error toast to user
       // Set default values on error
       setTransactionSummary({
         total_transactions: 0,
@@ -155,7 +155,22 @@ const Dashboard = () => {
         return;
       }
 
-      // Load statistics from the auth/stats endpoint
+      // Only attempt to load stats if user has some permissions
+      if (!canReadAssets() && !canReadWarehouses() && !canReadBranches() && !isAdmin()) {
+        console.log('User has no permissions to view statistics');
+        setDashboardStats({
+          totalAssets: 0,
+          totalJobs: 0,
+          activeAssets: 0,
+          warehouses: 0,
+          branches: 0,
+          users: 0
+        });
+        setLoading(false);
+        return;
+      }
+
+      // Try to load statistics from the auth/stats endpoint
       const response = await fetch(`${apiClient.baseURL}/auth/stats`, {
         method: 'GET',
         headers: {
@@ -208,10 +223,16 @@ const Dashboard = () => {
         loadDashboardStats(),
         loadTransactionSummary()
       ]);
-      toast.success('Dashboard data refreshed successfully!');
+      // Only show success toast if user has some permissions to view data
+      if (canReadAssets() || canReadWarehouses() || canReadBranches() || isAdmin()) {
+        toast.success('Dashboard data refreshed successfully!');
+      }
     } catch (error) {
       console.error('Error refreshing dashboard:', error);
-      toast.error('Failed to refresh dashboard data');
+      // Only show error toast if user should have access to data
+      if (canReadAssets() || canReadWarehouses() || canReadBranches() || isAdmin()) {
+        toast.error('Failed to refresh some dashboard data');
+      }
     } finally {
       setLoading(false);
     }
@@ -274,20 +295,25 @@ const Dashboard = () => {
           <p className="text-muted-foreground">Welcome back, {user?.full_name || user?.name}</p>
         </div>
         <div className="flex items-center space-x-3">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleRefresh}
-            disabled={loading}
-            className="flex items-center"
-          >
-            <ArrowUpCircle className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-            {loading ? 'Refreshing...' : 'Refresh'}
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => setActiveTab('reports')}>
-            <Download className="h-4 w-4 mr-2" />
-            Export Report
-          </Button>
+          {/* Only show refresh button if user has access to some stats */}
+          {(canReadAssets() || canReadWarehouses() || canReadBranches() || isAdmin()) && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleRefresh}
+              disabled={loading}
+              className="flex items-center"
+            >
+              <ArrowUpCircle className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+              {loading ? 'Refreshing...' : 'Refresh'}
+            </Button>
+          )}
+          {canMakeReports() && (
+            <Button variant="outline" size="sm" onClick={() => setActiveTab('reports')}>
+              <Download className="h-4 w-4 mr-2" />
+              Export Report
+            </Button>
+          )}
           {canEditAssets() && (
             <Button className="btn-primary" onClick={() => setActiveTab('assets')}>
               <Plus className="h-4 w-4 mr-2" />
@@ -315,44 +341,70 @@ const Dashboard = () => {
           ))}
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {canReadAssets() && (
-            <StatCard
-              title="Total Assets"
-              value={dashboardStats.totalAssets.toLocaleString()}
-              icon={Package}
-              color="gradient-primary"
-              subtitle={`${dashboardStats.activeAssets} active`}
-            />
+        <>
+          {/* Check if user has any permissions to show stats */}
+          {!canReadAssets() && !canReadWarehouses() && !canReadBranches() && !isAdmin() ? (
+            // Welcome message for users with no stat permissions
+            <Card className="glass-card">
+              <CardContent className="p-8 text-center">
+                <div className="p-4 bg-primary/10 rounded-full w-20 h-20 mx-auto mb-4 flex items-center justify-center">
+                  <User className="h-10 w-10 text-primary" />
+                </div>
+                <h2 className="text-2xl font-bold text-foreground mb-2">
+                  Welcome to Assets Pro
+                </h2>
+                <p className="text-muted-foreground mb-4">
+                  Your account is set up and ready to use. Use the menu to navigate to the features you have access to.
+                </p>
+                <div className="flex justify-center">
+                  <Badge variant="secondary" className="text-sm">
+                    {user?.role || 'User'} Account
+                  </Badge>
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            // Show stats cards for users with permissions
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              {canReadAssets() && (
+                <StatCard
+                  title="Total Assets"
+                  value={dashboardStats.totalAssets.toLocaleString()}
+                  icon={Package}
+                  color="gradient-primary"
+                  subtitle={`${dashboardStats.activeAssets} active`}
+                />
+              )}
+              {isAdmin() && (
+                <StatCard
+                  title="Job Roles"
+                  value={dashboardStats.totalJobs.toLocaleString()}
+                  icon={User}
+                  color="bg-blue-500"
+                  subtitle="Defined roles"
+                />
+              )}
+              {canReadWarehouses() && (
+                <StatCard
+                  title="Warehouses"
+                  value={dashboardStats.warehouses}
+                  icon={Warehouse}
+                  color="bg-purple-500"
+                  subtitle={canReadBranches() ? `${dashboardStats.branches} branches` : ""}
+                />
+              )}
+              {isAdmin() && (
+                <StatCard
+                  title="Active Users"
+                  value={dashboardStats.users}
+                  icon={Users}
+                  color="bg-orange-500"
+                  subtitle="System users"
+                />
+              )}
+            </div>
           )}
-          {isAdmin() && (
-            <StatCard
-              title="Job Roles"
-              value={dashboardStats.totalJobs.toLocaleString()}
-              icon={User}
-              color="bg-blue-500"
-              subtitle="Defined roles"
-            />
-          )}
-          {canReadWarehouses() && (
-            <StatCard
-              title="Warehouses"
-              value={dashboardStats.warehouses}
-              icon={Warehouse}
-              color="bg-purple-500"
-              subtitle={canReadBranches() ? `${dashboardStats.branches} branches` : ""}
-            />
-          )}
-          {isAdmin() && (
-            <StatCard
-              title="Active Users"
-              value={dashboardStats.users}
-              icon={Users}
-              color="bg-orange-500"
-              subtitle="System users"
-            />
-          )}
-        </div>
+        </>
       )}
 
       {/* Transaction Summary and Quick Actions */}
@@ -546,25 +598,37 @@ const Dashboard = () => {
                         <span>View Branches</span>
                       </div>
                     )}
-                    {user?.can_edit_asset && (
+                    {canEditAssets() && (
                       <div className="flex items-center text-sm text-muted-foreground">
                         <Edit3 className="h-4 w-4 mr-2 text-blue-500" />
                         <span>Edit Assets</span>
                       </div>
                     )}
-                    {user?.can_edit_warehouse && (
+                    {canEditWarehouses() && (
                       <div className="flex items-center text-sm text-muted-foreground">
                         <Edit3 className="h-4 w-4 mr-2 text-blue-500" />
                         <span>Edit Warehouses</span>
                       </div>
                     )}
-                    {user?.can_edit_branch && (
+                    {canEditBranches() && (
                       <div className="flex items-center text-sm text-muted-foreground">
                         <Edit3 className="h-4 w-4 mr-2 text-blue-500" />
                         <span>Edit Branches</span>
                       </div>
                     )}
-                    {user?.can_print_barcode && (
+                    {canMakeTransactions() && (
+                      <div className="flex items-center text-sm text-muted-foreground">
+                        <ArrowUpCircle className="h-4 w-4 mr-2 text-orange-500" />
+                        <span>Make Transactions</span>
+                      </div>
+                    )}
+                    {canMakeReports() && (
+                      <div className="flex items-center text-sm text-muted-foreground">
+                        <FileText className="h-4 w-4 mr-2 text-indigo-500" />
+                        <span>Generate Reports</span>
+                      </div>
+                    )}
+                    {canPrintBarcode() && (
                       <div className="flex items-center text-sm text-muted-foreground">
                         <Download className="h-4 w-4 mr-2 text-purple-500" />
                         <span>Print Barcodes</span>
