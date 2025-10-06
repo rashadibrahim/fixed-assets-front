@@ -6,7 +6,6 @@ import {
   Trash2,
   Eye,
   Filter,
-  Download,
   Search,
   Calendar,
   DollarSign,
@@ -27,6 +26,7 @@ import { toast } from 'sonner';
 import apiClient from '../utils/api';
 import { ViewToggle } from '@/components/ui/view-toggle';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { DynamicSearchableSelect } from '@/components/ui/dynamic-searchable-select';
 import { useErrorHandler } from '../hooks/useErrorHandler';
 
 const AssetManagement = () => {
@@ -54,25 +54,43 @@ const AssetManagement = () => {
   });
 
   useEffect(() => {
-    loadAssets();
+    loadAssets(currentPage, searchTerm, filterCategory);
     loadCategories();
-  }, []);
+  }, [currentPage, searchTerm, filterCategory]);
 
-  const loadAssets = async (page = 1) => {
+  const loadAssets = async (page = 1, search = '', category = '') => {
     try {
       setLoading(true);
-      const params = {
-        page,
-        per_page: 100 // Load more assets to avoid pagination issues with filtering
-      };
-
-      const response = await apiClient.getAssets(params);
-      setAssets(response.items || response || []);
-      setPagination({
-        page: response.page || 1,
-        pages: response.pages || 1,
-        total: response.total || 0
-      });
+      
+      // Use search API if search term is provided
+      if (search.trim()) {
+        const params = {
+          q: search.trim(),
+          page,
+          per_page: itemsPerPage
+        };
+        const response = await apiClient.searchAssets(params);
+        setAssets(response.items || response || []);
+        setPagination({
+          page: response.page || 1,
+          pages: response.pages || 1,
+          total: response.total || 0
+        });
+      } else {
+        // Use regular assets API with category filter if provided
+        const params = {
+          page,
+          per_page: itemsPerPage,
+          ...(category && category !== 'all' && { category_id: category })
+        };
+        const response = await apiClient.getAssets(params);
+        setAssets(response.items || response || []);
+        setPagination({
+          page: response.page || 1,
+          pages: response.pages || 1,
+          total: response.total || 0
+        });
+      }
     } catch (error) {
       handleError(error, 'Failed to load assets');
       setAssets([]);
@@ -97,29 +115,16 @@ const AssetManagement = () => {
     return category ? category.category : 'Unknown Category';
   };
 
-  const allFilteredAssets = assets.filter(asset => {
-    if (!asset) return false;
-    
-    const searchLower = searchTerm.toLowerCase();
-    const matchesSearch = !searchTerm || 
-      (asset.name_en && asset.name_en.toLowerCase().includes(searchLower)) ||
-      (asset.name_ar && asset.name_ar.includes(searchTerm)) ||
-      (asset.product_code && asset.product_code.toLowerCase().includes(searchLower)) ||
-      getCategoryName(asset.category_id).toLowerCase().includes(searchLower);
-    
-    const matchesCategory = filterCategory === 'all' || asset.category_id?.toString() === filterCategory;
-    return matchesSearch && matchesCategory;
-  });
-
-  // Client-side pagination
-  const totalPages = Math.ceil(allFilteredAssets.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-  const filteredAssets = allFilteredAssets.slice(startIndex, endIndex);
+  // Since we're now using API-based search and filtering, 
+  // assets are already filtered and paginated from the server
+  const filteredAssets = assets;
+  const totalPages = pagination.pages;
 
   // Reset to page 1 when filters change
   useEffect(() => {
-    setCurrentPage(1);
+    if (currentPage !== 1) {
+      setCurrentPage(1);
+    }
   }, [searchTerm, filterCategory]);
 
   const handleInputChange = useCallback((e) => {
@@ -223,7 +228,7 @@ const AssetManagement = () => {
         setShowAddModal(false);
       }
 
-      loadAssets();
+      loadAssets(currentPage, searchTerm, filterCategory);
       resetForm();
     } catch (error) {
       handleError(error, 'Failed to save asset');
@@ -250,7 +255,7 @@ const AssetManagement = () => {
       try {
         await apiClient.deleteAsset(asset.id);
         handleSuccess('Asset deleted successfully');
-        loadAssets();
+        loadAssets(currentPage, searchTerm, filterCategory);
       } catch (error) {
         handleError(error, 'Failed to delete asset');
       }
@@ -603,10 +608,6 @@ const AssetManagement = () => {
         </div>
         <div className="flex items-center space-x-3">
           <ViewToggle view={viewMode} onViewChange={setViewMode} />
-          <Button variant="outline" size="sm">
-            <Download className="h-4 w-4 mr-2" />
-            Export
-          </Button>
           <Dialog open={showAddModal} onOpenChange={setShowAddModal}>
             <DialogTrigger asChild>
               <Button className="btn-primary">
@@ -647,21 +648,13 @@ const AssetManagement = () => {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                       <Label htmlFor="category_id">Category *</Label>
-                      <Select
+                      <DynamicSearchableSelect
                         value={formData.category_id}
                         onValueChange={handleCategoryChange}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select a category" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {categories.map(category => (
-                            <SelectItem key={category.id} value={category.id.toString()}>
-                              {category.category}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                        placeholder="Select a category"
+                        searchPlaceholder="Search categories..."
+                        apiEndpoint="categories"
+                      />
                       <p className="text-xs text-muted-foreground mt-1">
                         Need a new category? Go to Category Management to add one.
                       </p>
@@ -740,18 +733,17 @@ const AssetManagement = () => {
                 className="pl-10"
               />
             </div>
-            <Select value={filterCategory} onValueChange={setFilterCategory}>
-              <SelectTrigger className="w-48">
-                <Filter className="h-4 w-4 mr-2" />
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Categories</SelectItem>
-                {categories.map(category => (
-                  <SelectItem key={category.id} value={category.id.toString()}>{category.category}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="w-48">
+              <DynamicSearchableSelect
+                value={filterCategory}
+                onValueChange={setFilterCategory}
+                placeholder="All Categories"
+                searchPlaceholder="Search categories..."
+                apiEndpoint="categories"
+                className="w-full"
+                staticOptions={[{ value: "all", label: "All Categories" }]}
+              />
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -829,7 +821,7 @@ const AssetManagement = () => {
             Previous
           </Button>
           <span className="text-sm text-muted-foreground">
-            Page {currentPage} of {totalPages} ({allFilteredAssets.length} total)
+            Page {currentPage} of {totalPages} ({pagination.total} total)
           </span>
           <Button
             variant="outline"
@@ -841,7 +833,7 @@ const AssetManagement = () => {
         </div>
       )}
 
-      {allFilteredAssets.length === 0 && (
+      {filteredAssets.length === 0 && (
         <div className="text-center py-12">
           <Package className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
           <h3 className="text-xl font-semibold text-foreground mb-2">No Assets Found</h3>
@@ -892,21 +884,13 @@ const AssetManagement = () => {
               <div className="grid grid-cols-1 gap-4">
                 <div>
                   <Label htmlFor="edit_category_id">Category *</Label>
-                  <Select
+                  <DynamicSearchableSelect
                     value={formData.category_id}
                     onValueChange={handleCategoryChange}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select a category" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {categories.map(category => (
-                        <SelectItem key={category.id} value={category.id.toString()}>
-                          {category.category}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    placeholder="Select a category"
+                    searchPlaceholder="Search categories..."
+                    apiEndpoint="categories"
+                  />
                 </div>
               </div>
 

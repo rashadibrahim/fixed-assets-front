@@ -20,7 +20,7 @@ export const useErrorHandler = () => {
       // You might want to redirect to login here
       window.location.reload();
     } else if (error?.status === 403) {
-      message = 'You do not have permission to perform this action.';
+      message = 'You don\'t have permission to do this action.';
     } else if (error?.status === 404) {
       message = 'The requested resource was not found.';
     } else if (error?.status === 422) {

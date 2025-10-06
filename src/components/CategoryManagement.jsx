@@ -47,10 +47,10 @@ const CategoryManagement = () => {
   const [existingMainCategories, setExistingMainCategories] = useState([]);
 
   useEffect(() => {
-    loadCategories();
-  }, [pagination.page]);
+    loadCategories(pagination.page, searchTerm);
+  }, [pagination.page, searchTerm]);
 
-  const loadCategories = async (page = pagination.page) => {
+  const loadCategories = async (page = pagination.page, search = '') => {
     try {
       setLoading(true);
       setError(null);
@@ -61,7 +61,13 @@ const CategoryManagement = () => {
         return;
       }
 
-      const response = await apiClient.getCategories({ per_page: 12, page });
+      // Prepare API parameters with search
+      const params = { per_page: 12, page };
+      if (search.trim()) {
+        params.search = search.trim();
+      }
+
+      const response = await apiClient.getCategories(params);
       const data = response;
 
       if (data.items) {
@@ -191,7 +197,7 @@ const CategoryManagement = () => {
       setFormData({ category: '__none__', subcategory: '', description: '', parent_id: '' });
       setEditingCategory(null);
       setDialogOpen(false);
-      loadCategories();
+      loadCategories(pagination.page, searchTerm);
 
     } catch (error) {
       handleError(error);
@@ -207,41 +213,19 @@ const CategoryManagement = () => {
 
     try {
       setLoading(true);
-      const token = localStorage.getItem('authToken');
-      if (!token) {
-        toast.error('Authentication required');
-        return;
-      }
-
-      const response = await fetch(`${apiClient.baseURL}/categories/${categoryId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        mode: 'cors',
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to delete category');
-      }
-
-      toast.success('Category deleted successfully');
-      await loadCategories();
+      await apiClient.deleteCategory(categoryId);
+      handleSuccess('Category deleted successfully');
+      await loadCategories(pagination.page, searchTerm);
     } catch (error) {
       console.error('Error deleting category:', error);
-      const errorMessage = error.message || 'Failed to delete category';
-      toast.error(errorMessage);
+      handleError(error, 'Failed to delete category');
     } finally {
       setLoading(false);
     }
   };
 
-  const filteredCategories = categories.filter(category =>
-    category.category?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    category.subcategory?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Since search is now handled by API, use categories directly
+  const filteredCategories = categories;
 
   const handlePageChange = (newPage) => {
     setPagination(prev => ({ ...prev, page: newPage }));

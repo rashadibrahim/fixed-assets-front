@@ -23,8 +23,10 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ViewToggle } from '@/components/ui/view-toggle';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import apiClient from '../utils/api';
+import { useErrorHandler } from '../hooks/useErrorHandler';
 
 const JobRoleManagement = () => {
+  const { handleError, handleSuccess } = useErrorHandler();
   const [jobRoles, setJobRoles] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -193,25 +195,28 @@ const JobRoleManagement = () => {
         can_read_asset: formData.can_read_asset,
         can_edit_asset: formData.can_edit_asset,
         can_delete_asset: formData.can_delete_asset,
-        can_print_barcode: formData.can_print_barcode
+        can_print_barcode: formData.can_print_barcode,
+        can_make_report: formData.can_make_report,
+        can_make_transaction: formData.can_make_transaction
       };
 
       console.log('Submitting role data:', roleData);
 
       if (editingRole) {
         await apiClient.updateJobRole(editingRole.id, roleData);
-        toast.success('Job role updated successfully');
+        handleSuccess('Job role updated successfully');
       } else {
         await apiClient.createJobRole(roleData);
-        toast.success('Job role created successfully');
+        handleSuccess('Job role created successfully');
       }
 
       setDialogOpen(false);
       await loadJobRoles();
     } catch (error) {
       console.error('Error saving job role:', error);
-      setError(`Failed to save job role: ${error.message}`);
-      toast.error('Failed to save job role');
+      const defaultMessage = editingRole ? 'Failed to update job role' : 'Failed to create job role';
+      handleError(error, defaultMessage);
+      setError(`${defaultMessage}: ${error.message}`);
     } finally {
       setLoading(false);
     }
@@ -225,11 +230,11 @@ const JobRoleManagement = () => {
     try {
       setLoading(true);
       await apiClient.deleteJobRole(roleId);
-      toast.success('Job role deleted successfully');
+      handleSuccess('Job role deleted successfully');
       await loadJobRoles();
     } catch (error) {
       console.error('Error deleting job role:', error);
-      toast.error('Failed to delete job role');
+      handleError(error, 'Failed to delete job role');
     } finally {
       setLoading(false);
     }

@@ -16,8 +16,6 @@ import {
   AlertCircle,
   LogOut,
   Plus,
-  Edit3,
-  Trash2,
   MoreVertical
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -27,6 +25,9 @@ import ViewTransaction from './ViewTransaction';
 import apiClient from '../utils/api';
 import { useErrorHandler } from '../hooks/useErrorHandler';
 import { useTokenExpiry } from '../hooks/useTokenExpiry';
+import { DynamicSearchableSelect } from '@/components/ui/dynamic-searchable-select';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 
 const TransactionsIn = () => {
   const { user, logout } = useAuth();
@@ -60,17 +61,11 @@ const TransactionsIn = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [showAddTransaction, setShowAddTransaction] = useState(false);
   const [showViewTransaction, setShowViewTransaction] = useState(false);
-  const [showEditTransaction, setShowEditTransaction] = useState(false);
   const [selectedTransactionId, setSelectedTransactionId] = useState(null);
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [transactionToDelete, setTransactionToDelete] = useState(null);
-  const [deletingTransaction, setDeletingTransaction] = useState(false);
 
   // Permission checks
   const isAdmin = () => user?.role?.toLowerCase() === 'admin';
   const canReadAssets = () => isAdmin() || user?.can_read_asset;
-  const canEditTransactions = () => isAdmin() || user?.can_write_asset;
-  const canDeleteTransactions = () => isAdmin() || user?.can_delete_asset;
   const canMakeTransactions = () => isAdmin() || user?.can_make_transaction;
 
   // Check and validate token
@@ -249,38 +244,7 @@ const TransactionsIn = () => {
     setShowViewTransaction(true);
   };
 
-  const handleEditTransaction = (transactionId) => {
-    setSelectedTransactionId(transactionId);
-    setShowEditTransaction(true);
-  };
 
-  const handleDeleteTransaction = (transaction) => {
-    setTransactionToDelete(transaction);
-    setShowDeleteDialog(true);
-  };
-
-  const confirmDeleteTransaction = async () => {
-    if (!transactionToDelete) return;
-
-    try {
-      setDeletingTransaction(true);
-      await apiClient.deleteTransaction(transactionToDelete.id);
-      handleSuccess('Transaction deleted successfully!');
-      loadTransactions(); // Refresh the transactions list
-      setShowDeleteDialog(false);
-      setTransactionToDelete(null);
-    } catch (error) {
-      handleError(error, 'Failed to delete transaction');
-    } finally {
-      setDeletingTransaction(false);
-    }
-  };
-
-  const handleTransactionUpdated = () => {
-    handleSuccess('Transaction updated successfully!');
-    setShowEditTransaction(false);
-    loadTransactions(); // Refresh the transactions list
-  };
 
   const handleDownloadFile = async (transactionId, fileName) => {
     try {
@@ -411,82 +375,77 @@ const TransactionsIn = () => {
             <div>
               <div className="relative">
                 <Search className="w-3 h-3 absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                <input
+                <Input
                   type="text"
                   placeholder="Search..."
                   value={filters.search}
                   onChange={(e) => handleFilterChange('search', e.target.value)}
-                  className="w-full pl-7 pr-2 py-1.5 text-xs border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  className="w-full pl-7 pr-2 py-1.5 text-xs"
                 />
               </div>
             </div>
 
             {/* Branch Filter */}
             <div>
-              <select
+              <DynamicSearchableSelect
                 value={filters.branch_id}
-                onChange={(e) => handleFilterChange('branch_id', e.target.value)}
-                className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-              >
-                <option value="">All Branches</option>
-                {branches.map((branch) => (
-                  <option key={branch.id} value={branch.id}>
-                    {branch.name_en || branch.name_ar || `Branch ${branch.id}`}
-                  </option>
-                ))}
-              </select>
+                onValueChange={(value) => handleFilterChange('branch_id', value)}
+                placeholder="All Branches"
+                searchPlaceholder="Search branches..."
+                apiEndpoint="branches"
+                className="w-full text-xs"
+              />
             </div>
 
             {/* Warehouse Filter */}
             <div>
-              <select
+              <DynamicSearchableSelect
                 value={filters.warehouse_id}
-                onChange={(e) => handleFilterChange('warehouse_id', e.target.value)}
-                className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-              >
-                <option value="">All Warehouses</option>
-                {warehouses.map((warehouse) => (
-                  <option key={warehouse.id} value={warehouse.id}>
-                    {warehouse.name_en || warehouse.name_ar || `Warehouse ${warehouse.id}`}
-                  </option>
-                ))}
-              </select>
+                onValueChange={(value) => handleFilterChange('warehouse_id', value)}
+                placeholder="All Warehouses"
+                searchPlaceholder="Search warehouses..."
+                apiEndpoint="warehouses"
+                className="w-full text-xs"
+              />
             </div>
 
             {/* Date From */}
             <div>
-              <input
+              <Input
                 type="date"
                 value={filters.date_from}
                 onChange={(e) => handleFilterChange('date_from', e.target.value)}
-                className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                className="w-full px-2 py-1.5 text-xs"
               />
             </div>
 
             {/* Date To */}
             <div>
-              <input
+              <Input
                 type="date"
                 value={filters.date_to}
                 onChange={(e) => handleFilterChange('date_to', e.target.value)}
-                className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                className="w-full px-2 py-1.5 text-xs"
               />
             </div>
           </div>
 
           <div className="flex items-center justify-between mt-2">
-            <button
+            <Button
               onClick={clearFilters}
-              className="px-3 py-1 text-xs text-gray-600 hover:text-gray-800 transition-colors"
+              variant="ghost"
+              size="sm"
+              className="px-3 py-1 text-xs"
             >
               Clear All
-            </button>
-            <button
+            </Button>
+            <Button
               onClick={handleSearch}
-              className="px-4 py-1 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors text-xs"
+              size="sm"
+              className="px-4 py-1 text-xs"
             >
               Apply
-            </button>
+            </Button>
           </div>
         </div>
       )}
@@ -658,28 +617,6 @@ const TransactionsIn = () => {
                             <Eye className="w-3 h-3 mr-1" />
                             View
                           </button>
-                          
-                          {canEditTransactions() && (
-                            <button
-                              onClick={() => handleEditTransaction(transaction.id)}
-                              className="inline-flex items-center px-2 py-1 text-xs bg-yellow-100 text-yellow-700 rounded hover:bg-yellow-200 transition-colors"
-                              title="Edit Transaction"
-                            >
-                              <Edit3 className="w-3 h-3 mr-1" />
-                              Edit
-                            </button>
-                          )}
-                          
-                          {canDeleteTransactions() && (
-                            <button
-                              onClick={() => handleDeleteTransaction(transaction)}
-                              className="inline-flex items-center px-2 py-1 text-xs bg-red-100 text-red-700 rounded hover:bg-red-200 transition-colors"
-                              title="Delete Transaction"
-                            >
-                              <Trash2 className="w-3 h-3 mr-1" />
-                              Delete
-                            </button>
-                          )}
                         </div>
                       </td>
                     </tr>
@@ -738,77 +675,7 @@ const TransactionsIn = () => {
         />
       )}
 
-      {/* Edit Transaction Modal */}
-      {showEditTransaction && selectedTransactionId && (
-        <AddTransaction
-          isOpen={showEditTransaction}
-          onClose={() => setShowEditTransaction(false)}
-          onTransactionAdded={handleTransactionUpdated}
-          editTransactionId={selectedTransactionId}
-          defaultTransactionType="IN"
-        />
-      )}
 
-      {/* Delete Confirmation Dialog */}
-      {showDeleteDialog && transactionToDelete && (
-        <div className="fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
-            <div className="flex items-center mb-4">
-              <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center mr-3">
-                <Trash2 className="w-5 h-5 text-red-600" />
-              </div>
-              <h3 className="text-lg font-semibold text-gray-900">Delete Transaction</h3>
-            </div>
-            
-            <div className="mb-6">
-              <p className="text-gray-600 mb-4">
-                Are you sure you want to delete this transaction? This action cannot be undone.
-              </p>
-              <div className="bg-gray-50 rounded-lg p-3">
-                <div className="text-sm font-medium text-gray-900 mb-1">
-                  Transaction: {transactionToDelete.custom_id}
-                </div>
-                <div className="text-sm text-gray-600">
-                  Date: {formatDate(transactionToDelete.date)}
-                </div>
-                <div className="text-sm text-gray-600">
-                  Description: {transactionToDelete.description || 'No description'}
-                </div>
-              </div>
-            </div>
-            
-            <div className="flex justify-end space-x-3">
-              <button
-                onClick={() => {
-                  setShowDeleteDialog(false);
-                  setTransactionToDelete(null);
-                }}
-                disabled={deletingTransaction}
-                className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={confirmDeleteTransaction}
-                disabled={deletingTransaction}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center"
-              >
-                {deletingTransaction ? (
-                  <>
-                    <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                    Deleting...
-                  </>
-                ) : (
-                  <>
-                    <Trash2 className="w-4 h-4 mr-2" />
-                    Delete Transaction
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

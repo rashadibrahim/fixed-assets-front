@@ -24,8 +24,10 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ViewToggle } from '@/components/ui/view-toggle';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import apiClient from '../utils/api';
+import { useErrorHandler } from '../hooks/useErrorHandler';
 
 const UserManagement = () => {
+  const { handleError, handleSuccess } = useErrorHandler();
   const [users, setUsers] = useState([]);
   const [allUsers, setAllUsers] = useState([]); // Store all users for filtering
   const [jobRoles, setJobRoles] = useState([]);
@@ -356,37 +358,59 @@ const UserManagement = () => {
         await apiClient.updateUser(editingUser.id, updateData);
         toast.success('User updated successfully!');
       } else {
-        // Create new user using UserInput schema
-        const userData = {
+        // First create user with basic data (without permissions)
+        const basicUserData = {
           full_name: formData.full_name,
           email: formData.email,
           password: formData.password,
           role: formData.role
         };
-        await apiClient.createUser(userData);
-        toast.success('User created successfully!');
+        console.log('Creating user with basic data:', basicUserData);
+        
+        // Create the user first
+        const createdUser = await apiClient.createUser(basicUserData);
+        console.log('User created:', createdUser);
+        
+        // Then update with permissions if the user has custom permissions
+        const hasCustomPermissions = 
+          formData.can_read_branch || formData.can_edit_branch || formData.can_delete_branch ||
+          formData.can_read_warehouse || formData.can_edit_warehouse || formData.can_delete_warehouse ||
+          formData.can_read_asset || formData.can_edit_asset || formData.can_delete_asset ||
+          formData.can_print_barcode || formData.can_make_report || formData.can_make_transaction;
+        
+        if (hasCustomPermissions && createdUser.id) {
+          const permissionsUpdate = {
+            full_name: formData.full_name,
+            email: formData.email,
+            role: formData.role,
+            permissions: {
+              can_read_branch: formData.can_read_branch,
+              can_edit_branch: formData.can_edit_branch,
+              can_delete_branch: formData.can_delete_branch,
+              can_read_warehouse: formData.can_read_warehouse,
+              can_edit_warehouse: formData.can_edit_warehouse,
+              can_delete_warehouse: formData.can_delete_warehouse,
+              can_read_asset: formData.can_read_asset,
+              can_edit_asset: formData.can_edit_asset,
+              can_delete_asset: formData.can_delete_asset,
+              can_print_barcode: formData.can_print_barcode,
+              can_make_report: formData.can_make_report,
+              can_make_transaction: formData.can_make_transaction
+            }
+          };
+          console.log('Updating user permissions:', permissionsUpdate);
+          await apiClient.updateUser(createdUser.id, permissionsUpdate);
+        }
+        
+        handleSuccess('User created successfully!');
       }
 
       setDialogOpen(false);
       loadData(); // Reload the data
     } catch (error) {
       console.error('Error saving user:', error);
-      
-      // Try to extract more specific error information
-      let errorMessage = 'Failed to save user';
-      if (error.message) {
-        if (error.message.includes('400')) {
-          errorMessage = 'Invalid data provided. Please check all fields.';
-        } else if (error.message.includes('409')) {
-          errorMessage = 'User with this email already exists.';
-        } else if (error.message.includes('422')) {
-          errorMessage = 'Validation error. Please check required fields.';
-        } else {
-          errorMessage = `Error: ${error.message}`;
-        }
-      }
-      
-      toast.error(errorMessage);
+      const defaultMessage = editingUser ? 'Failed to update user' : 'Failed to create user';
+      handleError(error, defaultMessage);
     } finally {
       setLoading(false);
     }
@@ -400,11 +424,11 @@ const UserManagement = () => {
     try {
       setLoading(true);
       await apiClient.deleteUser(userId);
-      toast.success('User deleted successfully!');
+      handleSuccess('User deleted successfully!');
       loadData(); // Reload the data
     } catch (error) {
       console.error('Error deleting user:', error);
-      toast.error(`Failed to delete user: ${error.message}`);
+      handleError(error, 'Failed to delete user');
     } finally {
       setLoading(false);
     }

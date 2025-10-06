@@ -22,9 +22,12 @@ import { toast } from 'sonner';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ViewToggle } from '@/components/ui/view-toggle';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { DynamicSearchableSelect } from '@/components/ui/dynamic-searchable-select';
 import apiClient from '../utils/api';
+import { useErrorHandler } from '../hooks/useErrorHandler';
 
 const WarehouseManagement = () => {
+  const { handleError, handleSuccess } = useErrorHandler();
   const [warehouses, setWarehouses] = useState([]);
   const [branches, setBranches] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -45,10 +48,10 @@ const WarehouseManagement = () => {
 
   useEffect(() => {
     console.log('WarehouseManagement component mounted');
-    loadData();
-  }, []);
+    loadData(searchTerm);
+  }, [searchTerm]);
 
-  const loadData = async () => {
+  const loadData = async (searchQuery = '') => {
     try {
       setLoading(true);
       setError(null);
@@ -58,12 +61,16 @@ const WarehouseManagement = () => {
       setWarehouses([]);
       setBranches([]);
       
+      // Prepare API parameters with search
+      const warehouseParams = searchQuery ? { search: searchQuery, per_page: 100 } : { per_page: 100 };
+      const branchParams = { per_page: 100 };
+      
       const [warehousesResponse, branchesResponse] = await Promise.all([
-        apiClient.getWarehouses().catch(err => {
+        apiClient.getWarehouses(warehouseParams).catch(err => {
           console.warn('Failed to load warehouses:', err);
           return { data: [] };
         }),
-        apiClient.getBranches().catch(err => {
+        apiClient.getBranches(branchParams).catch(err => {
           console.warn('Failed to load branches:', err);
           return { data: [] };
         })
@@ -163,11 +170,11 @@ const WarehouseManagement = () => {
       if (editingWarehouse) {
         // Update existing warehouse
         await apiClient.updateWarehouse(editingWarehouse.id, warehouseData);
-        toast.success('Warehouse updated successfully!');
+        handleSuccess('Warehouse updated successfully!');
       } else {
         // Create new warehouse
         await apiClient.createWarehouse(warehouseData);
-        toast.success('Warehouse created successfully!');
+        handleSuccess('Warehouse created successfully!');
       }
 
       setDialogOpen(false);
@@ -180,10 +187,11 @@ const WarehouseManagement = () => {
         branch_id: ''
       });
       setEditingWarehouse(null);
-      loadData(); // Reload the data
+      loadData(searchTerm); // Reload the data
     } catch (error) {
       console.error('Error saving warehouse:', error);
-      toast.error(`Failed to save warehouse: ${error.message}`);
+      const defaultMessage = editingWarehouse ? 'Failed to update warehouse' : 'Failed to create warehouse';
+      handleError(error, defaultMessage);
     } finally {
       setLoading(false);
     }
@@ -197,28 +205,21 @@ const WarehouseManagement = () => {
     try {
       setLoading(true);
       await apiClient.deleteWarehouse(warehouseId);
-      toast.success('Warehouse deleted successfully!');
-      loadData(); // Reload the data
+      handleSuccess('Warehouse deleted successfully!');
+      loadData(searchTerm); // Reload the data
     } catch (error) {
       console.error('Error deleting warehouse:', error);
-      toast.error(`Failed to delete warehouse: ${error.message}`);
+      handleError(error, 'Failed to delete warehouse');
     } finally {
       setLoading(false);
     }
   };
 
+  // Since search is now handled by API, only filter by branch on client side
   const filteredWarehouses = (warehouses || []).filter(warehouse => {
     if (!warehouse) return false;
-    
-    const matchesSearch = !searchTerm || 
-      warehouse.name_en?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      warehouse.name_ar?.includes(searchTerm) ||
-      warehouse.address_en?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      warehouse.address_ar?.includes(searchTerm);
-    
-    const matchesBranch = !selectedBranch || selectedBranch === 'all' || warehouse.branch_id === selectedBranch;
-    
-    return matchesSearch && matchesBranch;
+    const matchesBranch = !selectedBranch || selectedBranch === 'all' || warehouse.branch_id === parseInt(selectedBranch);
+    return matchesBranch;
   });
 
   const getBranchName = (branchId) => {
@@ -355,19 +356,16 @@ const WarehouseManagement = () => {
             />
           </div>
         </div>
-        <Select value={selectedBranch} onValueChange={setSelectedBranch}>
-          <SelectTrigger className="w-48">
-            <SelectValue placeholder="Filter by branch" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Branches</SelectItem>
-            {(branches || []).filter(branch => branch && branch.id).map(branch => (
-              <SelectItem key={branch.id} value={branch.id}>
-                {branch.name_en || branch.name_ar || 'Unnamed Branch'}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="w-48">
+          <DynamicSearchableSelect
+            value={selectedBranch}
+            onValueChange={setSelectedBranch}
+            placeholder="Filter by branch"
+            searchPlaceholder="Search branches..."
+            apiEndpoint="branches"
+            className="w-full"
+          />
+        </div>
       </div>
 
       {/* Warehouses Display */}
@@ -497,24 +495,16 @@ const WarehouseManagement = () => {
 
             <div>
               <Label htmlFor="branch_id">Branch *</Label>
-              <Select 
-                value={formData.branch_id.toString()} 
+              <DynamicSearchableSelect
+                value={formData.branch_id.toString()}
                 onValueChange={(value) => {
                   console.log('Branch selected:', value);
                   setFormData(prev => ({ ...prev, branch_id: value }));
                 }}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select branch" />
-                </SelectTrigger>
-                <SelectContent>
-                  {(branches || []).filter(branch => branch && branch.id).map(branch => (
-                    <SelectItem key={branch.id} value={branch.id.toString()}>
-                      {branch.name_en || branch.name_ar || 'Unnamed Branch'}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                placeholder="Select branch"
+                searchPlaceholder="Search branches..."
+                apiEndpoint="branches"
+              />
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
