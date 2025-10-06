@@ -36,6 +36,7 @@ import { Badge } from '@/components/ui/badge';
 import { useAuth } from '../contexts/AuthContext';
 import apiClient from '../utils/api';
 import { toast } from 'sonner';
+import { useErrorHandler } from '../hooks/useErrorHandler';
 import AssetManagement from './AssetManagement';
 import AssetTransactions from './AssetTransactions';
 import Reports from './Reports';
@@ -51,6 +52,7 @@ import Settings from './Settings';
 
 const Dashboard = () => {
   const { user, logout } = useAuth();
+  const { handleError, handleSuccess } = useErrorHandler();
   const [activeTab, setActiveTab] = useState('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [loading, setLoading] = useState(true);
@@ -200,7 +202,7 @@ const Dashboard = () => {
 
     } catch (error) {
       console.error('Error loading dashboard stats:', error);
-      toast.error('Failed to load dashboard statistics');
+      handleError(error, 'Failed to load dashboard statistics');
 
       // Fallback to empty state on error
       setDashboardStats({
@@ -225,13 +227,13 @@ const Dashboard = () => {
       ]);
       // Only show success toast if user has some permissions to view data
       if (canReadAssets() || canReadWarehouses() || canReadBranches() || isAdmin()) {
-        toast.success('Dashboard data refreshed successfully!');
+        handleSuccess('Dashboard data refreshed successfully!');
       }
     } catch (error) {
       console.error('Error refreshing dashboard:', error);
       // Only show error toast if user should have access to data
       if (canReadAssets() || canReadWarehouses() || canReadBranches() || isAdmin()) {
-        toast.error('Failed to refresh some dashboard data');
+        handleError(error, 'Failed to refresh some dashboard data');
       }
     } finally {
       setLoading(false);

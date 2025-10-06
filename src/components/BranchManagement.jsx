@@ -100,10 +100,10 @@ const BranchManagement = () => {
 
       if (editingBranch) {
         await apiClient.updateBranch(editingBranch.id, branchData);
-        toast.success('Branch updated successfully');
+        handleSuccess('Branch updated successfully');
       } else {
         await apiClient.createBranch(branchData);
-        toast.success('Branch created successfully');
+        handleSuccess('Branch created successfully');
       }
 
       setDialogOpen(false);
@@ -112,9 +112,9 @@ const BranchManagement = () => {
       await loadBranches();
     } catch (error) {
       console.error('Error saving branch:', error);
-      const errorMessage = editingBranch ? 'Failed to update branch' : 'Failed to create branch';
-      toast.error(errorMessage);
-      setError(errorMessage + '. Please try again.');
+      const defaultMessage = editingBranch ? 'Failed to update branch' : 'Failed to create branch';
+      handleError(error, defaultMessage);
+      setError(defaultMessage + '. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -129,11 +129,11 @@ const BranchManagement = () => {
       setLoading(true);
       setError(null);
       await apiClient.deleteBranch(branchId);
-      toast.success('Branch deleted successfully');
+      handleSuccess('Branch deleted successfully');
       await loadBranches();
     } catch (error) {
       console.error('Error deleting branch:', error);
-      toast.error('Failed to delete branch');
+      handleError(error, 'Failed to delete branch');
       setError('Failed to delete branch. Please try again.');
     } finally {
       setLoading(false);

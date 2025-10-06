@@ -30,8 +30,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { ViewToggle } from '@/components/ui/view-toggle';
 import apiClient from '../utils/api';
+import { useErrorHandler } from '../hooks/useErrorHandler';
 
 const AssetTransactions = () => {
+  const { handleError, handleSuccess } = useErrorHandler();
   const [transactions, setTransactions] = useState([]);
   const [assets, setAssets] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -252,29 +254,12 @@ const AssetTransactions = () => {
     }
 
     try {
-      const token = getValidToken();
-      if (!token) {
-        toast.error('Authentication required');
-        return;
-      }
-
-      const response = await fetch(`${apiClient.baseURL}/asset-transactions/${transactionId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to delete transaction');
-      }
-
-      toast.success('Transaction deleted successfully');
+      await apiClient.deleteAssetTransaction(transactionId);
+      handleSuccess('Transaction deleted successfully');
       loadTransactions();
     } catch (error) {
       console.error('Error deleting transaction:', error);
-      toast.error('Failed to delete transaction');
+      handleError(error, 'Failed to delete transaction');
     }
   };
 

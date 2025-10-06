@@ -87,7 +87,7 @@ class ApiClient {
         if (response.status === 401) {
           error.message = 'Session expired. Please log in again.';
         } else if (response.status === 403) {
-          error.message = 'You do not have permission to perform this action.';
+          error.message = 'You don\'t have permission to do this action.';
         } else if (response.status === 404) {
           error.message = errorMessage.includes('not found') ? errorMessage : 'The requested resource was not found.';
         } else if (response.status === 422) {

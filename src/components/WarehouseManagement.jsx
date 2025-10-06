@@ -24,8 +24,10 @@ import { ViewToggle } from '@/components/ui/view-toggle';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { DynamicSearchableSelect } from '@/components/ui/dynamic-searchable-select';
 import apiClient from '../utils/api';
+import { useErrorHandler } from '../hooks/useErrorHandler';
 
 const WarehouseManagement = () => {
+  const { handleError, handleSuccess } = useErrorHandler();
   const [warehouses, setWarehouses] = useState([]);
   const [branches, setBranches] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -168,11 +170,11 @@ const WarehouseManagement = () => {
       if (editingWarehouse) {
         // Update existing warehouse
         await apiClient.updateWarehouse(editingWarehouse.id, warehouseData);
-        toast.success('Warehouse updated successfully!');
+        handleSuccess('Warehouse updated successfully!');
       } else {
         // Create new warehouse
         await apiClient.createWarehouse(warehouseData);
-        toast.success('Warehouse created successfully!');
+        handleSuccess('Warehouse created successfully!');
       }
 
       setDialogOpen(false);
@@ -188,7 +190,8 @@ const WarehouseManagement = () => {
       loadData(searchTerm); // Reload the data
     } catch (error) {
       console.error('Error saving warehouse:', error);
-      toast.error(`Failed to save warehouse: ${error.message}`);
+      const defaultMessage = editingWarehouse ? 'Failed to update warehouse' : 'Failed to create warehouse';
+      handleError(error, defaultMessage);
     } finally {
       setLoading(false);
     }
@@ -202,11 +205,11 @@ const WarehouseManagement = () => {
     try {
       setLoading(true);
       await apiClient.deleteWarehouse(warehouseId);
-      toast.success('Warehouse deleted successfully!');
+      handleSuccess('Warehouse deleted successfully!');
       loadData(searchTerm); // Reload the data
     } catch (error) {
       console.error('Error deleting warehouse:', error);
-      toast.error(`Failed to delete warehouse: ${error.message}`);
+      handleError(error, 'Failed to delete warehouse');
     } finally {
       setLoading(false);
     }

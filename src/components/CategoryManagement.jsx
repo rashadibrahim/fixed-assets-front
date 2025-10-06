@@ -213,32 +213,12 @@ const CategoryManagement = () => {
 
     try {
       setLoading(true);
-      const token = localStorage.getItem('authToken');
-      if (!token) {
-        toast.error('Authentication required');
-        return;
-      }
-
-      const response = await fetch(`${apiClient.baseURL}/categories/${categoryId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        mode: 'cors',
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to delete category');
-      }
-
-      toast.success('Category deleted successfully');
+      await apiClient.deleteCategory(categoryId);
+      handleSuccess('Category deleted successfully');
       await loadCategories(pagination.page, searchTerm);
     } catch (error) {
       console.error('Error deleting category:', error);
-      const errorMessage = error.message || 'Failed to delete category';
-      toast.error(errorMessage);
+      handleError(error, 'Failed to delete category');
     } finally {
       setLoading(false);
     }

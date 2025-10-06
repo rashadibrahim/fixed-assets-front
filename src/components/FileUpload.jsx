@@ -7,8 +7,10 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import apiClient from '@/utils/api';
+import { useErrorHandler } from '../hooks/useErrorHandler';
 
 const FileUpload = ({ assetId, files = [], onFileUploaded, onFileDeleted }) => {
+  const { handleError, handleSuccess } = useErrorHandler();
   const [selectedFile, setSelectedFile] = useState(null);
   const [comment, setComment] = useState('');
   const [uploading, setUploading] = useState(false);
@@ -103,7 +105,7 @@ const FileUpload = ({ assetId, files = [], onFileUploaded, onFileDeleted }) => {
       }
     } catch (error) {
       console.error('Upload error:', error);
-      toast.error('Failed to upload file. Please try again.');
+      handleError(error, 'Failed to upload file');
     } finally {
       setUploading(false);
     }
@@ -138,7 +140,7 @@ const FileUpload = ({ assetId, files = [], onFileUploaded, onFileDeleted }) => {
       toast.success('File downloaded successfully');
     } catch (error) {
       console.error('Error downloading file:', error);
-      toast.error('Failed to download file');
+      handleError(error, 'Failed to download file');
     }
   };
 
@@ -170,7 +172,7 @@ const FileUpload = ({ assetId, files = [], onFileUploaded, onFileDeleted }) => {
       }
     } catch (error) {
       console.error('Error deleting file:', error);
-      toast.error('Failed to delete file');
+      handleError(error, 'Failed to delete file');
     } finally {
       setDeletingFiles(prev => {
         const newSet = new Set(prev);

@@ -24,8 +24,10 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ViewToggle } from '@/components/ui/view-toggle';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import apiClient from '../utils/api';
+import { useErrorHandler } from '../hooks/useErrorHandler';
 
 const UserManagement = () => {
+  const { handleError, handleSuccess } = useErrorHandler();
   const [users, setUsers] = useState([]);
   const [allUsers, setAllUsers] = useState([]); // Store all users for filtering
   const [jobRoles, setJobRoles] = useState([]);
@@ -400,29 +402,15 @@ const UserManagement = () => {
           await apiClient.updateUser(createdUser.id, permissionsUpdate);
         }
         
-        toast.success('User created successfully!');
+        handleSuccess('User created successfully!');
       }
 
       setDialogOpen(false);
       loadData(); // Reload the data
     } catch (error) {
       console.error('Error saving user:', error);
-      
-      // Try to extract more specific error information
-      let errorMessage = 'Failed to save user';
-      if (error.message) {
-        if (error.message.includes('400')) {
-          errorMessage = 'Invalid data provided. Please check all fields.';
-        } else if (error.message.includes('409')) {
-          errorMessage = 'User with this email already exists.';
-        } else if (error.message.includes('422')) {
-          errorMessage = 'Validation error. Please check required fields.';
-        } else {
-          errorMessage = `Error: ${error.message}`;
-        }
-      }
-      
-      toast.error(errorMessage);
+      const defaultMessage = editingUser ? 'Failed to update user' : 'Failed to create user';
+      handleError(error, defaultMessage);
     } finally {
       setLoading(false);
     }
@@ -436,11 +424,11 @@ const UserManagement = () => {
     try {
       setLoading(true);
       await apiClient.deleteUser(userId);
-      toast.success('User deleted successfully!');
+      handleSuccess('User deleted successfully!');
       loadData(); // Reload the data
     } catch (error) {
       console.error('Error deleting user:', error);
-      toast.error(`Failed to delete user: ${error.message}`);
+      handleError(error, 'Failed to delete user');
     } finally {
       setLoading(false);
     }
