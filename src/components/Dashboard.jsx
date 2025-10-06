@@ -65,6 +65,8 @@ const Dashboard = () => {
   const canEditBranches = () => isAdmin() || user?.can_edit_branch;
   const canMakeReports = () => isAdmin() || user?.can_make_report;
   const canMakeTransactions = () => isAdmin() || user?.can_make_transaction;
+  const canPrintBarcode = () => isAdmin() || user?.can_print_barcode;
+  const canAccessSettings = () => isAdmin() || user?.can_print_barcode;
 
   // Dashboard stats from API
   const [dashboardStats, setDashboardStats] = useState({
@@ -235,8 +237,9 @@ const Dashboard = () => {
       { id: 'categories', label: 'Categories', icon: FolderOpen },
       { id: 'users', label: 'Users', icon: Users },
       { id: 'jobroles', label: 'Job Roles', icon: Shield },
-      { id: 'settings', label: 'Settings', icon: SettingsIcon },
     ] : []),
+    // Show settings for admin users or users with barcode permissions
+    ...(canAccessSettings() ? [{ id: 'settings', label: 'Settings', icon: SettingsIcon }] : []),
   ];
 
   const StatCard = ({ title, value, icon: Icon, color, subtitle, trend }) => (

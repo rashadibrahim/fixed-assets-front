@@ -32,6 +32,7 @@ const Settings = () => {
   const isAdmin = () => user?.role?.toLowerCase() === 'admin';
   const canPrintBarcode = () => isAdmin() || user?.can_print_barcode;
   const canMakeReport = () => isAdmin() || user?.can_make_report;
+  const hasSettingsAccess = () => canPrintBarcode() || canMakeReport();
 
   const [barcodeSettings, setBarcodeSettings] = useState({
     width: 300,
@@ -422,6 +423,21 @@ const Settings = () => {
     }
   };
 
+  // Check if user has access to any settings
+  if (!hasSettingsAccess()) {
+    return (
+      <div className="space-y-4 p-4">
+        <div className="text-center py-8">
+          <SettingsIcon className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+          <h2 className="text-xl font-semibold text-foreground mb-2">Access Denied</h2>
+          <p className="text-muted-foreground">
+            You don't have permission to access settings.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4 p-4">
       <div className="flex items-center justify-between">
@@ -433,8 +449,8 @@ const Settings = () => {
         </div>
       </div>
 
-      <Tabs defaultValue="barcode" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-2">
+      <Tabs defaultValue={canPrintBarcode() ? "barcode" : "reports"} className="space-y-4">
+        <TabsList className={`grid w-full ${canPrintBarcode() && canMakeReport() ? 'grid-cols-2' : 'grid-cols-1'}`}>
           {canPrintBarcode() && (
             <TabsTrigger value="barcode" className="flex items-center gap-2">
               <QrCode className="w-4 h-4" />
