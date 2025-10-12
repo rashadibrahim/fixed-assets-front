@@ -11,6 +11,56 @@
           "type": "integer"
         }
       ],
+      "get": {
+        "responses": {
+          "503": {
+            "description": "Service Unavailable",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "404": {
+            "description": "Asset transaction not found",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "200": {
+            "description": "Successfully retrieved asset transaction",
+            "schema": {
+              "$ref": "#/definitions/AssetTransaction"
+            }
+          }
+        },
+        "summary": "Get a specific asset transaction",
+        "operationId": "get_asset_transaction",
+        "security": [
+          {
+            "Bearer Auth": []
+          }
+        ],
+        "tags": [
+          "asset-transactions"
+        ]
+      },
       "put": {
         "responses": {
           "503": {
@@ -132,27 +182,11 @@
         "tags": [
           "asset-transactions"
         ]
-      },
+      }
+    },
+    "/assets/": {
       "get": {
         "responses": {
-          "503": {
-            "description": "Service Unavailable",
-            "schema": {
-              "$ref": "#/definitions/ErrorResponse"
-            }
-          },
-          "500": {
-            "description": "Internal Server Error",
-            "schema": {
-              "$ref": "#/definitions/ErrorResponse"
-            }
-          },
-          "404": {
-            "description": "Asset transaction not found",
-            "schema": {
-              "$ref": "#/definitions/ErrorResponse"
-            }
-          },
           "403": {
             "description": "Forbidden",
             "schema": {
@@ -165,65 +199,6 @@
               "$ref": "#/definitions/ErrorResponse"
             }
           },
-          "200": {
-            "description": "Successfully retrieved asset transaction",
-            "schema": {
-              "$ref": "#/definitions/AssetTransaction"
-            }
-          }
-        },
-        "summary": "Get a specific asset transaction",
-        "operationId": "get_asset_transaction",
-        "security": [
-          {
-            "Bearer Auth": []
-          }
-        ],
-        "tags": [
-          "asset-transactions"
-        ]
-      }
-    },
-    "/assets/": {
-      "post": {
-        "responses": {
-          "201": {
-            "description": "Success",
-            "schema": {
-              "$ref": "#/definitions/FixedAsset"
-            }
-          }
-        },
-        "summary": "Create a new fixed asset",
-        "operationId": "create_asset",
-        "parameters": [
-          {
-            "name": "payload",
-            "required": true,
-            "in": "body",
-            "schema": {
-              "$ref": "#/definitions/FixedAssetInput"
-            }
-          },
-          {
-            "name": "X-Fields",
-            "in": "header",
-            "type": "string",
-            "format": "mask",
-            "description": "An optional fields mask"
-          }
-        ],
-        "security": [
-          {
-            "Bearer Auth": []
-          }
-        ],
-        "tags": [
-          "assets"
-        ]
-      },
-      "get": {
-        "responses": {
           "200": {
             "description": "Success",
             "schema": {
@@ -270,11 +245,198 @@
         "tags": [
           "assets"
         ]
+      },
+      "post": {
+        "responses": {
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "400": {
+            "description": "Validation Error",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "201": {
+            "description": "Success",
+            "schema": {
+              "$ref": "#/definitions/FixedAsset"
+            }
+          }
+        },
+        "summary": "Create a new fixed asset",
+        "operationId": "create_asset",
+        "parameters": [
+          {
+            "name": "payload",
+            "required": true,
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/FixedAssetInput"
+            }
+          },
+          {
+            "name": "X-Fields",
+            "in": "header",
+            "type": "string",
+            "format": "mask",
+            "description": "An optional fields mask"
+          }
+        ],
+        "security": [
+          {
+            "Bearer Auth": []
+          }
+        ],
+        "tags": [
+          "assets"
+        ]
+      }
+    },
+    "/assets/bulk": {
+      "post": {
+        "responses": {
+          "403": {
+            "description": "Forbidden",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "400": {
+            "description": "Invalid input data",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "200": {
+            "description": "Bulk operation completed",
+            "schema": {
+              "$ref": "#/definitions/BulkCreateResult"
+            }
+          }
+        },
+        "summary": "Bulk create multiple assets with detailed error reporting",
+        "description": "First validates all assets, then adds only the valid ones to the database.\n\nReturns a comprehensive report including:\n- Summary statistics (total, added, rejected, success rate)\n- List of successfully added assets\n- List of rejected assets with detailed error information",
+        "operationId": "bulk_create_assets",
+        "parameters": [
+          {
+            "name": "payload",
+            "required": true,
+            "in": "body",
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/FixedAssetInput"
+              }
+            }
+          }
+        ],
+        "security": [
+          {
+            "Bearer Auth": []
+          }
+        ],
+        "tags": [
+          "assets"
+        ]
+      }
+    },
+    "/assets/bulk-update": {
+      "put": {
+        "responses": {
+          "403": {
+            "description": "Forbidden",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "400": {
+            "description": "Invalid input data",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "200": {
+            "description": "Bulk update completed",
+            "schema": {
+              "$ref": "#/definitions/BulkUpdateResult"
+            }
+          }
+        },
+        "summary": "Bulk update multiple assets with detailed error reporting",
+        "description": "First validates all asset updates, then applies only the valid ones to the database.\n\nReturns a comprehensive report including:\n- Summary statistics (total, updated, rejected, success rate)\n- List of successfully updated assets\n- List of rejected assets with detailed error information",
+        "operationId": "bulk_update_assets",
+        "parameters": [
+          {
+            "name": "payload",
+            "required": true,
+            "in": "body",
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/AssetUpdateInput"
+              }
+            }
+          }
+        ],
+        "security": [
+          {
+            "Bearer Auth": []
+          }
+        ],
+        "tags": [
+          "assets"
+        ]
       }
     },
     "/assets/search": {
       "get": {
         "responses": {
+          "500": {
+            "description": "Search Error",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
           "400": {
             "description": "Missing Search Query",
             "schema": {
@@ -340,8 +502,85 @@
           "type": "integer"
         }
       ],
+      "get": {
+        "responses": {
+          "404": {
+            "description": "Asset not found",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "200": {
+            "description": "Success",
+            "schema": {
+              "$ref": "#/definitions/FixedAsset"
+            }
+          }
+        },
+        "summary": "Get a specific asset",
+        "operationId": "get_asset",
+        "parameters": [
+          {
+            "name": "X-Fields",
+            "in": "header",
+            "type": "string",
+            "format": "mask",
+            "description": "An optional fields mask"
+          }
+        ],
+        "security": [
+          {
+            "Bearer Auth": []
+          }
+        ],
+        "tags": [
+          "assets"
+        ]
+      },
       "put": {
         "responses": {
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "404": {
+            "description": "Asset not found",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "400": {
+            "description": "Validation Error",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
           "200": {
             "description": "Success",
             "schema": {
@@ -379,6 +618,24 @@
       },
       "delete": {
         "responses": {
+          "404": {
+            "description": "Asset not found",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
           "200": {
             "description": "Success",
             "schema": {
@@ -388,35 +645,6 @@
         },
         "summary": "Delete a specific asset",
         "operationId": "delete_asset",
-        "parameters": [
-          {
-            "name": "X-Fields",
-            "in": "header",
-            "type": "string",
-            "format": "mask",
-            "description": "An optional fields mask"
-          }
-        ],
-        "security": [
-          {
-            "Bearer Auth": []
-          }
-        ],
-        "tags": [
-          "assets"
-        ]
-      },
-      "get": {
-        "responses": {
-          "200": {
-            "description": "Success",
-            "schema": {
-              "$ref": "#/definitions/FixedAsset"
-            }
-          }
-        },
-        "summary": "Get a specific asset",
-        "operationId": "get_asset",
         "parameters": [
           {
             "name": "X-Fields",
@@ -578,6 +806,51 @@
         ]
       }
     },
+    "/auth/register": {
+      "post": {
+        "responses": {
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "409": {
+            "description": "Conflict - Email already exists",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "201": {
+            "description": "Successfully created user",
+            "schema": {
+              "$ref": "#/definitions/User"
+            }
+          }
+        },
+        "summary": "Register a new user (alternative endpoint)",
+        "operationId": "register",
+        "parameters": [
+          {
+            "name": "payload",
+            "required": true,
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/UserInput"
+            }
+          }
+        ],
+        "tags": [
+          "auth"
+        ]
+      }
+    },
     "/auth/signup": {
       "post": {
         "responses": {
@@ -651,7 +924,7 @@
             }
           }
         },
-        "summary": "Get system statistics (Admin only)",
+        "summary": "Get system statistics (requires read permissions)",
         "operationId": "get_statistics",
         "tags": [
           "auth"
@@ -859,67 +1132,6 @@
       }
     },
     "/branches/": {
-      "post": {
-        "responses": {
-          "503": {
-            "description": "Service Unavailable",
-            "schema": {
-              "$ref": "#/definitions/ErrorResponse"
-            }
-          },
-          "500": {
-            "description": "Internal Server Error",
-            "schema": {
-              "$ref": "#/definitions/ErrorResponse"
-            }
-          },
-          "409": {
-            "description": "Conflict - Duplicate entry",
-            "schema": {
-              "$ref": "#/definitions/ErrorResponse"
-            }
-          },
-          "403": {
-            "description": "Forbidden",
-            "schema": {
-              "$ref": "#/definitions/ErrorResponse"
-            }
-          },
-          "401": {
-            "description": "Unauthorized",
-            "schema": {
-              "$ref": "#/definitions/ErrorResponse"
-            }
-          },
-          "400": {
-            "description": "Bad Request",
-            "schema": {
-              "$ref": "#/definitions/ErrorResponse"
-            }
-          },
-          "201": {
-            "description": "Successfully created branch",
-            "schema": {
-              "$ref": "#/definitions/Branch"
-            }
-          }
-        },
-        "summary": "Create a new branch",
-        "operationId": "create_branch",
-        "parameters": [
-          {
-            "name": "payload",
-            "required": true,
-            "in": "body",
-            "schema": {
-              "$ref": "#/definitions/BranchInput"
-            }
-          }
-        ],
-        "tags": [
-          "branches"
-        ]
-      },
       "get": {
         "responses": {
           "503": {
@@ -986,6 +1198,67 @@
         "tags": [
           "branches"
         ]
+      },
+      "post": {
+        "responses": {
+          "503": {
+            "description": "Service Unavailable",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "409": {
+            "description": "Conflict - Duplicate entry",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "201": {
+            "description": "Successfully created branch",
+            "schema": {
+              "$ref": "#/definitions/Branch"
+            }
+          }
+        },
+        "summary": "Create a new branch",
+        "operationId": "create_branch",
+        "parameters": [
+          {
+            "name": "payload",
+            "required": true,
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/BranchInput"
+            }
+          }
+        ],
+        "tags": [
+          "branches"
+        ]
       }
     },
     "/branches/{branch_id}": {
@@ -997,6 +1270,51 @@
           "type": "integer"
         }
       ],
+      "get": {
+        "responses": {
+          "503": {
+            "description": "Service Unavailable",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "404": {
+            "description": "Branch not found",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "200": {
+            "description": "Successfully retrieved branch",
+            "schema": {
+              "$ref": "#/definitions/BranchWithCounts"
+            }
+          }
+        },
+        "summary": "Get a specific branch by ID",
+        "operationId": "get_branch",
+        "tags": [
+          "branches"
+        ]
+      },
       "put": {
         "responses": {
           "503": {
@@ -1114,27 +1432,11 @@
         "tags": [
           "branches"
         ]
-      },
+      }
+    },
+    "/categories/": {
       "get": {
         "responses": {
-          "503": {
-            "description": "Service Unavailable",
-            "schema": {
-              "$ref": "#/definitions/ErrorResponse"
-            }
-          },
-          "500": {
-            "description": "Internal Server Error",
-            "schema": {
-              "$ref": "#/definitions/ErrorResponse"
-            }
-          },
-          "404": {
-            "description": "Branch not found",
-            "schema": {
-              "$ref": "#/definitions/ErrorResponse"
-            }
-          },
           "403": {
             "description": "Forbidden",
             "schema": {
@@ -1147,60 +1449,6 @@
               "$ref": "#/definitions/ErrorResponse"
             }
           },
-          "200": {
-            "description": "Successfully retrieved branch",
-            "schema": {
-              "$ref": "#/definitions/BranchWithCounts"
-            }
-          }
-        },
-        "summary": "Get a specific branch by ID",
-        "operationId": "get_branch",
-        "tags": [
-          "branches"
-        ]
-      }
-    },
-    "/categories/": {
-      "post": {
-        "responses": {
-          "201": {
-            "description": "Success",
-            "schema": {
-              "$ref": "#/definitions/Category"
-            }
-          }
-        },
-        "summary": "Create a new category",
-        "operationId": "create_category",
-        "parameters": [
-          {
-            "name": "payload",
-            "required": true,
-            "in": "body",
-            "schema": {
-              "$ref": "#/definitions/CategoryInput"
-            }
-          },
-          {
-            "name": "X-Fields",
-            "in": "header",
-            "type": "string",
-            "format": "mask",
-            "description": "An optional fields mask"
-          }
-        ],
-        "security": [
-          {
-            "Bearer Auth": []
-          }
-        ],
-        "tags": [
-          "categories"
-        ]
-      },
-      "get": {
-        "responses": {
           "200": {
             "description": "Success",
             "schema": {
@@ -1254,6 +1502,121 @@
         "tags": [
           "categories"
         ]
+      },
+      "post": {
+        "responses": {
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "400": {
+            "description": "Validation Error",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "201": {
+            "description": "Success",
+            "schema": {
+              "$ref": "#/definitions/Category"
+            }
+          }
+        },
+        "summary": "Create a new category",
+        "operationId": "create_category",
+        "parameters": [
+          {
+            "name": "payload",
+            "required": true,
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/CategoryInput"
+            }
+          },
+          {
+            "name": "X-Fields",
+            "in": "header",
+            "type": "string",
+            "format": "mask",
+            "description": "An optional fields mask"
+          }
+        ],
+        "security": [
+          {
+            "Bearer Auth": []
+          }
+        ],
+        "tags": [
+          "categories"
+        ]
+      }
+    },
+    "/categories/bulk": {
+      "post": {
+        "responses": {
+          "403": {
+            "description": "Forbidden",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "400": {
+            "description": "Invalid input data",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "200": {
+            "description": "Bulk operation completed",
+            "schema": {
+              "$ref": "#/definitions/CategoryBulkCreateResult"
+            }
+          }
+        },
+        "summary": "Bulk create multiple categories with detailed error reporting",
+        "description": "First validates all categories, then adds only the valid ones to the database.\n\nReturns a comprehensive report including:\n- Summary statistics (total, added, rejected, success rate)\n- List of successfully added categories\n- List of rejected categories with detailed error information",
+        "operationId": "bulk_create_categories",
+        "parameters": [
+          {
+            "name": "payload",
+            "required": true,
+            "in": "body",
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/CategoryInput"
+              }
+            }
+          }
+        ],
+        "security": [
+          {
+            "Bearer Auth": []
+          }
+        ],
+        "tags": [
+          "categories"
+        ]
       }
     },
     "/categories/{category_id}": {
@@ -1265,8 +1628,85 @@
           "type": "integer"
         }
       ],
+      "get": {
+        "responses": {
+          "404": {
+            "description": "Category not found",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "200": {
+            "description": "Success",
+            "schema": {
+              "$ref": "#/definitions/Category"
+            }
+          }
+        },
+        "summary": "Get a specific category",
+        "operationId": "get_category",
+        "parameters": [
+          {
+            "name": "X-Fields",
+            "in": "header",
+            "type": "string",
+            "format": "mask",
+            "description": "An optional fields mask"
+          }
+        ],
+        "security": [
+          {
+            "Bearer Auth": []
+          }
+        ],
+        "tags": [
+          "categories"
+        ]
+      },
       "put": {
         "responses": {
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "404": {
+            "description": "Category not found",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "400": {
+            "description": "Validation Error",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
           "200": {
             "description": "Success",
             "schema": {
@@ -1304,6 +1744,30 @@
       },
       "delete": {
         "responses": {
+          "404": {
+            "description": "Category not found",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "400": {
+            "description": "Cannot delete category",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
           "200": {
             "description": "Success",
             "schema": {
@@ -1330,93 +1794,9 @@
         "tags": [
           "categories"
         ]
-      },
-      "get": {
-        "responses": {
-          "200": {
-            "description": "Success",
-            "schema": {
-              "$ref": "#/definitions/Category"
-            }
-          }
-        },
-        "summary": "Get a specific category",
-        "operationId": "get_category",
-        "parameters": [
-          {
-            "name": "X-Fields",
-            "in": "header",
-            "type": "string",
-            "format": "mask",
-            "description": "An optional fields mask"
-          }
-        ],
-        "security": [
-          {
-            "Bearer Auth": []
-          }
-        ],
-        "tags": [
-          "categories"
-        ]
       }
     },
     "/jobroles/": {
-      "post": {
-        "responses": {
-          "500": {
-            "description": "Internal Server Error",
-            "schema": {
-              "$ref": "#/definitions/ErrorResponse"
-            }
-          },
-          "409": {
-            "description": "Conflict - Duplicate entry",
-            "schema": {
-              "$ref": "#/definitions/ErrorResponse"
-            }
-          },
-          "403": {
-            "description": "Forbidden",
-            "schema": {
-              "$ref": "#/definitions/ErrorResponse"
-            }
-          },
-          "401": {
-            "description": "Unauthorized",
-            "schema": {
-              "$ref": "#/definitions/ErrorResponse"
-            }
-          },
-          "400": {
-            "description": "Bad Request",
-            "schema": {
-              "$ref": "#/definitions/ErrorResponse"
-            }
-          },
-          "201": {
-            "description": "Successfully created job role",
-            "schema": {
-              "$ref": "#/definitions/JobRole"
-            }
-          }
-        },
-        "summary": "Create a new job role (Admin only)",
-        "operationId": "create_job_role",
-        "parameters": [
-          {
-            "name": "payload",
-            "required": true,
-            "in": "body",
-            "schema": {
-              "$ref": "#/definitions/JobRoleInput"
-            }
-          }
-        ],
-        "tags": [
-          "jobroles"
-        ]
-      },
       "get": {
         "responses": {
           "500": {
@@ -1471,6 +1851,61 @@
         "tags": [
           "jobroles"
         ]
+      },
+      "post": {
+        "responses": {
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "409": {
+            "description": "Conflict - Duplicate entry",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "201": {
+            "description": "Successfully created job role",
+            "schema": {
+              "$ref": "#/definitions/JobRole"
+            }
+          }
+        },
+        "summary": "Create a new job role",
+        "operationId": "create_job_role",
+        "parameters": [
+          {
+            "name": "payload",
+            "required": true,
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/JobRoleInput"
+            }
+          }
+        ],
+        "tags": [
+          "jobroles"
+        ]
       }
     },
     "/jobroles/{role_id}": {
@@ -1482,6 +1917,45 @@
           "type": "integer"
         }
       ],
+      "get": {
+        "responses": {
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "404": {
+            "description": "Job role not found",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "200": {
+            "description": "Successfully retrieved job role",
+            "schema": {
+              "$ref": "#/definitions/JobRole"
+            }
+          }
+        },
+        "summary": "Get a specific job role by ID",
+        "operationId": "get_job_role",
+        "tags": [
+          "jobroles"
+        ]
+      },
       "put": {
         "responses": {
           "500": {
@@ -1590,85 +2064,6 @@
       }
     },
     "/transactions/": {
-      "post": {
-        "responses": {
-          "503": {
-            "description": "Service Unavailable",
-            "schema": {
-              "$ref": "#/definitions/ErrorResponse"
-            }
-          },
-          "500": {
-            "description": "Internal Server Error",
-            "schema": {
-              "$ref": "#/definitions/ErrorResponse"
-            }
-          },
-          "409": {
-            "description": "Conflict - Insufficient quantity",
-            "schema": {
-              "$ref": "#/definitions/ErrorResponse"
-            }
-          },
-          "404": {
-            "description": "Warehouse/Asset not found",
-            "schema": {
-              "$ref": "#/definitions/ErrorResponse"
-            }
-          },
-          "403": {
-            "description": "Forbidden",
-            "schema": {
-              "$ref": "#/definitions/ErrorResponse"
-            }
-          },
-          "401": {
-            "description": "Unauthorized",
-            "schema": {
-              "$ref": "#/definitions/ErrorResponse"
-            }
-          },
-          "400": {
-            "description": "Bad Request",
-            "schema": {
-              "$ref": "#/definitions/ErrorResponse"
-            }
-          },
-          "201": {
-            "description": "Successfully created transaction",
-            "schema": {
-              "$ref": "#/definitions/Transaction"
-            }
-          }
-        },
-        "summary": "Create a new transaction with asset transactions",
-        "operationId": "create_transaction",
-        "parameters": [
-          {
-            "name": "attached_file",
-            "in": "formData",
-            "type": "file",
-            "description": "File attachment"
-          },
-          {
-            "name": "data",
-            "in": "formData",
-            "type": "string",
-            "description": "Transaction data as JSON string. Example:\n{\n  \"date\": \"2025-09-24\",\n  \"description\": \"string\", \n  \"reference_number\": \"string\",\n  \"warehouse_id\": 0,\n  \"transaction_type\": true,\n  \"asset_transactions\": [\n    {\n      \"asset_id\": 0,\n      \"quantity\": 1,\n      \"amount\": 0\n    }\n  ]\n}"
-          }
-        ],
-        "security": [
-          {
-            "Bearer Auth": []
-          }
-        ],
-        "consumes": [
-          "multipart/form-data"
-        ],
-        "tags": [
-          "transactions"
-        ]
-      },
       "get": {
         "responses": {
           "503": {
@@ -1760,6 +2155,85 @@
           {
             "Bearer Auth": []
           }
+        ],
+        "tags": [
+          "transactions"
+        ]
+      },
+      "post": {
+        "responses": {
+          "503": {
+            "description": "Service Unavailable",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "409": {
+            "description": "Conflict - Insufficient quantity",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "404": {
+            "description": "Warehouse/Asset not found",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "201": {
+            "description": "Successfully created transaction",
+            "schema": {
+              "$ref": "#/definitions/Transaction"
+            }
+          }
+        },
+        "summary": "Create a new transaction with asset transactions",
+        "operationId": "create_transaction",
+        "parameters": [
+          {
+            "name": "attached_file",
+            "in": "formData",
+            "type": "file",
+            "description": "File attachment"
+          },
+          {
+            "name": "data",
+            "in": "formData",
+            "type": "string",
+            "description": "Transaction data as JSON string. Example:\n{\n  \"date\": \"2025-09-24\",\n  \"description\": \"string\", \n  \"reference_number\": \"string\",\n  \"warehouse_id\": 0,\n  \"transaction_type\": true,\n  \"asset_transactions\": [\n    {\n      \"asset_id\": 0,\n      \"quantity\": 1,\n      \"amount\": 0\n    }\n  ]\n}"
+          }
+        ],
+        "security": [
+          {
+            "Bearer Auth": []
+          }
+        ],
+        "consumes": [
+          "multipart/form-data"
         ],
         "tags": [
           "transactions"
@@ -1949,6 +2423,56 @@
           "type": "integer"
         }
       ],
+      "get": {
+        "responses": {
+          "503": {
+            "description": "Service Unavailable",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "404": {
+            "description": "Transaction not found",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "200": {
+            "description": "Successfully retrieved transaction",
+            "schema": {
+              "$ref": "#/definitions/Transaction"
+            }
+          }
+        },
+        "summary": "Get a specific transaction",
+        "operationId": "get_transaction",
+        "security": [
+          {
+            "Bearer Auth": []
+          }
+        ],
+        "tags": [
+          "transactions"
+        ]
+      },
       "put": {
         "responses": {
           "503": {
@@ -2064,56 +2588,6 @@
         "tags": [
           "transactions"
         ]
-      },
-      "get": {
-        "responses": {
-          "503": {
-            "description": "Service Unavailable",
-            "schema": {
-              "$ref": "#/definitions/ErrorResponse"
-            }
-          },
-          "500": {
-            "description": "Internal Server Error",
-            "schema": {
-              "$ref": "#/definitions/ErrorResponse"
-            }
-          },
-          "404": {
-            "description": "Transaction not found",
-            "schema": {
-              "$ref": "#/definitions/ErrorResponse"
-            }
-          },
-          "403": {
-            "description": "Forbidden",
-            "schema": {
-              "$ref": "#/definitions/ErrorResponse"
-            }
-          },
-          "401": {
-            "description": "Unauthorized",
-            "schema": {
-              "$ref": "#/definitions/ErrorResponse"
-            }
-          },
-          "200": {
-            "description": "Successfully retrieved transaction",
-            "schema": {
-              "$ref": "#/definitions/Transaction"
-            }
-          }
-        },
-        "summary": "Get a specific transaction",
-        "operationId": "get_transaction",
-        "security": [
-          {
-            "Bearer Auth": []
-          }
-        ],
-        "tags": [
-          "transactions"
-        ]
       }
     },
     "/transactions/{transaction_id}/assets": {
@@ -2125,78 +2599,6 @@
           "type": "integer"
         }
       ],
-      "post": {
-        "responses": {
-          "503": {
-            "description": "Service Unavailable",
-            "schema": {
-              "$ref": "#/definitions/ErrorResponse"
-            }
-          },
-          "500": {
-            "description": "Internal Server Error",
-            "schema": {
-              "$ref": "#/definitions/ErrorResponse"
-            }
-          },
-          "409": {
-            "description": "Conflict - Insufficient quantity",
-            "schema": {
-              "$ref": "#/definitions/ErrorResponse"
-            }
-          },
-          "404": {
-            "description": "Transaction/Asset not found",
-            "schema": {
-              "$ref": "#/definitions/ErrorResponse"
-            }
-          },
-          "403": {
-            "description": "Forbidden",
-            "schema": {
-              "$ref": "#/definitions/ErrorResponse"
-            }
-          },
-          "401": {
-            "description": "Unauthorized",
-            "schema": {
-              "$ref": "#/definitions/ErrorResponse"
-            }
-          },
-          "400": {
-            "description": "Bad Request",
-            "schema": {
-              "$ref": "#/definitions/ErrorResponse"
-            }
-          },
-          "201": {
-            "description": "Successfully added asset to transaction",
-            "schema": {
-              "$ref": "#/definitions/AssetTransaction"
-            }
-          }
-        },
-        "summary": "Add an asset transaction to an existing transaction",
-        "operationId": "add_asset_to_transaction",
-        "parameters": [
-          {
-            "name": "payload",
-            "required": true,
-            "in": "body",
-            "schema": {
-              "$ref": "#/definitions/AssetTransactionInput"
-            }
-          }
-        ],
-        "security": [
-          {
-            "Bearer Auth": []
-          }
-        ],
-        "tags": [
-          "transactions"
-        ]
-      },
       "get": {
         "responses": {
           "503": {
@@ -2258,6 +2660,78 @@
             "in": "query",
             "description": "Page number",
             "name": "page"
+          }
+        ],
+        "security": [
+          {
+            "Bearer Auth": []
+          }
+        ],
+        "tags": [
+          "transactions"
+        ]
+      },
+      "post": {
+        "responses": {
+          "503": {
+            "description": "Service Unavailable",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "409": {
+            "description": "Conflict - Insufficient quantity",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "404": {
+            "description": "Transaction/Asset not found",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "201": {
+            "description": "Successfully added asset to transaction",
+            "schema": {
+              "$ref": "#/definitions/AssetTransaction"
+            }
+          }
+        },
+        "summary": "Add an asset transaction to an existing transaction",
+        "operationId": "add_asset_to_transaction",
+        "parameters": [
+          {
+            "name": "payload",
+            "required": true,
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/AssetTransactionInput"
+            }
           }
         ],
         "security": [
@@ -2336,55 +2810,6 @@
       }
     },
     "/warehouses/": {
-      "post": {
-        "responses": {
-          "409": {
-            "description": "Conflict - Duplicate entry",
-            "schema": {
-              "$ref": "#/definitions/ErrorResponse"
-            }
-          },
-          "403": {
-            "description": "Forbidden",
-            "schema": {
-              "$ref": "#/definitions/ErrorResponse"
-            }
-          },
-          "401": {
-            "description": "Unauthorized",
-            "schema": {
-              "$ref": "#/definitions/ErrorResponse"
-            }
-          },
-          "400": {
-            "description": "Bad Request",
-            "schema": {
-              "$ref": "#/definitions/ErrorResponse"
-            }
-          },
-          "201": {
-            "description": "Successfully created warehouse",
-            "schema": {
-              "$ref": "#/definitions/Warehouse"
-            }
-          }
-        },
-        "summary": "Create a new warehouse",
-        "operationId": "create_warehouse",
-        "parameters": [
-          {
-            "name": "payload",
-            "required": true,
-            "in": "body",
-            "schema": {
-              "$ref": "#/definitions/WarehouseInput"
-            }
-          }
-        ],
-        "tags": [
-          "warehouses"
-        ]
-      },
       "get": {
         "responses": {
           "503": {
@@ -2451,6 +2876,55 @@
         "tags": [
           "warehouses"
         ]
+      },
+      "post": {
+        "responses": {
+          "409": {
+            "description": "Conflict - Duplicate entry",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "201": {
+            "description": "Successfully created warehouse",
+            "schema": {
+              "$ref": "#/definitions/Warehouse"
+            }
+          }
+        },
+        "summary": "Create a new warehouse",
+        "operationId": "create_warehouse",
+        "parameters": [
+          {
+            "name": "payload",
+            "required": true,
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/WarehouseInput"
+            }
+          }
+        ],
+        "tags": [
+          "warehouses"
+        ]
       }
     },
     "/warehouses/{warehouse_id}": {
@@ -2462,6 +2936,51 @@
           "type": "integer"
         }
       ],
+      "get": {
+        "responses": {
+          "503": {
+            "description": "Service Unavailable",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "404": {
+            "description": "Warehouse not found",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "200": {
+            "description": "Successfully retrieved warehouse",
+            "schema": {
+              "$ref": "#/definitions/Warehouse"
+            }
+          }
+        },
+        "summary": "Get a specific warehouse by ID",
+        "operationId": "get_warehouse",
+        "tags": [
+          "warehouses"
+        ]
+      },
       "put": {
         "responses": {
           "409": {
@@ -2564,51 +3083,6 @@
         },
         "summary": "Delete a specific warehouse by ID",
         "operationId": "delete_warehouse",
-        "tags": [
-          "warehouses"
-        ]
-      },
-      "get": {
-        "responses": {
-          "503": {
-            "description": "Service Unavailable",
-            "schema": {
-              "$ref": "#/definitions/ErrorResponse"
-            }
-          },
-          "500": {
-            "description": "Internal Server Error",
-            "schema": {
-              "$ref": "#/definitions/ErrorResponse"
-            }
-          },
-          "404": {
-            "description": "Warehouse not found",
-            "schema": {
-              "$ref": "#/definitions/ErrorResponse"
-            }
-          },
-          "403": {
-            "description": "Forbidden",
-            "schema": {
-              "$ref": "#/definitions/ErrorResponse"
-            }
-          },
-          "401": {
-            "description": "Unauthorized",
-            "schema": {
-              "$ref": "#/definitions/ErrorResponse"
-            }
-          },
-          "200": {
-            "description": "Successfully retrieved warehouse",
-            "schema": {
-              "$ref": "#/definitions/Warehouse"
-            }
-          }
-        },
-        "summary": "Get a specific warehouse by ID",
-        "operationId": "get_warehouse",
         "tags": [
           "warehouses"
         ]
@@ -2720,6 +3194,27 @@
       },
       "type": "object"
     },
+    "PaginationResponse": {
+      "properties": {
+        "items": {
+          "type": "object",
+          "description": "List of items"
+        },
+        "total": {
+          "type": "integer",
+          "description": "Total number of items"
+        },
+        "page": {
+          "type": "integer",
+          "description": "Current page number"
+        },
+        "pages": {
+          "type": "integer",
+          "description": "Total number of pages"
+        }
+      },
+      "type": "object"
+    },
     "Branch": {
       "required": [
         "name_ar"
@@ -2745,36 +3240,6 @@
         "address_en": {
           "type": "string",
           "description": "Branch address in English"
-        }
-      },
-      "type": "object"
-    },
-    "PaginationResponse": {
-      "properties": {
-        "items": {
-          "type": "object",
-          "description": "List of items"
-        },
-        "total": {
-          "type": "integer",
-          "description": "Total number of items"
-        },
-        "page": {
-          "type": "integer",
-          "description": "Current page number"
-        },
-        "pages": {
-          "type": "integer",
-          "description": "Total number of pages"
-        }
-      },
-      "type": "object"
-    },
-    "SuccessResponse": {
-      "properties": {
-        "message": {
-          "type": "string",
-          "description": "Success message"
         }
       },
       "type": "object"
@@ -2852,6 +3317,15 @@
       },
       "type": "object"
     },
+    "SuccessResponse": {
+      "properties": {
+        "message": {
+          "type": "string",
+          "description": "Success message"
+        }
+      },
+      "type": "object"
+    },
     "WarehouseInput": {
       "required": [
         "name_ar"
@@ -2915,6 +3389,69 @@
         "subcategory": {
           "type": "string",
           "description": "Asset subcategory"
+        }
+      },
+      "type": "object"
+    },
+    "CategoryBulkCreateResult": {
+      "properties": {
+        "summary": {
+          "$ref": "#/definitions/CategoryBulkSummary"
+        },
+        "added_categories": {
+          "type": "array",
+          "description": "Successfully added categories",
+          "items": {
+            "$ref": "#/definitions/Category"
+          }
+        },
+        "rejected_categories": {
+          "type": "array",
+          "description": "Rejected categories with error details",
+          "items": {
+            "$ref": "#/definitions/RejectedCategory"
+          }
+        }
+      },
+      "type": "object"
+    },
+    "CategoryBulkSummary": {
+      "properties": {
+        "total_processed": {
+          "type": "integer",
+          "description": "Total number of categories processed"
+        },
+        "successfully_added": {
+          "type": "integer",
+          "description": "Number of categories successfully added"
+        },
+        "rejected": {
+          "type": "integer",
+          "description": "Number of categories rejected"
+        },
+        "success_rate": {
+          "type": "string",
+          "description": "Success rate percentage"
+        }
+      },
+      "type": "object"
+    },
+    "RejectedCategory": {
+      "properties": {
+        "category_data": {
+          "type": "object",
+          "description": "Original category data that was rejected"
+        },
+        "category_name": {
+          "type": "string",
+          "description": "Category name (if available)"
+        },
+        "errors": {
+          "type": "array",
+          "description": "List of error messages",
+          "items": {
+            "type": "string"
+          }
         }
       },
       "type": "object"
@@ -3030,6 +3567,127 @@
         "pages": {
           "type": "integer",
           "description": "Total number of pages"
+        }
+      },
+      "type": "object"
+    },
+    "BulkCreateResult": {
+      "properties": {
+        "summary": {
+          "$ref": "#/definitions/BulkSummary"
+        },
+        "added_assets": {
+          "type": "array",
+          "description": "Successfully added assets",
+          "items": {
+            "$ref": "#/definitions/FixedAsset"
+          }
+        },
+        "rejected_assets": {
+          "type": "array",
+          "description": "Rejected assets with error details",
+          "items": {
+            "$ref": "#/definitions/RejectedAsset"
+          }
+        }
+      },
+      "type": "object"
+    },
+    "BulkSummary": {
+      "properties": {
+        "total_processed": {
+          "type": "integer",
+          "description": "Total number of assets processed"
+        },
+        "successfully_added": {
+          "type": "integer",
+          "description": "Number of assets successfully added"
+        },
+        "rejected": {
+          "type": "integer",
+          "description": "Number of assets rejected"
+        },
+        "success_rate": {
+          "type": "string",
+          "description": "Success rate percentage"
+        }
+      },
+      "type": "object"
+    },
+    "RejectedAsset": {
+      "properties": {
+        "asset_data": {
+          "type": "object",
+          "description": "Original asset data that was rejected"
+        },
+        "asset_name": {
+          "type": "string",
+          "description": "Asset name (if available)"
+        },
+        "errors": {
+          "type": "array",
+          "description": "List of error messages",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "type": "object"
+    },
+    "AssetUpdateInput": {
+      "required": [
+        "id"
+      ],
+      "properties": {
+        "id": {
+          "type": "integer",
+          "description": "Asset ID to update"
+        },
+        "name_ar": {
+          "type": "string",
+          "description": "Arabic name"
+        },
+        "name_en": {
+          "type": "string",
+          "description": "English name"
+        },
+        "quantity": {
+          "type": "integer",
+          "description": "Quantity"
+        },
+        "product_code": {
+          "type": "string",
+          "description": "Product code"
+        },
+        "category_id": {
+          "type": "integer",
+          "description": "Category ID"
+        },
+        "is_active": {
+          "type": "boolean",
+          "description": "Active status"
+        }
+      },
+      "type": "object"
+    },
+    "BulkUpdateResult": {
+      "properties": {
+        "summary": {
+          "$ref": "#/definitions/BulkSummary"
+        },
+        "updated_assets": {
+          "type": "array",
+          "description": "Successfully updated assets",
+          "items": {
+            "$ref": "#/definitions/FixedAsset"
+          }
+        },
+        "rejected_assets": {
+          "type": "array",
+          "description": "Rejected assets with error details",
+          "items": {
+            "$ref": "#/definitions/RejectedAsset"
+          }
         }
       },
       "type": "object"

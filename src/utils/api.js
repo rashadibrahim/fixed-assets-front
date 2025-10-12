@@ -459,6 +459,13 @@ class ApiClient {
     return this.request(`/categories/${categoryId}`);
   }
 
+  async bulkCreateCategories(categoriesData) {
+    return this.request('/categories/bulk', {
+      method: 'POST',
+      body: JSON.stringify(categoriesData),
+    });
+  }
+
   // Transactions API
   async getTransactions(params = {}) {
     const queryString = new URLSearchParams(params).toString();
