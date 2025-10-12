@@ -501,3 +501,199 @@ export const parseAssetExcelFile = (file) => {
     reader.readAsArrayBuffer(file);
   });
 };
+
+// Create and download an Excel template for updating assets with existing data
+export const downloadAssetUpdateTemplate = (assets, categories) => {
+  // Create template data with existing asset data
+  const templateData = [
+    ['ID', 'Asset Name (English)', 'Asset Name (Arabic)', 'Category Name', 'Product Code', 'Is Active'], // Headers
+  ];
+
+  // Add existing asset data for updates
+  assets.forEach(asset => {
+    const category = categories.find(cat => cat.id === asset.category_id);
+    templateData.push([
+      asset.id || '',
+      asset.name_en || '',
+      asset.name_ar || '',
+      category ? category.category : '',
+      asset.product_code || '',
+      asset.is_active ? 'true' : 'false'
+    ]);
+  });
+
+  // Create a new workbook and worksheet
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet(templateData);
+
+  // Set column widths
+  ws['!cols'] = [
+    { width: 10 }, // ID column
+    { width: 30 }, // Asset Name (English) column
+    { width: 30 }, // Asset Name (Arabic) column
+    { width: 25 }, // Category Name column
+    { width: 20 }, // Product Code column
+    { width: 15 }, // Is Active column
+  ];
+
+  // Add the worksheet to the workbook
+  XLSX.utils.book_append_sheet(wb, ws, 'Assets Update Template');
+
+  // Generate and download the file
+  const fileName = `assets_update_template_${new Date().toISOString().split('T')[0]}.xlsx`;
+  XLSX.writeFile(wb, fileName);
+};
+
+// Parse Excel file for asset updates and return assets data with IDs
+export const parseAssetUpdateExcelFile = (file) => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    
+    reader.onload = (e) => {
+      try {
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, { type: 'array' });
+        
+        // Get the first worksheet
+        const worksheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[worksheetName];
+        
+        // Convert to JSON
+        const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+        
+        if (jsonData.length === 0) {
+          throw new Error('Excel file is empty');
+        }
+        
+        // Get headers from first row
+        const headers = jsonData[0] || [];
+        const headerRow = headers.map(h => String(h).trim().toLowerCase());
+        
+        // Find column indices based on header names
+        let idIndex = -1;
+        let nameEnIndex = -1;
+        let nameArIndex = -1;
+        let categoryNameIndex = -1;
+        let productCodeIndex = -1;
+        let isActiveIndex = -1;
+        
+        // Look for asset columns
+        for (let i = 0; i < headerRow.length; i++) {
+          const header = headerRow[i];
+          
+          if (header === 'id' || header === 'asset id') {
+            idIndex = i;
+            console.log(`Found ID at index ${i}: "${headers[i]}"`);
+          } else if (header.includes('name') && (header.includes('en') || header.includes('english'))) {
+            nameEnIndex = i;
+            console.log(`Found Asset Name (English) at index ${i}: "${headers[i]}"`);
+          } else if (header.includes('name') && (header.includes('ar') || header.includes('arabic'))) {
+            nameArIndex = i;
+            console.log(`Found Asset Name (Arabic) at index ${i}: "${headers[i]}"`);
+          } else if (header.includes('category') && header.includes('name')) {
+            categoryNameIndex = i;
+            console.log(`Found Category Name at index ${i}: "${headers[i]}"`);
+          } else if (header === 'category' || (header.includes('category') && !header.includes('name'))) {
+            categoryNameIndex = i;
+            console.log(`Found Category at index ${i}: "${headers[i]}"`);
+          } else if (header.includes('product') && header.includes('code') || header.includes('code')) {
+            productCodeIndex = i;
+            console.log(`Found Product Code at index ${i}: "${headers[i]}"`);
+          } else if (header.includes('active') || header.includes('status')) {
+            isActiveIndex = i;
+            console.log(`Found Is Active at index ${i}: "${headers[i]}"`);
+          }
+        }
+        
+        // Validate required columns
+        if (idIndex === -1) {
+          throw new Error('ID column is required for asset updates. Please ensure your Excel file has an "ID" column.');
+        }
+        
+        // Fallback to positional mapping for other columns if headers don't match
+        if (nameEnIndex === -1 || nameArIndex === -1 || categoryNameIndex === -1) {
+          if (headerRow.length >= 4) {
+            nameEnIndex = nameEnIndex === -1 ? 1 : nameEnIndex;
+            nameArIndex = nameArIndex === -1 ? 2 : nameArIndex;
+            categoryNameIndex = categoryNameIndex === -1 ? 3 : categoryNameIndex;
+            productCodeIndex = productCodeIndex === -1 && headerRow.length > 4 ? 4 : productCodeIndex;
+            isActiveIndex = isActiveIndex === -1 && headerRow.length > 5 ? 5 : isActiveIndex;
+            console.warn('Could not detect all column headers, using positional mapping');
+          } else {
+            throw new Error(`Excel file must have at least 4 columns (ID, Asset Name EN, Asset Name AR, Category Name). Found headers: ${headers.join(', ')}`);
+          }
+        }
+        
+        // Process data rows (skip header row)
+        const assets = [];
+        const dataRows = jsonData.slice(1);
+        
+        for (let i = 0; i < dataRows.length; i++) {
+          const row = dataRows[i];
+          const rowNumber = i + 2; // +2 because Excel rows start at 1 and we skip header
+          
+          // Skip empty rows
+          if (!row || row.every(cell => !cell || String(cell).trim() === '')) {
+            continue;
+          }
+          
+          // Extract values
+          const id = row[idIndex];
+          const nameEn = row[nameEnIndex] ? String(row[nameEnIndex]).trim() : '';
+          const nameAr = row[nameArIndex] ? String(row[nameArIndex]).trim() : '';
+          const categoryName = row[categoryNameIndex] ? String(row[categoryNameIndex]).trim() : '';
+          const productCode = row[productCodeIndex] ? String(row[productCodeIndex]).trim() : '';
+          const isActiveValue = row[isActiveIndex] ? String(row[isActiveIndex]).toLowerCase().trim() : 'true';
+          
+          // Validate required fields
+          if (!id) {
+            throw new Error(`Row ${rowNumber}: ID is required for asset updates`);
+          }
+          
+          if (!nameEn) {
+            throw new Error(`Row ${rowNumber}: Asset Name (English) is required`);
+          }
+          
+          if (!nameAr) {
+            throw new Error(`Row ${rowNumber}: Asset Name (Arabic) is required`);
+          }
+          
+          if (!categoryName) {
+            throw new Error(`Row ${rowNumber}: Category Name is required`);
+          }
+          
+          // Parse is_active value
+          const isActive = ['true', '1', 'yes', 'active', 'enabled'].includes(isActiveValue);
+          
+          // Create asset object for update
+          const asset = {
+            id: parseInt(id),
+            name_en: nameEn,
+            name_ar: nameAr,
+            category_name: categoryName, // Will be converted to category_id later
+            product_code: productCode,
+            is_active: isActive
+          };
+          
+          assets.push(asset);
+        }
+        
+        if (assets.length === 0) {
+          throw new Error('No valid asset data found in the Excel file');
+        }
+        
+        console.log(`Parsed ${assets.length} assets for update from Excel file`);
+        
+        resolve(assets);
+      } catch (error) {
+        reject(new Error(`Failed to parse Excel file: ${error.message}`));
+      }
+    };
+    
+    reader.onerror = () => {
+      reject(new Error('Failed to read file'));
+    };
+    
+    reader.readAsArrayBuffer(file);
+  });
+};

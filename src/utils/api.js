@@ -473,6 +473,13 @@ class ApiClient {
     });
   }
 
+  async bulkUpdateAssets(assetsData) {
+    return this.request('/assets/bulk-update', {
+      method: 'PUT',
+      body: JSON.stringify(assetsData),
+    });
+  }
+
   async exportAssets(params = {}) {
     const queryString = new URLSearchParams(params).toString();
     const response = await fetch(`${this.baseURL}/assets/export-excel${queryString ? `?${queryString}` : ''}`, {
