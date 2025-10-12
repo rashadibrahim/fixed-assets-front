@@ -206,9 +206,16 @@
             }
           }
         },
-        "summary": "Get all fixed assets with pagination and optional category filtering",
+        "summary": "Get all fixed assets with pagination and optional category/subcategory filtering",
+        "description": "- category_id: Filter by specific category ID\n- subcategory: Filter by subcategory name (case-insensitive partial match)",
         "operationId": "list_assets",
         "parameters": [
+          {
+            "type": "string",
+            "in": "query",
+            "description": "Filter assets by subcategory name",
+            "name": "subcategory"
+          },
           {
             "type": "integer",
             "in": "query",
@@ -404,6 +411,58 @@
                 "$ref": "#/definitions/AssetUpdateInput"
               }
             }
+          }
+        ],
+        "security": [
+          {
+            "Bearer Auth": []
+          }
+        ],
+        "tags": [
+          "assets"
+        ]
+      }
+    },
+    "/assets/export-excel": {
+      "get": {
+        "responses": {
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "200": {
+            "description": "Successfully generated Excel export"
+          }
+        },
+        "summary": "Export all assets to Excel file with optional category/subcategory filtering",
+        "description": "Returns Excel file containing:\n- Filter information at the top (if filters are applied)\n- Complete list of assets with all details\n\nOptional filters:\n- category_id: Filter by specific category ID\n- subcategory: Filter by subcategory name (case-insensitive partial match)",
+        "operationId": "export_assets_excel",
+        "parameters": [
+          {
+            "type": "string",
+            "in": "query",
+            "description": "Filter assets by subcategory name",
+            "name": "subcategory"
+          },
+          {
+            "type": "integer",
+            "in": "query",
+            "description": "Filter assets by category ID",
+            "name": "category_id"
           }
         ],
         "security": [
@@ -2281,6 +2340,83 @@
         },
         "summary": "Get average cost for asset from IN transactions",
         "operationId": "get_asset_average",
+        "tags": [
+          "transactions"
+        ]
+      }
+    },
+    "/transactions/generate-excel-report": {
+      "get": {
+        "responses": {
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "200": {
+            "description": "Successfully generated Excel report"
+          }
+        },
+        "summary": "Generate comprehensive transaction report as Excel file",
+        "description": "Returns Excel file with:\n- Filter information at the top\n- Asset-wise summary including:\n  * Asset name and details\n  * Total quantity IN and OUT\n  * Total amount IN and OUT  \n  * Total cost (quantity × amount) IN and OUT\n  * Overall totals\n\nREQUIRED: date parameter must be provided\nOptional filters can be combined:\n- Category: ?category=Electronics\n- Subcategory: ?subcategory=Laptops (can be used with or without category)\n- Branch/Warehouse: ?branch_id=1 or ?warehouse_id=1",
+        "operationId": "generate_excel_report",
+        "parameters": [
+          {
+            "type": "integer",
+            "in": "query",
+            "description": "Filter by warehouse ID",
+            "name": "warehouse_id"
+          },
+          {
+            "type": "integer",
+            "in": "query",
+            "description": "Filter by branch ID",
+            "name": "branch_id"
+          },
+          {
+            "type": "string",
+            "in": "query",
+            "description": "Filter by subcategory name",
+            "name": "subcategory"
+          },
+          {
+            "type": "string",
+            "in": "query",
+            "description": "Filter by category name",
+            "name": "category"
+          },
+          {
+            "type": "string",
+            "required": true,
+            "in": "query",
+            "description": "Filter by exact date (YYYY-MM-DD) - REQUIRED",
+            "name": "date"
+          }
+        ],
+        "security": [
+          {
+            "Bearer Auth": []
+          }
+        ],
         "tags": [
           "transactions"
         ]

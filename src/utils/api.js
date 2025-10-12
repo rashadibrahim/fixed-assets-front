@@ -466,6 +466,30 @@ class ApiClient {
     });
   }
 
+  async bulkCreateAssets(assetsData) {
+    return this.request('/assets/bulk', {
+      method: 'POST',
+      body: JSON.stringify(assetsData),
+    });
+  }
+
+  async exportAssets(params = {}) {
+    const queryString = new URLSearchParams(params).toString();
+    const response = await fetch(`${this.baseURL}/assets/export-excel${queryString ? `?${queryString}` : ''}`, {
+      method: 'GET',
+      headers: {
+        ...(this.token && { Authorization: `Bearer ${this.token}` }),
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(this.parseErrorMessage(errorData, 'Failed to export assets'));
+    }
+
+    return response.blob();
+  }
+
   // Transactions API
   async getTransactions(params = {}) {
     const queryString = new URLSearchParams(params).toString();
@@ -541,6 +565,23 @@ class ApiClient {
   async generateTransactionReport(params = {}) {
     const queryString = new URLSearchParams(params).toString();
     return this.request(`/transactions/generate-report${queryString ? `?${queryString}` : ''}`);
+  }
+
+  async exportTransactionsReport(params = {}) {
+    const queryString = new URLSearchParams(params).toString();
+    const response = await fetch(`${this.baseURL}/transactions/generate-excel-report${queryString ? `?${queryString}` : ''}`, {
+      method: 'GET',
+      headers: {
+        ...(this.token && { Authorization: `Bearer ${this.token}` }),
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(this.parseErrorMessage(errorData, 'Failed to export transaction report'));
+    }
+
+    return response.blob();
   }
 
   async getAssetAverage(assetId) {

@@ -300,3 +300,204 @@ export const exportBulkResults = (results) => {
   const fileName = `bulk_import_results_${new Date().toISOString().split('T')[0]}_${Date.now()}.xlsx`;
   XLSX.writeFile(wb, fileName);
 };
+
+// Create and download an Excel template for assets
+export const downloadAssetTemplate = () => {
+  // Create empty template data with headers only
+  const templateData = [
+    ['Asset Name (English)', 'Asset Name (Arabic)', 'Category Name', 'Product Code', 'Is Active'], // Headers only - empty template for users to fill
+  ];
+
+  // Create a new workbook and worksheet
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet(templateData);
+
+  // Set column widths
+  ws['!cols'] = [
+    { width: 30 }, // Asset Name (English) column
+    { width: 30 }, // Asset Name (Arabic) column
+    { width: 25 }, // Category Name column
+    { width: 20 }, // Product Code column
+    { width: 15 }, // Is Active column
+  ];
+
+  // Add the worksheet to the workbook
+  XLSX.utils.book_append_sheet(wb, ws, 'Assets Template');
+
+  // Generate and download the file
+  const fileName = `assets_template_${new Date().toISOString().split('T')[0]}.xlsx`;
+  XLSX.writeFile(wb, fileName);
+};
+
+// Parse Excel file and return assets data
+export const parseAssetExcelFile = (file) => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    
+    reader.onload = (e) => {
+      try {
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, { type: 'array' });
+        
+        // Get the first worksheet
+        const worksheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[worksheetName];
+        
+        // Convert to JSON
+        const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+        
+        if (jsonData.length === 0) {
+          throw new Error('Excel file is empty');
+        }
+        
+        // Get headers from first row
+        const headers = jsonData[0] || [];
+        const headerRow = headers.map(h => String(h).trim().toLowerCase());
+        
+        // Find column indices based on header names
+        let nameEnIndex = -1;
+        let nameArIndex = -1;
+        let categoryNameIndex = -1;
+        let productCodeIndex = -1;
+        let isActiveIndex = -1;
+        
+        // Look for asset columns
+        for (let i = 0; i < headerRow.length; i++) {
+          const header = headerRow[i];
+          
+          if (header.includes('name') && (header.includes('en') || header.includes('english'))) {
+            nameEnIndex = i;
+            console.log(`Found Asset Name (English) at index ${i}: "${headers[i]}"`);
+          } else if (header.includes('name') && (header.includes('ar') || header.includes('arabic'))) {
+            nameArIndex = i;
+            console.log(`Found Asset Name (Arabic) at index ${i}: "${headers[i]}"`);
+          } else if (header.includes('category') && header.includes('name')) {
+            categoryNameIndex = i;
+            console.log(`Found Category Name at index ${i}: "${headers[i]}"`);
+          } else if (header === 'category' || (header.includes('category') && !header.includes('name'))) {
+            categoryNameIndex = i;
+            console.log(`Found Category at index ${i}: "${headers[i]}"`);
+          } else if (header.includes('product') && header.includes('code') || header.includes('code')) {
+            productCodeIndex = i;
+            console.log(`Found Product Code at index ${i}: "${headers[i]}"`);
+          } else if (header.includes('active') || header.includes('status')) {
+            isActiveIndex = i;
+            console.log(`Found Is Active at index ${i}: "${headers[i]}"`);
+          }
+        }
+        
+        // Fallback to positional mapping if headers don't match expected patterns
+        if (nameEnIndex === -1 || nameArIndex === -1 || categoryNameIndex === -1) {
+          if (headerRow.length >= 3) {
+            nameEnIndex = nameEnIndex === -1 ? 0 : nameEnIndex;
+            nameArIndex = nameArIndex === -1 ? 1 : nameArIndex;
+            categoryNameIndex = categoryNameIndex === -1 ? 2 : categoryNameIndex;
+            productCodeIndex = productCodeIndex === -1 && headerRow.length > 3 ? 3 : productCodeIndex;
+            isActiveIndex = isActiveIndex === -1 && headerRow.length > 4 ? 4 : isActiveIndex;
+            console.warn('Could not detect all column headers, using positional mapping');
+          } else {
+            throw new Error(`Excel file must have at least 3 columns (Asset Name EN, Asset Name AR, Category Name). Found headers: ${headers.join(', ')}`);
+          }
+        }
+        
+        // Skip empty rows and header row
+        const dataRows = jsonData.slice(1).filter(row => 
+          row && row.length > 0 && (row[nameEnIndex] || row[nameArIndex])
+        );
+        
+        // Transform to the expected format with enhanced validation
+        const assets = dataRows.map((row, index) => {
+          const rowNumber = index + 2; // Account for header row
+          const nameEn = row[nameEnIndex] ? String(row[nameEnIndex]).trim() : '';
+          const nameAr = row[nameArIndex] ? String(row[nameArIndex]).trim() : '';
+          const categoryName = row[categoryNameIndex] ? String(row[categoryNameIndex]).trim() : '';
+          const productCode = row[productCodeIndex] ? String(row[productCodeIndex]).trim() : '';
+          const isActive = isActiveIndex !== -1 ? 
+            (row[isActiveIndex] ? String(row[isActiveIndex]).toLowerCase().trim() : 'true') : 'true';
+          
+          // Validate required fields
+          if (!nameEn) {
+            throw new Error(`Row ${rowNumber}: Asset Name (English) is required and cannot be empty`);
+          }
+          if (!nameAr) {
+            throw new Error(`Row ${rowNumber}: Asset Name (Arabic) is required and cannot be empty`);
+          }
+          if (!categoryName) {
+            throw new Error(`Row ${rowNumber}: Category Name is required and cannot be empty`);
+          }
+          
+          // Validate field lengths
+          if (nameEn.length > 255) {
+            throw new Error(`Row ${rowNumber}: Asset Name (English) too long (maximum 255 characters)`);
+          }
+          if (nameAr.length > 255) {
+            throw new Error(`Row ${rowNumber}: Asset Name (Arabic) too long (maximum 255 characters)`);
+          }
+          if (productCode && (productCode.length < 6 || productCode.length > 11)) {
+            throw new Error(`Row ${rowNumber}: Product Code must be between 6 and 11 characters`);
+          }
+          
+          // Validate category name length
+          if (categoryName.length > 255) {
+            throw new Error(`Row ${rowNumber}: Category Name too long (maximum 255 characters)`);
+          }
+          
+          // Validate is_active field
+          const activeValue = ['true', '1', 'yes', 'active'].includes(isActive) ? true : 
+                             ['false', '0', 'no', 'inactive'].includes(isActive) ? false : true;
+          
+          // Basic validation for special characters
+          const invalidCharsRegex = /[<>\"\'&]/;
+          if (invalidCharsRegex.test(nameEn)) {
+            throw new Error(`Row ${rowNumber}: Asset Name (English) contains invalid characters (<, >, ", ', &)`);
+          }
+          if (invalidCharsRegex.test(nameAr)) {
+            throw new Error(`Row ${rowNumber}: Asset Name (Arabic) contains invalid characters (<, >, ", ', &)`);
+          }
+          if (invalidCharsRegex.test(categoryName)) {
+            throw new Error(`Row ${rowNumber}: Category Name contains invalid characters (<, >, ", ', &)`);
+          }
+          if (productCode && invalidCharsRegex.test(productCode)) {
+            throw new Error(`Row ${rowNumber}: Product Code contains invalid characters (<, >, ", ', &)`);
+          }
+          
+          return {
+            name_en: nameEn,
+            name_ar: nameAr,
+            category_name: categoryName,
+            product_code: productCode || null,
+            is_active: activeValue
+          };
+        });
+        
+        // Add debug info about column mapping
+        console.log('Asset Excel parsing debug:', {
+          rawHeaders: headers,
+          normalizedHeaders: headerRow,
+          nameEnIndex,
+          nameArIndex,
+          categoryNameIndex,
+          productCodeIndex,
+          isActiveIndex,
+          sampleDataRow: dataRows[0] ? {
+            nameEnValue: dataRows[0][nameEnIndex],
+            nameArValue: dataRows[0][nameArIndex],
+            categoryNameValue: dataRows[0][categoryNameIndex],
+            productCodeValue: dataRows[0][productCodeIndex],
+            isActiveValue: dataRows[0][isActiveIndex]
+          } : 'No data rows'
+        });
+        
+        resolve(assets);
+      } catch (error) {
+        reject(new Error(`Failed to parse Excel file: ${error.message}`));
+      }
+    };
+    
+    reader.onerror = () => {
+      reject(new Error('Failed to read file'));
+    };
+    
+    reader.readAsArrayBuffer(file);
+  });
+};
