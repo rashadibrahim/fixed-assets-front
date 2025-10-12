@@ -54,43 +54,27 @@ const AssetManagement = () => {
   });
 
   useEffect(() => {
-    loadAssets(currentPage, searchTerm, filterCategory);
+    loadAssets(currentPage, filterCategory);
     loadCategories();
-  }, [currentPage, searchTerm, filterCategory]);
+  }, [currentPage, filterCategory]);
 
-  const loadAssets = async (page = 1, search = '', category = '') => {
+  const loadAssets = async (page = 1, category = '') => {
     try {
       setLoading(true);
       
-      // Use search API if search term is provided
-      if (search.trim()) {
-        const params = {
-          q: search.trim(),
-          page,
-          per_page: itemsPerPage
-        };
-        const response = await apiClient.searchAssets(params);
-        setAssets(response.items || response || []);
-        setPagination({
-          page: response.page || 1,
-          pages: response.pages || 1,
-          total: response.total || 0
-        });
-      } else {
-        // Use regular assets API with category filter if provided
-        const params = {
-          page,
-          per_page: itemsPerPage,
-          ...(category && category !== 'all' && { category_id: category })
-        };
-        const response = await apiClient.getAssets(params);
-        setAssets(response.items || response || []);
-        setPagination({
-          page: response.page || 1,
-          pages: response.pages || 1,
-          total: response.total || 0
-        });
-      }
+      // Use regular assets API with category filter if provided
+      const params = {
+        page,
+        per_page: itemsPerPage,
+        ...(category && category !== 'all' && { category_id: category })
+      };
+      const response = await apiClient.getAssets(params);
+      setAssets(response.items || response || []);
+      setPagination({
+        page: response.page || 1,
+        pages: response.pages || 1,
+        total: response.total || 0
+      });
     } catch (error) {
       handleError(error, 'Failed to load assets');
       setAssets([]);
@@ -115,9 +99,18 @@ const AssetManagement = () => {
     return category ? category.category : 'Unknown Category';
   };
 
-  // Since we're now using API-based search and filtering, 
-  // assets are already filtered and paginated from the server
-  const filteredAssets = assets;
+  // Filter assets on client side for search (category filtering is still server-side)
+  const filteredAssets = assets.filter(asset => {
+    if (!searchTerm) return true;
+    
+    const searchLower = searchTerm.toLowerCase();
+    return (
+      (asset.name_en && asset.name_en.toLowerCase().includes(searchLower)) ||
+      (asset.name_ar && asset.name_ar.includes(searchTerm)) ||
+      (asset.product_code && asset.product_code.toLowerCase().includes(searchLower))
+    );
+  });
+  
   const totalPages = pagination.pages;
 
   // Reset to page 1 when filters change
@@ -125,7 +118,7 @@ const AssetManagement = () => {
     if (currentPage !== 1) {
       setCurrentPage(1);
     }
-  }, [searchTerm, filterCategory]);
+  }, [filterCategory]);
 
   const handleInputChange = useCallback((e) => {
     const { name, value, type, checked } = e.target;
@@ -228,7 +221,7 @@ const AssetManagement = () => {
         setShowAddModal(false);
       }
 
-      loadAssets(currentPage, searchTerm, filterCategory);
+      loadAssets(currentPage, filterCategory);
       resetForm();
     } catch (error) {
       handleError(error, 'Failed to save asset');
@@ -255,7 +248,7 @@ const AssetManagement = () => {
       try {
         await apiClient.deleteAsset(asset.id);
         handleSuccess('Asset deleted successfully');
-        loadAssets(currentPage, searchTerm, filterCategory);
+        loadAssets(currentPage, filterCategory);
       } catch (error) {
         handleError(error, 'Failed to delete asset');
       }
