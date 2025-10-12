@@ -88,8 +88,8 @@ const CategoryManagement = () => {
         // Transform the API response to match component expectations
         const transformedCategories = data.items.map(item => ({
           id: item.id,
-          category: item.category, // Main Category (optional)
-          subcategory: item.subcategory, // Category Name (main display)
+          category: item.subcategory, // Main Category (from backend subcategory)
+          subcategory: item.category, // Category Name (from backend category)
           description: '', // API doesn't provide description
           parent_id: null // API doesn't provide parent_id
         }));
@@ -99,7 +99,7 @@ const CategoryManagement = () => {
         // Extract unique main categories for dropdown
         const uniqueMainCategories = [...new Set(
           data.items
-            .map(item => item.category)
+            .map(item => item.subcategory)
             .filter(category => category && category.trim() !== '')
         )].sort();
         setExistingMainCategories(uniqueMainCategories);
@@ -181,7 +181,7 @@ const CategoryManagement = () => {
       // Check for duplicate names
       if (formData.subcategory.trim()) {
         const duplicateCategory = categories.find(cat => 
-          cat.category?.toLowerCase() === formData.subcategory.trim().toLowerCase() && 
+          cat.subcategory?.toLowerCase() === formData.subcategory.trim().toLowerCase() && 
           (!editingCategory || cat.id !== editingCategory.id)
         );
 
@@ -192,8 +192,8 @@ const CategoryManagement = () => {
       }
 
       const requestBody = {
-        subcategory: formData.category.trim() === '__none__' ? null : formData.category.trim() || null, // Main Category (optional)
-        category: formData.subcategory.trim() || null // Category Name (required)
+        category: formData.subcategory.trim() || null, // Category Name (required) - maps to backend category
+        subcategory: formData.category.trim() === '__none__' ? null : formData.category.trim() || null // Main Category (optional) - maps to backend subcategory
       };
 
       if (!requestBody.category) {
@@ -305,8 +305,8 @@ const CategoryManagement = () => {
         const rowNumber = index + 2; // +2 because Excel rows start at 1 and we skip header
         let errorMessage = null;
         
-        // Check if category name (subcategory field) is missing
-        if (!category.subcategory || category.subcategory.trim() === '') {
+        // Check if category name (category field) is missing
+        if (!category.category || category.category.trim() === '') {
           errorMessage = '❌ Category name is required and cannot be empty';
         }
         // Check for duplicates in existing data
@@ -801,8 +801,8 @@ const CategoryManagement = () => {
                       <TableBody>
                         {previewData.map((item, index) => (
                           <TableRow key={index}>
-                            <TableCell>{item.category || '(empty)'}</TableCell>
-                            <TableCell>{item.subcategory}</TableCell>
+                            <TableCell>{item.subcategory || '(empty)'}</TableCell>
+                            <TableCell>{item.category}</TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
@@ -904,8 +904,8 @@ const CategoryManagement = () => {
                             {importResults.added.map((item, index) => (
                               <TableRow key={index}>
                                 <TableCell>#{item.id}</TableCell>
-                                <TableCell>{item.category || '(no main category)'}</TableCell>
-                                <TableCell>{item.subcategory}</TableCell>
+                                <TableCell>{item.subcategory || '(no main category)'}</TableCell>
+                                <TableCell>{item.category}</TableCell>
                                 <TableCell className="text-green-600 text-sm font-medium">✅ Successfully created in database</TableCell>
                               </TableRow>
                             ))}
@@ -1002,15 +1002,15 @@ const CategoryManagement = () => {
                                 <TableRow key={index} className="hover:bg-gray-50">
                                   <TableCell className="text-sm font-mono">{item.row_number || index + 1}</TableCell>
                                   <TableCell className="text-sm">
-                                    {item.data?.category ? (
-                                      <span className="font-medium">{item.data.category}</span>
+                                    {item.data?.subcategory ? (
+                                      <span className="font-medium">{item.data.subcategory}</span>
                                     ) : (
                                       <span className="text-gray-400 italic">(no main category)</span>
                                     )}
                                   </TableCell>
                                   <TableCell className="text-sm">
-                                    {item.data?.subcategory ? (
-                                      <span className="font-medium">{item.data.subcategory}</span>
+                                    {item.data?.category ? (
+                                      <span className="font-medium">{item.data.category}</span>
                                     ) : (
                                       <span className="text-gray-400 italic">(empty)</span>
                                     )}

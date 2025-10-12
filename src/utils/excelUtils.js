@@ -42,47 +42,122 @@ export const parseExcelFile = (file) => {
         // Convert to JSON
         const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
         
+        if (jsonData.length === 0) {
+          throw new Error('Excel file is empty');
+        }
+        
+        // Get headers from first row
+        const headers = jsonData[0] || [];
+        const headerRow = headers.map(h => String(h).trim().toLowerCase());
+        
+        // Find column indices based on header names
+        let mainCategoryIndex = -1;
+        let categoryIndex = -1;
+        
+        // Look for main category column - check various patterns
+        for (let i = 0; i < headerRow.length; i++) {
+          const header = headerRow[i];
+          if (header === 'main category' || 
+              header === 'maincategory' ||
+              (header.includes('main') && header.includes('category')) ||
+              (header.includes('parent') && header.includes('category'))) {
+            mainCategoryIndex = i;
+            console.log(`Found Main Category at index ${i}: "${headers[i]}"`);
+            break;
+          }
+        }
+        
+        // Look for category column (that's not main category)
+        for (let i = 0; i < headerRow.length; i++) {
+          const header = headerRow[i];
+          if (header === 'category' ||
+              header === 'subcategory' ||
+              (header.includes('category') && !header.includes('main') && !header.includes('parent')) ||
+              (header.includes('sub') && header.includes('category'))) {
+            categoryIndex = i;
+            console.log(`Found Category at index ${i}: "${headers[i]}"`);
+            break;
+          }
+        }
+        
+        // Fallback to positional mapping if headers don't match expected patterns
+        if (mainCategoryIndex === -1 && categoryIndex === -1) {
+          // If we have at least 2 columns, use positional mapping
+          if (headerRow.length >= 2) {
+            mainCategoryIndex = 0;
+            categoryIndex = 1;
+            console.warn('Could not detect column headers, using positional mapping: Column 1 = Main Category, Column 2 = Category');
+          } else {
+            throw new Error(`Excel file must have at least 2 columns. Found headers: ${headers.join(', ')}`);
+          }
+        } else if (mainCategoryIndex === -1) {
+          // Found category but not main category - assume other column is main category
+          mainCategoryIndex = categoryIndex === 0 ? 1 : 0;
+        } else if (categoryIndex === -1) {
+          // Found main category but not category - assume other column is category
+          categoryIndex = mainCategoryIndex === 0 ? 1 : 0;
+        }
+        
+        // Validate that we have valid indices
+        if (mainCategoryIndex >= headerRow.length || categoryIndex >= headerRow.length) {
+          throw new Error(`Invalid column indices. File has ${headerRow.length} columns, but trying to access columns ${mainCategoryIndex + 1} and ${categoryIndex + 1}`);
+        }
+        
         // Skip empty rows and header row
         const dataRows = jsonData.slice(1).filter(row => 
-          row && row.length > 0 && (row[0] || row[1])
+          row && row.length > 0 && (row[mainCategoryIndex] || row[categoryIndex])
         );
         
         // Transform to the expected format with enhanced validation
         const categories = dataRows.map((row, index) => {
           const rowNumber = index + 2; // Account for header row
-          const mainCategory = row[0] ? String(row[0]).trim() : '';
-          const category = row[1] ? String(row[1]).trim() : '';
+          const mainCategory = row[mainCategoryIndex] ? String(row[mainCategoryIndex]).trim() : '';
+          const category = row[categoryIndex] ? String(row[categoryIndex]).trim() : '';
           
           // Validate required fields - only category is required, main category is optional
           if (!category) {
-            throw new Error(`Row ${rowNumber}: Category name is required and cannot be empty`);
+            throw new Error(`Row ${rowNumber}: Category name is required and cannot be empty (Column: ${headers[categoryIndex] || 'Category'})`);
           }
           
           // Validate category length (most databases have 255 char limit)
           if (category.length > 255) {
-            throw new Error(`Row ${rowNumber}: Category name too long (maximum 255 characters)`);
+            throw new Error(`Row ${rowNumber}: Category name too long (maximum 255 characters) in column "${headers[categoryIndex] || 'Category'}"`);
           }
           
           // Validate main category length if provided
           if (mainCategory && mainCategory.length > 255) {
-            throw new Error(`Row ${rowNumber}: Main category name too long (maximum 255 characters)`);
+            throw new Error(`Row ${rowNumber}: Main category name too long (maximum 255 characters) in column "${headers[mainCategoryIndex] || 'Main Category'}"`);
           }
           
           // Basic validation for special characters (adjust based on your requirements)
           const invalidCharsRegex = /[<>\"\'&]/;
           if (invalidCharsRegex.test(category)) {
-            throw new Error(`Row ${rowNumber}: Category contains invalid characters (<, >, ", ', &)`);
+            throw new Error(`Row ${rowNumber}: Category in column "${headers[categoryIndex] || 'Category'}" contains invalid characters (<, >, ", ', &)`);
           }
           
           if (mainCategory && invalidCharsRegex.test(mainCategory)) {
-            throw new Error(`Row ${rowNumber}: Main category contains invalid characters (<, >, ", ', &)`);
+            throw new Error(`Row ${rowNumber}: Main category in column "${headers[mainCategoryIndex] || 'Main Category'}" contains invalid characters (<, >, ", ', &)`);
           }
           
           return {
-            category: mainCategory || '', // First column (Main Category) maps to backend category field
-            subcategory: category // Second column (Category) maps to backend subcategory field
+            subcategory: mainCategory || null, // First column (Main Category) maps to backend subcategory field - null if empty
+            category: category // Second column (Category) maps to backend category field
             // Note: _rowNumber removed as backend doesn't expect this field
           };
+        });
+        
+        // Add debug info about column mapping
+        console.log('Excel parsing debug:', {
+          rawHeaders: headers,
+          normalizedHeaders: headerRow,
+          mainCategoryIndex,
+          categoryIndex,
+          mainCategoryHeader: headers[mainCategoryIndex],
+          categoryHeader: headers[categoryIndex],
+          sampleDataRow: dataRows[0] ? {
+            mainCategoryValue: dataRows[0][mainCategoryIndex],
+            categoryValue: dataRows[0][categoryIndex]
+          } : 'No data rows'
         });
         
         resolve(categories);
@@ -144,8 +219,8 @@ export const exportBulkResults = (results) => {
       ['ID', 'Main Category', 'Category', 'Status'],
       ...added.map(item => [
         item.id, 
-        item.category || '(no main category)', 
-        item.subcategory,
+        item.subcategory || '(no main category)', 
+        item.category,
         '✅ Successfully created in database'
       ])
     ];
@@ -164,8 +239,8 @@ export const exportBulkResults = (results) => {
         
         // Enhanced message customization based on error type and context
         const errorLower = message.toLowerCase();
-        const categoryName = item.data?.subcategory || '';
-        const mainCategoryName = item.data?.category || '';
+        const categoryName = item.data?.category || '';
+        const mainCategoryName = item.data?.subcategory || '';
         
         if (errorLower.includes('already exists') || errorLower.includes('duplicate')) {
           message = `⚠️ Category "${categoryName}" already exists`;
@@ -209,8 +284,8 @@ export const exportBulkResults = (results) => {
         
         return [
           item.row_number || '', 
-          item.data?.category || '(empty)', 
           item.data?.subcategory || '(empty)', 
+          item.data?.category || '(empty)', 
           message
         ];
       })
