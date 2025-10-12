@@ -646,11 +646,16 @@ const AssetManagement = () => {
       // Get existing categories to validate category names
       const existingCategories = await apiClient.getCategories({ page: 1, limit: 1000 });
       const existingCategoryNames = new Set();
+      const categoryNameToId = new Map(); // Map category names to IDs
       
-      if (existingCategories.data) {
-        existingCategories.data.forEach(cat => {
+      // The API response uses 'items' array, not 'data'
+      if (existingCategories.items) {
+        existingCategories.items.forEach(cat => {
+          // Use 'category' field which contains the actual category name users see
           if (cat.category) {
-            existingCategoryNames.add(cat.category.toLowerCase().trim());
+            const categoryNameLower = cat.category.toLowerCase().trim();
+            existingCategoryNames.add(categoryNameLower);
+            categoryNameToId.set(categoryNameLower, cat.id);
           }
         });
       }
@@ -663,19 +668,29 @@ const AssetManagement = () => {
         const rowNumber = index + 2; // +2 because Excel rows start at 1 and we skip header
         let errorMessage = null;
         
-        // Check if category name exists
-        if (!existingCategoryNames.has(asset.category_name.toLowerCase().trim())) {
-          errorMessage = `❌ Category "${asset.category_name}" does not exist in the system`;
-        }
+        const categoryNameLower = asset.category_name.toLowerCase().trim();
         
-        if (errorMessage) {
+        // Check if category name exists
+        if (!existingCategoryNames.has(categoryNameLower)) {
+          errorMessage = `❌ Category "${asset.category_name}" does not exist in the system`;
+          
           rejectedItems.push({
             row_number: rowNumber,
             data: asset,
             error: errorMessage
           });
         } else {
-          validAssets.push(asset);
+          // Transform the asset data: replace category_name with category_id
+          const categoryId = categoryNameToId.get(categoryNameLower);
+          const transformedAsset = {
+            name_en: asset.name_en,
+            name_ar: asset.name_ar,
+            category_id: categoryId, // Use category_id instead of category_name
+            product_code: asset.product_code,
+            is_active: asset.is_active
+          };
+          
+          validAssets.push(transformedAsset);
         }
       });
       
