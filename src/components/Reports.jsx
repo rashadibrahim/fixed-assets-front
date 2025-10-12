@@ -170,8 +170,14 @@ const Reports = () => {
       console.log('Categories response:', response);
 
       if (response && response.items) {
-        setCategories(response.items);
-        console.log('Categories set:', response.items);
+        // Extract unique categories only (not category + subcategory)
+        const uniqueCategories = [...new Set(
+          response.items
+            .filter(item => item.category)
+            .map(item => item.category)
+        )];
+        setCategories(uniqueCategories.map(cat => ({ category: cat })));
+        console.log('Categories set:', uniqueCategories);
       } else {
         console.warn('Categories data has unexpected structure:', response);
         setCategories([]);
@@ -989,16 +995,16 @@ const Reports = () => {
                         >
                           All Categories
                         </CommandItem>
-                        {categories.map((category) => (
+                        {categories.map((category, index) => (
                           <CommandItem
-                            key={category.id}
+                            key={index}
                             onSelect={() => {
                               setFilters({ ...filters, category: category.category });
                               setCategoryOpen(false);
                               setCategorySearch('');
                             }}
                           >
-                            {category.category} {category.subcategory ? `- ${category.subcategory}` : ''}
+                            {category.category}
                           </CommandItem>
                         ))}
                       </CommandGroup>
