@@ -48,10 +48,10 @@ const WarehouseManagement = () => {
 
   useEffect(() => {
     console.log('WarehouseManagement component mounted');
-    loadData(searchTerm);
-  }, [searchTerm]);
+    loadData();
+  }, []);
 
-  const loadData = async (searchQuery = '') => {
+  const loadData = async () => {
     try {
       setLoading(true);
       setError(null);
@@ -61,8 +61,8 @@ const WarehouseManagement = () => {
       setWarehouses([]);
       setBranches([]);
       
-      // Prepare API parameters with search
-      const warehouseParams = searchQuery ? { search: searchQuery, per_page: 100 } : { per_page: 100 };
+      // Load all data without search filtering (we'll filter on client side)
+      const warehouseParams = { per_page: 100 };
       const branchParams = { per_page: 100 };
       
       const [warehousesResponse, branchesResponse] = await Promise.all([
@@ -187,7 +187,7 @@ const WarehouseManagement = () => {
         branch_id: ''
       });
       setEditingWarehouse(null);
-      loadData(searchTerm); // Reload the data
+      loadData(); // Reload the data
     } catch (error) {
       console.error('Error saving warehouse:', error);
       const defaultMessage = editingWarehouse ? 'Failed to update warehouse' : 'Failed to create warehouse';
@@ -206,7 +206,7 @@ const WarehouseManagement = () => {
       setLoading(true);
       await apiClient.deleteWarehouse(warehouseId);
       handleSuccess('Warehouse deleted successfully!');
-      loadData(searchTerm); // Reload the data
+      loadData(); // Reload the data
     } catch (error) {
       console.error('Error deleting warehouse:', error);
       handleError(error, 'Failed to delete warehouse');
@@ -215,11 +215,22 @@ const WarehouseManagement = () => {
     }
   };
 
-  // Since search is now handled by API, only filter by branch on client side
+  // Filter warehouses on client side for both search and branch
   const filteredWarehouses = (warehouses || []).filter(warehouse => {
     if (!warehouse) return false;
+    
+    // Branch filtering
     const matchesBranch = !selectedBranch || selectedBranch === 'all' || warehouse.branch_id === parseInt(selectedBranch);
-    return matchesBranch;
+    
+    // Search filtering
+    const matchesSearch = !searchTerm || (
+      (warehouse.name_en && warehouse.name_en.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (warehouse.name_ar && warehouse.name_ar.includes(searchTerm)) ||
+      (warehouse.address_en && warehouse.address_en.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (warehouse.address_ar && warehouse.address_ar.includes(searchTerm))
+    );
+    
+    return matchesBranch && matchesSearch;
   });
 
   const getBranchName = (branchId) => {

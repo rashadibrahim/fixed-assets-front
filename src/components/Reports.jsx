@@ -170,8 +170,14 @@ const Reports = () => {
       console.log('Categories response:', response);
 
       if (response && response.items) {
-        setCategories(response.items);
-        console.log('Categories set:', response.items);
+        // Extract unique categories only (not category + subcategory)
+        const uniqueCategories = [...new Set(
+          response.items
+            .filter(item => item.category)
+            .map(item => item.category)
+        )];
+        setCategories(uniqueCategories.map(cat => ({ category: cat })));
+        console.log('Categories set:', uniqueCategories);
       } else {
         console.warn('Categories data has unexpected structure:', response);
         setCategories([]);
@@ -909,6 +915,67 @@ const Reports = () => {
     setWarehouseSearch('');
   };
 
+  const exportToExcel = async () => {
+    if (!filters.date) {
+      toast.error('Date is required for export');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      
+      // Prepare export parameters based on current filters
+      const exportParams = { date: filters.date };
+      
+      // Add optional filters
+      if (filters.category && filters.category !== 'all') {
+        exportParams.category = filters.category;
+      }
+      if (filters.subcategory && filters.subcategory !== 'all') {
+        exportParams.subcategory = filters.subcategory;
+      }
+      if (filters.branch_id && filters.branch_id !== 'all') {
+        exportParams.branch_id = filters.branch_id;
+      }
+      if (filters.warehouse_id && filters.warehouse_id !== 'all') {
+        exportParams.warehouse_id = filters.warehouse_id;
+      }
+      
+      // Get the blob from API
+      const blob = await apiClient.exportTransactionsReport(exportParams);
+      
+      // Create download link
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      
+      // Generate filename with current date and filters
+      let filename = `transaction_report_${filters.date}`;
+      if (filters.category && filters.category !== 'all') {
+        filename += `_${filters.category.replace(/[^a-zA-Z0-9]/g, '_')}`;
+      }
+      if (filters.subcategory && filters.subcategory !== 'all') {
+        filename += `_${filters.subcategory.replace(/[^a-zA-Z0-9]/g, '_')}`;
+      }
+      filename += '.xlsx';
+      
+      link.setAttribute('download', filename);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      
+      toast.success('Transaction report exported successfully!');
+    } catch (error) {
+      console.error('Export error:', error);
+      toast.error(error.message || 'Failed to export transaction report');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -918,6 +985,10 @@ const Reports = () => {
           <p className="text-muted-foreground">Generate detailed transaction reports by date and filters</p>
         </div>
         <div className="flex items-center space-x-3">
+          <Button variant="outline" onClick={exportToExcel} disabled={loading || !filters.date}>
+            <FileText className="h-4 w-4 mr-2" />
+            Export Excel
+          </Button>
           {reportData && (
             <Button variant="outline" onClick={exportToPDF}>
               <Download className="h-4 w-4 mr-2" />
@@ -989,16 +1060,16 @@ const Reports = () => {
                         >
                           All Categories
                         </CommandItem>
-                        {categories.map((category) => (
+                        {categories.map((category, index) => (
                           <CommandItem
-                            key={category.id}
+                            key={index}
                             onSelect={() => {
                               setFilters({ ...filters, category: category.category });
                               setCategoryOpen(false);
                               setCategorySearch('');
                             }}
                           >
-                            {category.category} {category.subcategory ? `- ${category.subcategory}` : ''}
+                            {category.category}
                           </CommandItem>
                         ))}
                       </CommandGroup>

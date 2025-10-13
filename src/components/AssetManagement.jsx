@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Package,
   Plus,
@@ -12,7 +12,12 @@ import {
   AlertCircle,
   Upload,
   FileText,
-  QrCode
+  QrCode,
+  Download,
+  FileSpreadsheet,
+  CheckCircle,
+  XCircle,
+  Loader2
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -25,6 +30,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import apiClient from '../utils/api';
 import { ViewToggle } from '@/components/ui/view-toggle';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { downloadAssetTemplate, parseAssetExcelFile, validateExcelFile, exportBulkResults, downloadAssetUpdateTemplate, parseAssetUpdateExcelFile } from '../utils/excelUtils';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { DynamicSearchableSelect } from '@/components/ui/dynamic-searchable-select';
 import { useErrorHandler } from '../hooks/useErrorHandler';
@@ -53,44 +60,46 @@ const AssetManagement = () => {
     is_active: true
   });
 
-  useEffect(() => {
-    loadAssets(currentPage, searchTerm, filterCategory);
-    loadCategories();
-  }, [currentPage, searchTerm, filterCategory]);
+  // Asset import states
+  const [assetImportDialogOpen, setAssetImportDialogOpen] = useState(false);
+  const [assetImportLoading, setAssetImportLoading] = useState(false);
+  const [selectedAssetFile, setSelectedAssetFile] = useState(null);
+  const [assetPreviewData, setAssetPreviewData] = useState([]);
+  const [assetImportResults, setAssetImportResults] = useState(null);
+  const [assetImportError, setAssetImportError] = useState(null);
+  const assetFileInputRef = useRef(null);
 
-  const loadAssets = async (page = 1, search = '', category = '') => {
+  // Asset update import states
+  const [assetUpdateDialogOpen, setAssetUpdateDialogOpen] = useState(false);
+  const [assetUpdateLoading, setAssetUpdateLoading] = useState(false);
+  const [selectedAssetUpdateFile, setSelectedAssetUpdateFile] = useState(null);
+  const [assetUpdatePreviewData, setAssetUpdatePreviewData] = useState([]);
+  const [assetUpdateResults, setAssetUpdateResults] = useState(null);
+  const [assetUpdateError, setAssetUpdateError] = useState(null);
+  const assetUpdateFileInputRef = useRef(null);
+
+  useEffect(() => {
+    loadAssets(currentPage, filterCategory);
+    loadCategories();
+  }, [currentPage, filterCategory]);
+
+  const loadAssets = async (page = 1, category = '') => {
     try {
       setLoading(true);
       
-      // Use search API if search term is provided
-      if (search.trim()) {
-        const params = {
-          q: search.trim(),
-          page,
-          per_page: itemsPerPage
-        };
-        const response = await apiClient.searchAssets(params);
-        setAssets(response.items || response || []);
-        setPagination({
-          page: response.page || 1,
-          pages: response.pages || 1,
-          total: response.total || 0
-        });
-      } else {
-        // Use regular assets API with category filter if provided
-        const params = {
-          page,
-          per_page: itemsPerPage,
-          ...(category && category !== 'all' && { category_id: category })
-        };
-        const response = await apiClient.getAssets(params);
-        setAssets(response.items || response || []);
-        setPagination({
-          page: response.page || 1,
-          pages: response.pages || 1,
-          total: response.total || 0
-        });
-      }
+      // Use regular assets API with category filter if provided
+      const params = {
+        page,
+        per_page: itemsPerPage,
+        ...(category && category !== 'all' && { category_id: category })
+      };
+      const response = await apiClient.getAssets(params);
+      setAssets(response.items || response || []);
+      setPagination({
+        page: response.page || 1,
+        pages: response.pages || 1,
+        total: response.total || 0
+      });
     } catch (error) {
       handleError(error, 'Failed to load assets');
       setAssets([]);
@@ -115,9 +124,18 @@ const AssetManagement = () => {
     return category ? category.category : 'Unknown Category';
   };
 
-  // Since we're now using API-based search and filtering, 
-  // assets are already filtered and paginated from the server
-  const filteredAssets = assets;
+  // Filter assets on client side for search (category filtering is still server-side)
+  const filteredAssets = assets.filter(asset => {
+    if (!searchTerm) return true;
+    
+    const searchLower = searchTerm.toLowerCase();
+    return (
+      (asset.name_en && asset.name_en.toLowerCase().includes(searchLower)) ||
+      (asset.name_ar && asset.name_ar.includes(searchTerm)) ||
+      (asset.product_code && asset.product_code.toLowerCase().includes(searchLower))
+    );
+  });
+  
   const totalPages = pagination.pages;
 
   // Reset to page 1 when filters change
@@ -125,7 +143,7 @@ const AssetManagement = () => {
     if (currentPage !== 1) {
       setCurrentPage(1);
     }
-  }, [searchTerm, filterCategory]);
+  }, [filterCategory]);
 
   const handleInputChange = useCallback((e) => {
     const { name, value, type, checked } = e.target;
@@ -228,7 +246,7 @@ const AssetManagement = () => {
         setShowAddModal(false);
       }
 
-      loadAssets(currentPage, searchTerm, filterCategory);
+      loadAssets(currentPage, filterCategory);
       resetForm();
     } catch (error) {
       handleError(error, 'Failed to save asset');
@@ -255,7 +273,7 @@ const AssetManagement = () => {
       try {
         await apiClient.deleteAsset(asset.id);
         handleSuccess('Asset deleted successfully');
-        loadAssets(currentPage, searchTerm, filterCategory);
+        loadAssets(currentPage, filterCategory);
       } catch (error) {
         handleError(error, 'Failed to delete asset');
       }
@@ -588,6 +606,440 @@ const AssetManagement = () => {
     setSelectedAsset(null);
   };
 
+  // Asset import functions
+  const handleAssetDownloadTemplate = () => {
+    try {
+      downloadAssetTemplate();
+      toast.success('Asset template downloaded successfully!');
+    } catch (error) {
+      console.error('Error downloading template:', error);
+      toast.error('Failed to download template');
+    }
+  };
+
+  const handleAssetFileSelect = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    try {
+      validateExcelFile(file);
+      setSelectedAssetFile(file);
+      setAssetImportError(null);
+      
+      // Parse and preview the file
+      const assets = await parseAssetExcelFile(file);
+      setAssetPreviewData(assets.slice(0, 5)); // Show first 5 rows for preview
+      toast.success(`File loaded successfully! Found ${assets.length} assets.`);
+    } catch (error) {
+      console.error('Error parsing file:', error);
+      toast.error(error.message || 'Failed to parse Excel file');
+      setSelectedAssetFile(null);
+      setAssetPreviewData([]);
+      setAssetImportError(error.message);
+    }
+  };
+
+  const handleAssetBulkImport = async () => {
+    if (!selectedAssetFile) {
+      toast.error('Please select a file first');
+      return;
+    }
+
+    try {
+      setAssetImportLoading(true);
+      setAssetImportError(null);
+      
+      // Parse the full file
+      const assets = await parseAssetExcelFile(selectedAssetFile);
+      
+      // Get existing categories to validate category names
+      const existingCategories = await apiClient.getCategories({ page: 1, limit: 1000 });
+      const existingCategoryNames = new Set();
+      const categoryNameToId = new Map(); // Map category names to IDs
+      
+      // The API response uses 'items' array, not 'data'
+      if (existingCategories.items) {
+        existingCategories.items.forEach(cat => {
+          // Use 'category' field which contains the actual category name users see
+          if (cat.category) {
+            const categoryNameLower = cat.category.toLowerCase().trim();
+            existingCategoryNames.add(categoryNameLower);
+            categoryNameToId.set(categoryNameLower, cat.id);
+          }
+        });
+      }
+      
+      // Enhanced validation with detailed error messages
+      const validAssets = [];
+      const rejectedItems = [];
+      
+      assets.forEach((asset, index) => {
+        const rowNumber = index + 2; // +2 because Excel rows start at 1 and we skip header
+        let errorMessage = null;
+        
+        const categoryNameLower = asset.category_name.toLowerCase().trim();
+        
+        // Check if category name exists
+        if (!existingCategoryNames.has(categoryNameLower)) {
+          errorMessage = `❌ Category "${asset.category_name}" does not exist in the system`;
+          
+          rejectedItems.push({
+            row_number: rowNumber,
+            data: asset,
+            error: errorMessage
+          });
+        } else {
+          // Transform the asset data: replace category_name with category_id
+          const categoryId = categoryNameToId.get(categoryNameLower);
+          const transformedAsset = {
+            name_en: asset.name_en,
+            name_ar: asset.name_ar,
+            category_id: categoryId, // Use category_id instead of category_name
+            product_code: asset.product_code,
+            is_active: asset.is_active
+          };
+          
+          validAssets.push(transformedAsset);
+        }
+      });
+      
+      // Send valid assets to backend
+      let importResults = {
+        summary: {
+          total: assets.length,
+          added: 0,
+          rejected: rejectedItems.length,
+          success_rate: 0
+        },
+        added: [],
+        rejected: rejectedItems
+      };
+      
+      if (validAssets.length > 0) {
+        try {
+          const response = await apiClient.bulkCreateAssets(validAssets);
+          
+          if (response && response.created) {
+            importResults.added = response.created;
+            importResults.summary.added = response.created.length;
+          } else if (response && Array.isArray(response)) {
+            importResults.added = response;
+            importResults.summary.added = response.length;
+          }
+        } catch (error) {
+          console.error('Bulk import error:', error);
+          // Add all valid assets to rejected list if bulk import fails
+          validAssets.forEach((asset, index) => {
+            rejectedItems.push({
+              row_number: index + 2,
+              data: asset,
+              error: `❌ Server error: ${error.message || 'Failed to create asset'}`
+            });
+          });
+          importResults.rejected = rejectedItems;
+          importResults.summary.rejected = rejectedItems.length;
+        }
+      }
+      
+      // Calculate success rate
+      importResults.summary.success_rate = Math.round(
+        (importResults.summary.added / importResults.summary.total) * 100
+      );
+      
+      setAssetImportResults(importResults);
+      
+      // Show success/error message
+      if (importResults.summary.added > 0) {
+        toast.success(`Successfully imported ${importResults.summary.added} assets!`);
+        // Reload assets to show the new ones
+        loadAssets(currentPage, filterCategory);
+      }
+      if (importResults.summary.rejected > 0) {
+        toast.warning(`${importResults.summary.rejected} assets were rejected. Check the results for details.`);
+      }
+      
+    } catch (error) {
+      console.error('Import error:', error);
+      setAssetImportError(error.message || 'Failed to import assets');
+      toast.error(error.message || 'Failed to import assets');
+    } finally {
+      setAssetImportLoading(false);
+    }
+  };
+
+  const handleAssetExportResults = () => {
+    if (assetImportResults) {
+      try {
+        exportBulkResults(assetImportResults);
+        toast.success('Results exported successfully!');
+      } catch (error) {
+        console.error('Export error:', error);
+        toast.error('Failed to export results');
+      }
+    }
+  };
+
+  const resetAssetImportDialog = () => {
+    setSelectedAssetFile(null);
+    setAssetPreviewData([]);
+    setAssetImportResults(null);
+    setAssetImportError(null);
+    setAssetImportDialogOpen(false);
+    if (assetFileInputRef.current) {
+      assetFileInputRef.current.value = '';
+    }
+  };
+
+  // Asset update import functions
+  const handleAssetUpdateDownloadTemplate = async () => {
+    try {
+      setLoading(true);
+      
+      // Get all assets (paginated)
+      let allAssets = [];
+      let currentPageTemp = 1;
+      let hasMorePages = true;
+      
+      while (hasMorePages) {
+        const params = {
+          page: currentPageTemp,
+          per_page: 100, // Get 100 assets per page
+          ...(filterCategory && filterCategory !== 'all' && { category_id: filterCategory })
+        };
+        const response = await apiClient.getAssets(params);
+        const pageAssets = response.items || response || [];
+        allAssets = [...allAssets, ...pageAssets];
+        
+        hasMorePages = response.pages ? currentPageTemp < response.pages : false;
+        currentPageTemp++;
+      }
+
+      downloadAssetUpdateTemplate(allAssets, categories);
+      toast.success('Asset update template downloaded successfully!');
+    } catch (error) {
+      console.error('Error downloading update template:', error);
+      toast.error('Failed to download update template');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAssetUpdateFileSelect = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    try {
+      validateExcelFile(file);
+      setSelectedAssetUpdateFile(file);
+      setAssetUpdateError(null);
+      
+      // Parse and preview the file
+      const assets = await parseAssetUpdateExcelFile(file);
+      setAssetUpdatePreviewData(assets.slice(0, 5)); // Show first 5 rows for preview
+      toast.success(`File loaded successfully! Found ${assets.length} assets to update.`);
+    } catch (error) {
+      console.error('Error parsing update file:', error);
+      toast.error(error.message || 'Failed to parse Excel file');
+      setSelectedAssetUpdateFile(null);
+      setAssetUpdatePreviewData([]);
+      setAssetUpdateError(error.message);
+    }
+  };
+
+  const handleAssetBulkUpdate = async () => {
+    if (!selectedAssetUpdateFile) {
+      toast.error('Please select a file first');
+      return;
+    }
+
+    try {
+      setAssetUpdateLoading(true);
+      setAssetUpdateError(null);
+      
+      // Parse the full file
+      const assets = await parseAssetUpdateExcelFile(selectedAssetUpdateFile);
+      
+      // Get existing categories to validate category names
+      const existingCategories = await apiClient.getCategories({ page: 1, limit: 1000 });
+      const existingCategoryNames = new Set();
+      const categoryNameToId = new Map(); // Map category names to IDs
+      
+      // The API response uses 'items' array, not 'data'
+      if (existingCategories.items) {
+        existingCategories.items.forEach(cat => {
+          // Use 'category' field which contains the actual category name users see
+          if (cat.category) {
+            const categoryNameLower = cat.category.toLowerCase().trim();
+            existingCategoryNames.add(categoryNameLower);
+            categoryNameToId.set(categoryNameLower, cat.id);
+          }
+        });
+      }
+      
+      // Enhanced validation with detailed error messages
+      const validAssets = [];
+      const rejectedItems = [];
+      
+      assets.forEach((asset, index) => {
+        const rowNumber = index + 2; // +2 because Excel rows start at 1 and we skip header
+        let errorMessage = null;
+        
+        const categoryNameLower = asset.category_name.toLowerCase().trim();
+        
+        // Check if category name exists
+        if (!existingCategoryNames.has(categoryNameLower)) {
+          errorMessage = `❌ Category "${asset.category_name}" does not exist in the system`;
+          
+          rejectedItems.push({
+            row_number: rowNumber,
+            data: asset,
+            error: errorMessage
+          });
+        } else {
+          // Transform the asset data: replace category_name with category_id
+          const categoryId = categoryNameToId.get(categoryNameLower);
+          const transformedAsset = {
+            id: asset.id,
+            name_en: asset.name_en,
+            name_ar: asset.name_ar,
+            category_id: categoryId, // Use category_id instead of category_name
+            product_code: asset.product_code,
+            is_active: asset.is_active
+          };
+          
+          validAssets.push(transformedAsset);
+        }
+      });
+      
+      // Send valid assets to backend
+      let updateResults = {
+        summary: {
+          total: assets.length,
+          successfully_added: 0, // Using same naming as bulk create for consistency 
+          rejected: rejectedItems.length,
+          success_rate: 0
+        },
+        updated_assets: [],
+        rejected_assets: rejectedItems
+      };
+      
+      if (validAssets.length > 0) {
+        try {
+          const response = await apiClient.bulkUpdateAssets(validAssets);
+          
+          if (response && response.updated_assets) {
+            updateResults.updated_assets = response.updated_assets;
+            updateResults.summary.successfully_added = response.updated_assets.length;
+          } else if (response && Array.isArray(response)) {
+            updateResults.updated_assets = response;
+            updateResults.summary.successfully_added = response.length;
+          }
+        } catch (error) {
+          console.error('Bulk update error:', error);
+          // Add all valid assets to rejected list if bulk update fails
+          validAssets.forEach((asset, index) => {
+            rejectedItems.push({
+              row_number: index + 2,
+              data: asset,
+              error: `❌ Server error: ${error.message || 'Failed to update asset'}`
+            });
+          });
+          updateResults.rejected_assets = rejectedItems;
+          updateResults.summary.rejected = rejectedItems.length;
+        }
+      }
+      
+      // Calculate success rate
+      updateResults.summary.success_rate = Math.round(
+        (updateResults.summary.successfully_added / updateResults.summary.total) * 100
+      );
+      
+      setAssetUpdateResults(updateResults);
+      
+      // Show success/error message
+      if (updateResults.summary.successfully_added > 0) {
+        toast.success(`Successfully updated ${updateResults.summary.successfully_added} assets!`);
+        // Reload assets to show the updated ones
+        loadAssets(currentPage, filterCategory);
+      }
+      if (updateResults.summary.rejected > 0) {
+        toast.warning(`${updateResults.summary.rejected} assets were rejected. Check the results for details.`);
+      }
+      
+    } catch (error) {
+      console.error('Update error:', error);
+      setAssetUpdateError(error.message || 'Failed to update assets');
+      toast.error(error.message || 'Failed to update assets');
+    } finally {
+      setAssetUpdateLoading(false);
+    }
+  };
+
+  const handleAssetUpdateExportResults = () => {
+    if (assetUpdateResults) {
+      try {
+        exportBulkResults(assetUpdateResults);
+        toast.success('Results exported successfully!');
+      } catch (error) {
+        console.error('Export error:', error);
+        toast.error('Failed to export results');
+      }
+    }
+  };
+
+  const resetAssetUpdateDialog = () => {
+    setSelectedAssetUpdateFile(null);
+    setAssetUpdatePreviewData([]);
+    setAssetUpdateResults(null);
+    setAssetUpdateError(null);
+    setAssetUpdateDialogOpen(false);
+    if (assetUpdateFileInputRef.current) {
+      assetUpdateFileInputRef.current.value = '';
+    }
+  };
+
+  const handleExportAssets = async () => {
+    try {
+      setLoading(true);
+      
+      // Prepare export parameters based on current filters
+      const exportParams = {};
+      if (filterCategory && filterCategory !== 'all') {
+        exportParams.category_id = filterCategory;
+      }
+      
+      // Get the blob from API
+      const blob = await apiClient.exportAssets(exportParams);
+      
+      // Create download link
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      
+      // Generate filename with current date and filters
+      const currentDate = new Date().toISOString().split('T')[0];
+      let filename = `assets_export_${currentDate}`;
+      if (filterCategory && filterCategory !== 'all') {
+        const categoryName = categories.find(cat => cat.id.toString() === filterCategory)?.category || 'filtered';
+        filename += `_${categoryName.replace(/[^a-zA-Z0-9]/g, '_')}`;
+      }
+      filename += '.xlsx';
+      
+      link.setAttribute('download', filename);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      
+      toast.success('Assets exported successfully!');
+    } catch (error) {
+      console.error('Export error:', error);
+      handleError(error, 'Failed to export assets');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -608,6 +1060,26 @@ const AssetManagement = () => {
         </div>
         <div className="flex items-center space-x-3">
           <ViewToggle view={viewMode} onViewChange={setViewMode} />
+          <Button variant="outline" onClick={handleExportAssets} disabled={loading}>
+            <Download className="h-4 w-4 mr-2" />
+            Export to Excel
+          </Button>
+          <Dialog open={assetImportDialogOpen} onOpenChange={setAssetImportDialogOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline" onClick={() => setAssetImportDialogOpen(true)}>
+                <Upload className="h-4 w-4 mr-2" />
+                Import from Excel
+              </Button>
+            </DialogTrigger>
+          </Dialog>
+          <Dialog open={assetUpdateDialogOpen} onOpenChange={setAssetUpdateDialogOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline" onClick={() => setAssetUpdateDialogOpen(true)}>
+                <Edit3 className="h-4 w-4 mr-2" />
+                Import Update from Excel
+              </Button>
+            </DialogTrigger>
+          </Dialog>
           <Dialog open={showAddModal} onOpenChange={setShowAddModal}>
             <DialogTrigger asChild>
               <Button className="btn-primary">
@@ -935,6 +1407,563 @@ const AssetManagement = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Asset Import Dialog */}
+      <Dialog open={assetImportDialogOpen} onOpenChange={resetAssetImportDialog}>
+        <DialogContent className="max-w-none max-h-none w-screen h-screen m-0 rounded-none overflow-y-auto p-6">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileSpreadsheet className="w-5 h-5" />
+              Import Assets from Excel
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-6">
+            {/* Step 1: Download Template */}
+            <div className="space-y-3">
+              <h3 className="font-semibold flex items-center gap-2">
+                <span className="bg-blue-100 text-blue-800 rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold">1</span>
+                Download Empty Template
+              </h3>
+              <p className="text-sm text-muted-foreground ml-8">
+                Download the empty Excel template, fill it with your asset data, and save it.
+                <br />
+                <strong>Asset Name (English):</strong> Required field
+                <br />
+                <strong>Asset Name (Arabic):</strong> Required field
+                <br />
+                <strong>Category Name:</strong> Required field (must exist in system)
+                <br />
+                <strong>Product Code:</strong> Optional (6-11 characters if provided)
+                <br />
+                <strong>Is Active:</strong> Optional (true/false, defaults to true)
+              </p>
+              <div className="ml-8">
+                <Button variant="outline" onClick={handleAssetDownloadTemplate} className="flex items-center gap-2">
+                  <Download className="w-4 h-4" />
+                  Download Empty Template
+                </Button>
+              </div>
+            </div>
+
+            {/* Instructions */}
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-3">
+              <h4 className="font-medium text-blue-900">📋 Instructions & Guidelines:</h4>
+              <div className="space-y-3">
+                <ul className="text-sm text-blue-800 space-y-1 ml-4">
+                  <li>• <strong>Asset Name (English):</strong> Required field - the English name of the asset</li>
+                  <li>• <strong>Asset Name (Arabic):</strong> Required field - the Arabic name of the asset</li>
+                  <li>• <strong>Category Name:</strong> Required field - must be a valid category name from your system</li>
+                  <li>• <strong>Product Code:</strong> Optional - 6-11 character alphanumeric code</li>
+                  <li>• <strong>Is Active:</strong> Optional - true/false/1/0/yes/no (defaults to true)</li>
+                  <li>• Save your Excel file after filling the data and upload it below</li>
+                </ul>
+                
+                <div className="border-t border-blue-200 pt-3">
+                  <div><strong className="text-red-700">⚠️ Assets will be rejected if:</strong></div>
+                  <ul className="text-sm text-red-700 space-y-1 ml-4 mt-1">
+                    <li>• Asset name (English or Arabic) is empty or missing</li>
+                    <li>• Category name doesn't exist in the system</li>
+                    <li>• Product Code is less than 6 or more than 11 characters</li>
+                    <li>• Text exceeds 255 characters</li>
+                    <li>• Contains invalid characters like &lt; &gt; " ' &amp;</li>
+                    <li>• Row is completely empty</li>
+                  </ul>
+                </div>
+                
+                <div className="border-t border-blue-200 pt-3">
+                  <div><strong className="text-green-700">✅ Tips for success:</strong></div>
+                  <ul className="text-sm text-green-700 space-y-1 ml-4 mt-1">
+                    <li>• Verify category names exist in your system before importing</li>
+                    <li>• Remove empty rows before uploading</li>
+                    <li>• Use simple text without special formatting</li>
+                    <li>• Check for typos in asset names</li>
+                    <li>• Keep all text under 255 characters</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+
+            {/* Step 2: Upload File */}
+            <div className="space-y-3">
+              <h3 className="font-semibold flex items-center gap-2">
+                <span className="bg-blue-100 text-blue-800 rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold">2</span>
+                Upload Excel File
+              </h3>
+              <p className="text-sm text-muted-foreground ml-8">
+                Upload your completed Excel file. All required fields must be filled.
+              </p>
+              <div className="ml-8">
+                <input
+                  ref={assetFileInputRef}
+                  type="file"
+                  accept=".xlsx,.xls"
+                  onChange={handleAssetFileSelect}
+                  className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                />
+              </div>
+            </div>
+
+            {/* Step 3: Preview Data */}
+            {assetPreviewData.length > 0 && (
+              <div className="space-y-3">
+                <h3 className="font-semibold flex items-center gap-2">
+                  <span className="bg-blue-100 text-blue-800 rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold">3</span>
+                  Preview Data
+                </h3>
+                <div className="ml-8">
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <p className="text-sm text-muted-foreground mb-3">
+                      Preview of first 5 rows (showing sample data):
+                    </p>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Asset Name (EN)</TableHead>
+                          <TableHead>Asset Name (AR)</TableHead>
+                          <TableHead>Category Name</TableHead>
+                          <TableHead>Product Code</TableHead>
+                          <TableHead>Is Active</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {assetPreviewData.map((item, index) => (
+                          <TableRow key={index}>
+                            <TableCell>{item.name_en}</TableCell>
+                            <TableCell>{item.name_ar}</TableCell>
+                            <TableCell>{item.category_name}</TableCell>
+                            <TableCell>{item.product_code || '(empty)'}</TableCell>
+                            <TableCell>{item.is_active ? 'Yes' : 'No'}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Step 4: Import Results */}
+            {assetImportResults && (
+              <div className="space-y-3">
+                <h3 className="font-semibold flex items-center gap-2">
+                  <span className="bg-green-100 text-green-800 rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold">
+                    <CheckCircle className="w-4 h-4" />
+                  </span>
+                  Import Results
+                </h3>
+                <div className="ml-8 space-y-4">
+                  {/* Summary */}
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <h4 className="font-medium mb-3">Summary</h4>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                      <div>
+                        <div className="text-muted-foreground">Total Records</div>
+                        <div className="font-semibold">{assetImportResults.summary.total}</div>
+                        <div className="text-xs text-muted-foreground">Processed from Excel</div>
+                      </div>
+                      <div>
+                        <div className="text-muted-foreground">Successfully Added</div>
+                        <div className="font-semibold text-green-600">{assetImportResults.summary.added}</div>
+                        <div className="text-xs text-muted-foreground">New assets created</div>
+                      </div>
+                      <div>
+                        <div className="text-muted-foreground">Rejected</div>
+                        <div className="font-semibold text-red-600">{assetImportResults.summary.rejected}</div>
+                        <div className="text-xs text-muted-foreground">Failed validation</div>
+                      </div>
+                      <div>
+                        <div className="text-muted-foreground">Success Rate</div>
+                        <div className={`font-semibold ${assetImportResults.summary.success_rate >= 80 ? 'text-green-600' : assetImportResults.summary.success_rate >= 50 ? 'text-yellow-600' : 'text-red-600'}`}>
+                          {assetImportResults.summary.success_rate}%
+                        </div>
+                        <div className="text-xs text-muted-foreground">Import efficiency</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Successfully Added Assets */}
+                  {assetImportResults.added && assetImportResults.added.length > 0 && (
+                    <div className="bg-green-50 rounded-lg p-4">
+                      <h4 className="font-medium mb-3 text-green-800">Successfully Added Assets</h4>
+                      <div className="max-h-40 overflow-y-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>ID</TableHead>
+                              <TableHead>Asset Name (EN)</TableHead>
+                              <TableHead>Asset Name (AR)</TableHead>
+                              <TableHead>Category Name</TableHead>
+                              <TableHead>Status</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {assetImportResults.added.map((item, index) => (
+                              <TableRow key={index}>
+                                <TableCell>{item.id}</TableCell>
+                                <TableCell>{item.name_en}</TableCell>
+                                <TableCell>{item.name_ar}</TableCell>
+                                <TableCell>{item.category_name || item.category_id}</TableCell>
+                                <TableCell className="text-sm text-green-600">
+                                  <div className="flex items-start gap-2">
+                                    <span className="text-lg leading-none">✅</span>
+                                    <span className="font-medium">Successfully created in database</span>
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Rejected Assets */}
+                  {assetImportResults.rejected && assetImportResults.rejected.length > 0 && (
+                    <div className="bg-red-50 rounded-lg p-4">
+                      <h4 className="font-medium mb-3 text-red-800">Rejected Assets</h4>
+                      <div className="max-h-40 overflow-y-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Row</TableHead>
+                              <TableHead>Asset Name (EN)</TableHead>
+                              <TableHead>Asset Name (AR)</TableHead>
+                              <TableHead>Category Name</TableHead>
+                              <TableHead>Message</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {assetImportResults.rejected.map((item, index) => {
+                              let message = item.error || 'Unknown error';
+                              let statusColor = 'text-red-600';
+                              let statusIcon = '❌';
+                              
+                              return (
+                                <TableRow key={index}>
+                                  <TableCell>{item.row_number}</TableCell>
+                                  <TableCell>
+                                    {item.data?.name_en ? (
+                                      <span className="font-medium">{item.data.name_en}</span>
+                                    ) : (
+                                      <span className="text-gray-400 italic">(empty)</span>
+                                    )}
+                                  </TableCell>
+                                  <TableCell>
+                                    {item.data?.name_ar ? (
+                                      <span className="font-medium">{item.data.name_ar}</span>
+                                    ) : (
+                                      <span className="text-gray-400 italic">(empty)</span>
+                                    )}
+                                  </TableCell>
+                                  <TableCell>
+                                    {item.data?.category_name ? (
+                                      <span className="font-medium">{item.data.category_name}</span>
+                                    ) : (
+                                      <span className="text-gray-400 italic">(empty)</span>
+                                    )}
+                                  </TableCell>
+                                  <TableCell className={`text-sm ${statusColor}`}>
+                                    <div className="flex items-start gap-2">
+                                      <span className="text-lg leading-none">{statusIcon}</span>
+                                      <span className="font-medium">{message}</span>
+                                    </div>
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            })}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Export Results Button */}
+                  <Button variant="outline" onClick={handleAssetExportResults} className="flex items-center gap-2">
+                    <Download className="w-4 h-4" />
+                    Export Detailed Results
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Action Buttons */}
+            <div className="flex justify-between pt-4 border-t">
+              <Button variant="outline" onClick={resetAssetImportDialog}>
+                {assetImportResults ? 'Close' : 'Cancel'}
+              </Button>
+              
+              {selectedAssetFile && !assetImportResults && (
+                <Button 
+                  onClick={handleAssetBulkImport} 
+                  disabled={assetImportLoading}
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  {assetImportLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                  Import Assets
+                </Button>
+              )}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Asset Update Import Dialog */}
+      <Dialog open={assetUpdateDialogOpen} onOpenChange={resetAssetUpdateDialog}>
+        <DialogContent className="max-w-none max-h-none w-screen h-screen m-0 rounded-none overflow-y-auto p-6">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Edit3 className="w-5 h-5" />
+              Import Asset Updates from Excel
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-6">
+            {/* Step 1: Download Template with Existing Data */}
+            <div className="space-y-3">
+              <h3 className="font-semibold flex items-center gap-2">
+                <span className="bg-blue-100 text-blue-800 rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold">1</span>
+                Download Template with Current Asset Data
+              </h3>
+              <p className="text-sm text-muted-foreground ml-8">
+                Download an Excel file containing all your current assets. Edit the data and save the file.
+                <br />
+                <strong>ID:</strong> Required field (do not modify - used to identify which asset to update)
+                <br />
+                <strong>Asset Name (English):</strong> Required field
+                <br />
+                <strong>Asset Name (Arabic):</strong> Required field
+                <br />
+                <strong>Category Name:</strong> Required field (must exist in system)
+                <br />
+                <strong>Product Code:</strong> Optional (6-11 characters if provided)
+                <br />
+                <strong>Is Active:</strong> true/false
+              </p>
+              <Button
+                variant="outline"
+                onClick={handleAssetUpdateDownloadTemplate}
+                disabled={loading}
+                className="ml-8"
+              >
+                <Download className="w-4 h-4 mr-2" />
+                {loading ? 'Loading...' : 'Download Template with Current Data'}
+              </Button>
+            </div>
+
+            {/* Step 2: Upload File */}
+            <div className="space-y-3">
+              <h3 className="font-semibold flex items-center gap-2">
+                <span className="bg-blue-100 text-blue-800 rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold">2</span>
+                Upload Your Updated File
+              </h3>
+              <div className="ml-8 space-y-4">
+                <div>
+                  <input
+                    type="file"
+                    accept=".xlsx,.xls"
+                    onChange={handleAssetUpdateFileSelect}
+                    ref={assetUpdateFileInputRef}
+                    className="hidden"
+                  />
+                  <Button
+                    variant="outline"
+                    onClick={() => assetUpdateFileInputRef.current?.click()}
+                    disabled={assetUpdateLoading}
+                  >
+                    <Upload className="w-4 h-4 mr-2" />
+                    Select Excel File
+                  </Button>
+                  {selectedAssetUpdateFile && (
+                    <p className="text-sm text-muted-foreground mt-2">
+                      Selected: {selectedAssetUpdateFile.name}
+                    </p>
+                  )}
+                </div>
+
+                {/* Preview Data */}
+                {assetUpdatePreviewData.length > 0 && (
+                  <div className="border rounded-lg p-4">
+                    <h4 className="font-medium mb-3">Preview (first 5 rows):</h4>
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>ID</TableHead>
+                            <TableHead>Asset Name (EN)</TableHead>
+                            <TableHead>Asset Name (AR)</TableHead>
+                            <TableHead>Category</TableHead>
+                            <TableHead>Product Code</TableHead>
+                            <TableHead>Is Active</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {assetUpdatePreviewData.map((asset, index) => (
+                            <TableRow key={index}>
+                              <TableCell>{asset.id}</TableCell>
+                              <TableCell>{asset.name_en}</TableCell>
+                              <TableCell>{asset.name_ar}</TableCell>
+                              <TableCell>{asset.category_name}</TableCell>
+                              <TableCell>{asset.product_code || '-'}</TableCell>
+                              <TableCell>{asset.is_active ? 'Active' : 'Inactive'}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Step 3: Review Results */}
+            {assetUpdateResults && (
+              <div className="space-y-4">
+                <h3 className="font-semibold flex items-center gap-2">
+                  <span className="bg-green-100 text-green-800 rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold">✓</span>
+                  Update Results
+                </h3>
+                <div className="ml-8 space-y-4">
+                  <div className="bg-muted p-4 rounded-lg">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+                      <div>
+                        <div className="text-2xl font-bold text-blue-600">{assetUpdateResults.summary.total}</div>
+                        <div className="text-sm text-muted-foreground">Total Processed</div>
+                      </div>
+                      <div>
+                        <div className="text-2xl font-bold text-green-600">{assetUpdateResults.summary.successfully_added}</div>
+                        <div className="text-sm text-muted-foreground">Successfully Updated</div>
+                      </div>
+                      <div>
+                        <div className="text-2xl font-bold text-red-600">{assetUpdateResults.summary.rejected}</div>
+                        <div className="text-sm text-muted-foreground">Rejected</div>
+                      </div>
+                      <div>
+                        <div className={`text-2xl font-bold ${assetUpdateResults.summary.success_rate >= 80 ? 'text-green-600' : assetUpdateResults.summary.success_rate >= 50 ? 'text-yellow-600' : 'text-red-600'}`}>
+                          {assetUpdateResults.summary.success_rate}%
+                        </div>
+                        <div className="text-sm text-muted-foreground">Success Rate</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {assetUpdateResults.updated_assets && assetUpdateResults.updated_assets.length > 0 && (
+                    <div className="space-y-2">
+                      <h4 className="font-medium text-green-600 flex items-center gap-2">
+                        <CheckCircle className="w-4 h-4" />
+                        Successfully Updated Assets ({assetUpdateResults.updated_assets.length})
+                      </h4>
+                      <div className="border rounded-lg max-h-40 overflow-y-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>ID</TableHead>
+                              <TableHead>Asset Name (EN)</TableHead>
+                              <TableHead>Category</TableHead>
+                              <TableHead>Product Code</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {assetUpdateResults.updated_assets.slice(0, 10).map((asset, index) => (
+                              <TableRow key={index}>
+                                <TableCell>{asset.id}</TableCell>
+                                <TableCell>{asset.name_en}</TableCell>
+                                <TableCell>{asset.category_id}</TableCell>
+                                <TableCell>{asset.product_code || '-'}</TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                        {assetUpdateResults.updated_assets.length > 10 && (
+                          <div className="p-2 text-center text-sm text-muted-foreground border-t">
+                            ... and {assetUpdateResults.updated_assets.length - 10} more
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {assetUpdateResults.rejected_assets && assetUpdateResults.rejected_assets.length > 0 && (
+                    <div className="space-y-2">
+                      <h4 className="font-medium text-red-600 flex items-center gap-2">
+                        <XCircle className="w-4 h-4" />
+                        Rejected Assets ({assetUpdateResults.rejected_assets.length})
+                      </h4>
+                      <div className="border rounded-lg max-h-40 overflow-y-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Row</TableHead>
+                              <TableHead>Asset Data</TableHead>
+                              <TableHead>Error</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {assetUpdateResults.rejected_assets.slice(0, 10).map((item, index) => (
+                              <TableRow key={index}>
+                                <TableCell>{item.row_number}</TableCell>
+                                <TableCell>{item.data.name_en || 'N/A'}</TableCell>
+                                <TableCell className="text-red-600 text-sm">{item.error}</TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                        {assetUpdateResults.rejected_assets.length > 10 && (
+                          <div className="p-2 text-center text-sm text-muted-foreground border-t">
+                            ... and {assetUpdateResults.rejected_assets.length - 10} more
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  <Button
+                    variant="outline"
+                    onClick={handleAssetUpdateExportResults}
+                    className="w-full"
+                  >
+                    <Download className="w-4 h-4 mr-2" />
+                    Export Detailed Results
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Action Buttons */}
+            <div className="flex justify-end space-x-3 pt-4 border-t">
+              <Button variant="outline" onClick={resetAssetUpdateDialog}>
+                Close
+              </Button>
+              {selectedAssetUpdateFile && !assetUpdateResults && (
+                <Button
+                  onClick={handleAssetBulkUpdate}
+                  disabled={assetUpdateLoading}
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  {assetUpdateLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                  Update Assets
+                </Button>
+              )}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Error Display */}
+      {assetImportError && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>{assetImportError}</AlertDescription>
+        </Alert>
+      )}
+
+      {/* Update Error Display */}
+      {assetUpdateError && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>{assetUpdateError}</AlertDescription>
+        </Alert>
+      )}
 
     </div>
   );
