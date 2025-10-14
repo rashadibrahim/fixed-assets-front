@@ -22,7 +22,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { ViewToggle } from '@/components/ui/view-toggle';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import apiClient from '../utils/api';
 import { useErrorHandler } from '../hooks/useErrorHandler';
@@ -40,7 +39,6 @@ const CategoryManagement = () => {
     pages: 1,
     total: 0
   });
-  const [viewMode, setViewMode] = useState('grid');
   const { handleError, handleSuccess } = useErrorHandler();
 
   const [formData, setFormData] = useState({
@@ -51,7 +49,7 @@ const CategoryManagement = () => {
   });
 
   const [existingMainCategories, setExistingMainCategories] = useState([]);
-  
+
   // Bulk import states
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [importLoading, setImportLoading] = useState(false);
@@ -95,7 +93,7 @@ const CategoryManagement = () => {
         }));
 
         setCategories(transformedCategories);
-        
+
         // Extract unique main categories for dropdown
         const uniqueMainCategories = [...new Set(
           data.items
@@ -148,7 +146,6 @@ const CategoryManagement = () => {
     setDialogOpen(true);
   };
 
-  // Update the validateForm function:
   const validateForm = () => {
     const errors = [];
 
@@ -180,8 +177,8 @@ const CategoryManagement = () => {
 
       // Check for duplicate names
       if (formData.subcategory.trim()) {
-        const duplicateCategory = categories.find(cat => 
-          cat.subcategory?.toLowerCase() === formData.subcategory.trim().toLowerCase() && 
+        const duplicateCategory = categories.find(cat =>
+          cat.subcategory?.toLowerCase() === formData.subcategory.trim().toLowerCase() &&
           (!editingCategory || cat.id !== editingCategory.id)
         );
 
@@ -232,7 +229,21 @@ const CategoryManagement = () => {
       await loadCategories(pagination.page, searchTerm);
     } catch (error) {
       console.error('Error deleting category:', error);
-      handleError(error, 'Failed to delete category');
+
+      // Extract and display the actual backend error message
+      let errorMessage = 'Failed to delete category';
+
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.response?.data?.error) {
+        errorMessage = error.response.data.error;
+      } else if (error.response?.data?.detail) {
+        errorMessage = error.response.data.detail;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+
+      handleError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -262,7 +273,7 @@ const CategoryManagement = () => {
     try {
       validateExcelFile(file);
       setSelectedFile(file);
-      
+
       // Parse and preview the file
       const categories = await parseExcelFile(file);
       setPreviewData(categories.slice(0, 5)); // Show first 5 rows for preview
@@ -282,29 +293,29 @@ const CategoryManagement = () => {
 
     try {
       setImportLoading(true);
-      
+
       // Parse the full file
       const categories = await parseExcelFile(selectedFile);
-      
+
       // Get existing categories to check for duplicates
       const existingCategories = await apiClient.getCategories({ page: 1, limit: 1000 });
       const existingCategoriesSet = new Set();
-      
+
       if (existingCategories.data) {
         existingCategories.data.forEach(cat => {
           const key = `${cat.category || ''}|${cat.subcategory || ''}`.toLowerCase();
           existingCategoriesSet.add(key);
         });
       }
-      
+
       // Enhanced validation with detailed error messages
       const validCategories = [];
       const rejectedItems = [];
-      
+
       categories.forEach((category, index) => {
         const rowNumber = index + 2; // +2 because Excel rows start at 1 and we skip header
         let errorMessage = null;
-        
+
         // Check if category name (category field) is missing
         if (!category.category || category.category.trim() === '') {
           errorMessage = '❌ Category name is required and cannot be empty';
@@ -312,12 +323,12 @@ const CategoryManagement = () => {
         // Check for duplicates in existing data
         else {
           const categoryKey = `${category.category || ''}|${category.subcategory}`.toLowerCase();
-          
+
           if (existingCategoriesSet.has(categoryKey)) {
             errorMessage = '⚠️ Category already exists in database - skipped to avoid duplicates';
           } else {
             // Check for duplicates within the current import batch
-            const duplicateInBatch = validCategories.find(vc => 
+            const duplicateInBatch = validCategories.find(vc =>
               (vc.category || '').toLowerCase() === (category.category || '').toLowerCase() &&
               vc.subcategory.toLowerCase() === category.subcategory.toLowerCase()
             );
@@ -326,7 +337,7 @@ const CategoryManagement = () => {
             }
           }
         }
-        
+
         if (errorMessage) {
           rejectedItems.push({
             row_number: rowNumber,
@@ -338,7 +349,7 @@ const CategoryManagement = () => {
           validCategories.push(category);
         }
       });
-      
+
       // If we have valid categories, send them to backend
       let backendResults = null;
       if (validCategories.length > 0) {
@@ -357,20 +368,20 @@ const CategoryManagement = () => {
           });
         }
       }
-      
+
       // Handle case where backend says items were rejected but doesn't provide details
       let backendRejectedItems = [];
       let backendSuccessItems = [];
       const actualRejectedItems = backendResults?.rejected_categories || backendResults?.rejected || [];
-      
+
       if (actualRejectedItems && actualRejectedItems.length > 0) {
         // Filter out backend bugs - categories rejected only for empty main category duplication
         actualRejectedItems.forEach(item => {
-          const hasOnlyEmptyMainCategoryError = item.errors && 
-            item.errors.length === 1 && 
-            item.errors[0].includes("Category ''") && 
+          const hasOnlyEmptyMainCategoryError = item.errors &&
+            item.errors.length === 1 &&
+            item.errors[0].includes("Category ''") &&
             item.errors[0].includes("is duplicated in this batch");
-          
+
           if (hasOnlyEmptyMainCategoryError) {
             // Treat this as a successful item since empty main categories should be allowed
             backendSuccessItems.push({
@@ -390,7 +401,7 @@ const CategoryManagement = () => {
         const addedCount = backendResults?.added?.length || 0;
         const shouldHaveBeenAdded = validCategories.length;
         const actuallyRejected = shouldHaveBeenAdded - addedCount;
-        
+
         if (actuallyRejected > 0) {
           // Create synthetic rejected items for categories that weren't added
           for (let i = 0; i < actuallyRejected && i < validCategories.length; i++) {
@@ -404,13 +415,13 @@ const CategoryManagement = () => {
           }
         }
       }
-      
+
       // Now calculate totals after arrays are populated
       const backendAddedItems = backendResults?.added_categories || backendResults?.added || [];
       const allSuccessfulItems = [...backendAddedItems, ...backendSuccessItems];
       const totalAdded = allSuccessfulItems.length;
       const totalRejected = rejectedItems.length + backendRejectedItems.length;
-      
+
       const finalResults = {
         summary: {
           total: categories.length,
@@ -426,7 +437,7 @@ const CategoryManagement = () => {
             let originalData = item.category_data || item.data;
             let errorMessage = '';
             let rowNumber = originalData?._rowNumber || (index + rejectedItems.length + 2);
-            
+
             // Extract error messages from backend response
             if (item.errors && Array.isArray(item.errors)) {
               const validErrors = item.errors.filter(err => !err.includes('_rowNumber: Unknown field'));
@@ -434,9 +445,9 @@ const CategoryManagement = () => {
                 // Translate backend error messages to frontend terminology
                 const categoryName = originalData?.subcategory || '';
                 const mainCategoryName = originalData?.category || '';
-                
+
                 let translatedError = validErrors[0]; // Take the first error
-                
+
                 // Translate common backend error patterns
                 if (translatedError.includes('already exists in database')) {
                   errorMessage = `⚠️ Category "${categoryName}"`;
@@ -474,7 +485,7 @@ const CategoryManagement = () => {
             } else {
               errorMessage = item.error || item.message || item.reason || '❌ Server rejected this item without providing specific details';
             }
-            
+
             return {
               row_number: rowNumber,
               data: originalData || { category: '', subcategory: 'Unknown item' },
@@ -484,16 +495,16 @@ const CategoryManagement = () => {
           })
         ]
       };
-      
 
-      
+
+
       setImportResults(finalResults);
-      
+
       handleSuccess(`Import completed! ${finalResults.summary.added} categories added, ${finalResults.summary.rejected} rejected.`);
-      
+
       // Refresh the categories list
       await loadCategories(pagination.page, searchTerm);
-      
+
     } catch (error) {
       handleError(error, 'Failed to import categories');
     } finally {
@@ -522,62 +533,6 @@ const CategoryManagement = () => {
     }
   };
 
-  const CategoryListView = () => (
-    <Card className="glass-card">
-      <CardContent className="p-0">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>ID</TableHead>
-              <TableHead>Category Name</TableHead>
-              <TableHead>Main Category</TableHead>
-              <TableHead>Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredCategories.map(category => (
-              <TableRow key={category.id}>
-                <TableCell>
-                  <span className="font-mono font-medium text-blue-600">#{category.id}</span>
-                </TableCell>
-                <TableCell>
-                  <div className="flex items-center space-x-3">
-                    <div className="p-2 bg-purple-500/10 rounded-lg">
-                      <Tag className="h-4 w-4 text-purple-500" />
-                    </div>
-                    <div className="font-semibold">{category.subcategory}</div>
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <span className="text-muted-foreground">{category.category || 'None'}</span>
-                </TableCell>
-                <TableCell>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => openEditDialog(category)}
-                    >
-                      <Edit3 className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleDelete(category.id, category.subcategory)}
-                      className="text-destructive hover:text-destructive"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </CardContent>
-    </Card>
-  );
-
   return (
     <div className="container mx-auto p-6 space-y-6">
       {/* Header */}
@@ -596,8 +551,6 @@ const CategoryManagement = () => {
         </div>
 
         <div className="flex items-center space-x-3">
-          <ViewToggle view={viewMode} onViewChange={setViewMode} />
-          
           {/* Import from Excel Button */}
           <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
             <DialogTrigger asChild>
@@ -607,7 +560,7 @@ const CategoryManagement = () => {
               </Button>
             </DialogTrigger>
           </Dialog>
-          
+
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogTrigger asChild>
               <Button onClick={openAddDialog} className="bg-blue-600 hover:bg-blue-700">
@@ -640,8 +593,8 @@ const CategoryManagement = () => {
                   <div>
                     <Label htmlFor="category">Main Category (Optional)</Label>
                     <div className="mt-1">
-                      <Select 
-                        value={formData.category} 
+                      <Select
+                        value={formData.category}
                         onValueChange={(value) => setFormData(prev => ({ ...prev, category: value }))}
                       >
                         <SelectTrigger>
@@ -657,16 +610,8 @@ const CategoryManagement = () => {
                         </SelectContent>
                       </Select>
                     </div>
-                    <div className="mt-1">
-                      <Input
-                        placeholder="Or enter new main category"
-                        value={formData.category === '__none__' ? '' : formData.category}
-                        onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value || '__none__' }))}
-                        className="text-sm"
-                      />
-                    </div>
                     <p className="text-xs text-muted-foreground mt-1">
-                      You can select from existing categories or type a new one
+                      Select from existing main categories or leave empty
                     </p>
                   </div>
                 </div>
@@ -711,7 +656,7 @@ const CategoryManagement = () => {
                 Download Empty Template
               </h3>
               <p className="text-sm text-muted-foreground ml-8">
-                Download the empty Excel template, fill it with your category data, and save it. 
+                Download the empty Excel template, fill it with your category data, and save it.
                 <br />
                 <strong>Main Category:</strong> Optional (can be empty or select from existing)
                 <br />
@@ -734,7 +679,7 @@ const CategoryManagement = () => {
                   <li>• <strong>Category:</strong> Required field - this is the specific category name</li>
                   <li>• Save your Excel file after filling the data and upload it below</li>
                 </ul>
-                
+
                 <div className="border-t border-blue-200 pt-3">
                   <div><strong className="text-red-700">⚠️ Categories will be rejected if:</strong></div>
                   <ul className="text-sm text-red-700 space-y-1 ml-4 mt-1">
@@ -745,7 +690,7 @@ const CategoryManagement = () => {
                     <li>• Row is completely empty</li>
                   </ul>
                 </div>
-                
+
                 <div className="border-t border-blue-200 pt-3">
                   <div><strong className="text-green-700">✅ Tips for success:</strong></div>
                   <ul className="text-sm text-green-700 space-y-1 ml-4 mt-1">
@@ -847,7 +792,7 @@ const CategoryManagement = () => {
                         <div className="text-xs text-muted-foreground">Import efficiency</div>
                       </div>
                     </div>
-                    
+
                     {/* Detailed Rejection Breakdown */}
                     {importResults.rejected && importResults.rejected.length > 0 && (
                       <div className="mt-4 pt-4 border-t">
@@ -873,7 +818,7 @@ const CategoryManagement = () => {
                                 rejectionTypes['Other Errors'] = (rejectionTypes['Other Errors'] || 0) + 1;
                               }
                             });
-                            
+
                             return Object.entries(rejectionTypes).map(([type, count]) => (
                               <div key={type} className="flex justify-between items-center bg-white rounded px-2 py-1">
                                 <span className="text-muted-foreground">{type}</span>
@@ -934,12 +879,12 @@ const CategoryManagement = () => {
                               let message = item.error || 'Unknown error';
                               let statusColor = 'text-red-600';
                               let statusIcon = '❌';
-                              
+
                               // Enhanced message customization based on error type and context
                               const errorLower = message.toLowerCase();
                               const categoryName = item.data?.subcategory || '';
                               const mainCategoryName = item.data?.category || '';
-                              
+
                               if (errorLower.includes('already exists') || errorLower.includes('duplicate')) {
                                 message = `⚠️ Category "${categoryName}" already exists`;
                                 if (mainCategoryName) {
@@ -997,7 +942,7 @@ const CategoryManagement = () => {
                                 statusColor = 'text-red-600';
                                 statusIcon = '❌';
                               }
-                              
+
                               return (
                                 <TableRow key={index} className="hover:bg-gray-50">
                                   <TableCell className="text-sm font-mono">{item.row_number || index + 1}</TableCell>
@@ -1044,10 +989,10 @@ const CategoryManagement = () => {
               <Button variant="outline" onClick={resetImportDialog}>
                 {importResults ? 'Close' : 'Cancel'}
               </Button>
-              
+
               {selectedFile && !importResults && (
-                <Button 
-                  onClick={handleBulkImport} 
+                <Button
+                  onClick={handleBulkImport}
                   disabled={importLoading}
                   className="bg-blue-600 hover:bg-blue-700"
                 >
@@ -1088,72 +1033,77 @@ const CategoryManagement = () => {
         </div>
       )}
 
-      {/* Categories Grid */}
-      {/* Categories Display */}
+      {/* Categories Table View */}
       {!loading && (
-        viewMode === 'grid' ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredCategories.length === 0 ? (
-              <div className="col-span-full text-center py-12">
-                <FolderOpen className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-xl font-semibold mb-2">No Categories Found</h3>
-                <p className="text-muted-foreground mb-6">
-                  {searchTerm ? 'No categories match your search criteria.' : 'Start by adding your first category.'}
-                </p>
-                <Button onClick={openAddDialog}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Category
-                </Button>
-              </div>
-            ) : (
-              filteredCategories.map(category => (
-                <Card key={category.id} className="hover:shadow-lg transition-shadow">
-                  <CardHeader className="pb-4">
-                    <div className="flex items-start justify-between">
-                      <div className="p-2 bg-purple-500/10 rounded-lg">
-                        <Tag className="h-6 w-6 text-purple-500" />
-                      </div>
-                      <div className="flex gap-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => openEditDialog(category)}
-                          className="h-8 w-8 p-0"
-                        >
-                          <Edit3 className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDelete(category.id, category.subcategory)}
-                          className="h-8 w-8 p-0 text-destructive hover:text-destructive"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div>
-                      <div className="flex items-center justify-between text-sm mb-2">
-                        <span className="text-muted-foreground">ID:</span>
-                        <span className="font-mono font-medium text-blue-600">#{category.id}</span>
-                      </div>
-                      <h3 className="font-semibold text-lg text-foreground mb-1">
-                        {category.subcategory}
-                      </h3>
-                      <p className="text-muted-foreground text-sm">
-                        Main Category: {category.category || 'None'}
+        <Card className="glass-card">
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>ID</TableHead>
+                  <TableHead>Category Name</TableHead>
+                  <TableHead>Main Category</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredCategories.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={4} className="text-center py-12">
+                      <FolderOpen className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+                      <h3 className="text-xl font-semibold mb-2">No Categories Found</h3>
+                      <p className="text-muted-foreground mb-6">
+                        {searchTerm ? 'No categories match your search criteria.' : 'Start by adding your first category.'}
                       </p>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))
-            )}
-          </div>
-        ) : (
-          <CategoryListView />
-        )
+                      <Button onClick={openAddDialog}>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add Category
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredCategories.map(category => (
+                    <TableRow key={category.id}>
+                      <TableCell>
+                        <span className="font-mono font-medium text-blue-600">#{category.id}</span>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center space-x-3">
+                          <div className="p-2 bg-purple-500/10 rounded-lg">
+                            <Tag className="h-4 w-4 text-purple-500" />
+                          </div>
+                          <div className="font-semibold">{category.subcategory}</div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <span className="text-muted-foreground">{category.category || 'None'}</span>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => openEditDialog(category)}
+                          >
+                            <Edit3 className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDelete(category.id, category.subcategory)}
+                            className="text-destructive hover:text-destructive"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
       )}
 
       {/* Pagination */}

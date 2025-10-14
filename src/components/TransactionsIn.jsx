@@ -139,7 +139,7 @@ const TransactionsIn = () => {
 
       // Build query parameters - only include non-empty values and force transaction_type to 'IN'
       const params = new URLSearchParams();
-      Object.entries({...filters, transaction_type: 'IN'}).forEach(([key, value]) => {
+      Object.entries({ ...filters, transaction_type: 'IN' }).forEach(([key, value]) => {
         if (value && value !== '' && value !== 0) {
           params.append(key, value.toString());
         }

@@ -1,9 +1,9 @@
 ﻿import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { 
-  Users, 
-  Plus, 
-  Edit3, 
-  Trash2, 
+import {
+  Users,
+  Plus,
+  Edit3,
+  Trash2,
   Mail,
   Shield,
   User,
@@ -21,7 +21,6 @@ import { Switch } from '@/components/ui/switch';
 import { Pagination, PaginationContent, PaginationEllipsis, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
 import { toast } from 'sonner';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { ViewToggle } from '@/components/ui/view-toggle';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import apiClient from '../utils/api';
 import { useErrorHandler } from '../hooks/useErrorHandler';
@@ -41,7 +40,6 @@ const UserManagement = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [totalUsers, setTotalUsers] = useState(0);
   const [perPage, setPerPage] = useState(10);
-  const [viewMode, setViewMode] = useState('grid');
 
   const searchInputRef = useRef(null);
 
@@ -76,7 +74,7 @@ const UserManagement = () => {
     // Filter by search term
     if (searchTerm) {
       const searchLower = searchTerm.toLowerCase();
-      filtered = filtered.filter(user => 
+      filtered = filtered.filter(user =>
         user.full_name?.toLowerCase().includes(searchLower) ||
         user.email?.toLowerCase().includes(searchLower) ||
         user.role?.toLowerCase().includes(searchLower)
@@ -101,11 +99,11 @@ const UserManagement = () => {
     const startIndex = (currentPage - 1) * perPage;
     const endIndex = startIndex + perPage;
     const paginatedUsers = filteredUsers.slice(startIndex, endIndex);
-    
+
     setUsers(paginatedUsers);
     setTotalUsers(filteredUsers.length);
     setTotalPages(Math.ceil(filteredUsers.length / perPage));
-    
+
     // Reset to page 1 if current page is beyond available pages
     if (currentPage > Math.ceil(filteredUsers.length / perPage) && filteredUsers.length > 0) {
       setCurrentPage(1);
@@ -117,12 +115,12 @@ const UserManagement = () => {
       setLoading(true);
       setError(null);
       console.log('Loading users and job roles from API...');
-      
+
       // Initialize with empty arrays to prevent undefined errors
       setUsers([]);
       setAllUsers([]);
       setJobRoles([]);
-      
+
       // Load all users without pagination for real-time filtering
       const [usersResponse, rolesResponse] = await Promise.all([
         apiClient.getUsers({ per_page: 100 }).catch(err => { // Load up to 100 users (API maximum)
@@ -134,31 +132,31 @@ const UserManagement = () => {
           return { data: [] };
         })
       ]);
-      
+
       // Handle different response formats from API
       const usersData = usersResponse?.items || usersResponse?.data || usersResponse || [];
       const rolesData = rolesResponse?.items || rolesResponse?.data || rolesResponse || [];
-      
+
       const processedUsers = Array.isArray(usersData) ? usersData : [];
       setAllUsers(processedUsers); // Store all users for filtering
       setJobRoles(Array.isArray(rolesData) ? rolesData : []);
-      
+
       // Initialize pagination with all users
       setTotalUsers(processedUsers.length);
       setTotalPages(Math.ceil(processedUsers.length / perPage));
       setCurrentPage(1);
-      
+
       console.log('Successfully loaded users:', processedUsers.length, 'roles:', rolesData.length);
     } catch (error) {
       console.error('Error loading users and roles:', error);
-      
+
       // Provide more specific error messages
       if (error.message.includes('Cannot connect to server')) {
         setError('Cannot connect to the backend server. Please ensure the API server is running on http://localhost:5000');
       } else {
         setError(`Failed to load data: ${error.message}`);
       }
-      
+
       setUsers([]);
       setAllUsers([]);
       setJobRoles([]);
@@ -221,15 +219,15 @@ const UserManagement = () => {
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
-    setFormData(prev => ({ 
-      ...prev, 
-      [name]: type === 'checkbox' ? checked : value 
+    setFormData(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value
     }));
   };
 
   const handleRoleChange = (roleName) => {
     const selectedRole = jobRoles.find(role => role.name === roleName);
-    
+
     if (selectedRole) {
       // Auto-populate permissions from the selected role
       setFormData(prev => ({
@@ -255,29 +253,29 @@ const UserManagement = () => {
 
   const validatePermissions = () => {
     const errors = [];
-    
+
     // Check branch permissions
     if ((formData.can_edit_branch || formData.can_delete_branch) && !formData.can_read_branch) {
       errors.push('Read branch permission is required for edit/delete branch permissions');
     }
-    
+
     // Check warehouse permissions
     if ((formData.can_edit_warehouse || formData.can_delete_warehouse) && !formData.can_read_warehouse) {
       errors.push('Read warehouse permission is required for edit/delete warehouse permissions');
     }
-    
+
     // Check asset permissions
     if ((formData.can_edit_asset || formData.can_delete_asset) && !formData.can_read_asset) {
       errors.push('Read asset permission is required for edit/delete asset permissions');
     }
-    
+
     return errors;
   };
 
   const handlePermissionChange = (permission, checked) => {
     setFormData(prev => {
       const newFormData = { ...prev };
-      
+
       // If unchecking a read permission, also uncheck corresponding edit/delete
       if (permission === 'can_read_branch' && !checked) {
         newFormData.can_edit_branch = false;
@@ -289,7 +287,7 @@ const UserManagement = () => {
         newFormData.can_edit_asset = false;
         newFormData.can_delete_asset = false;
       }
-      
+
       // If enabling edit/delete, automatically enable read
       if ((permission === 'can_edit_branch' || permission === 'can_delete_branch') && checked) {
         newFormData.can_read_branch = true;
@@ -298,7 +296,7 @@ const UserManagement = () => {
       } else if ((permission === 'can_edit_asset' || permission === 'can_delete_asset') && checked) {
         newFormData.can_read_asset = true;
       }
-      
+
       newFormData[permission] = checked;
       return newFormData;
     });
@@ -366,18 +364,18 @@ const UserManagement = () => {
           role: formData.role
         };
         console.log('Creating user with basic data:', basicUserData);
-        
+
         // Create the user first
         const createdUser = await apiClient.createUser(basicUserData);
         console.log('User created:', createdUser);
-        
+
         // Then update with permissions if the user has custom permissions
-        const hasCustomPermissions = 
+        const hasCustomPermissions =
           formData.can_read_branch || formData.can_edit_branch || formData.can_delete_branch ||
           formData.can_read_warehouse || formData.can_edit_warehouse || formData.can_delete_warehouse ||
           formData.can_read_asset || formData.can_edit_asset || formData.can_delete_asset ||
           formData.can_print_barcode || formData.can_make_report || formData.can_make_transaction;
-        
+
         if (hasCustomPermissions && createdUser.id) {
           const permissionsUpdate = {
             full_name: formData.full_name,
@@ -401,7 +399,7 @@ const UserManagement = () => {
           console.log('Updating user permissions:', permissionsUpdate);
           await apiClient.updateUser(createdUser.id, permissionsUpdate);
         }
-        
+
         handleSuccess('User created successfully!');
       }
 
@@ -479,7 +477,7 @@ const UserManagement = () => {
                       <Badge variant="outline" className="text-xs">
                         Branch: {[
                           user.can_read_branch && 'R',
-                          user.can_edit_branch && 'E', 
+                          user.can_edit_branch && 'E',
                           user.can_delete_branch && 'D'
                         ].filter(Boolean).join('/')}
                       </Badge>
@@ -488,7 +486,7 @@ const UserManagement = () => {
                       <Badge variant="outline" className="text-xs">
                         Warehouse: {[
                           user.can_read_warehouse && 'R',
-                          user.can_edit_warehouse && 'E', 
+                          user.can_edit_warehouse && 'E',
                           user.can_delete_warehouse && 'D'
                         ].filter(Boolean).join('/')}
                       </Badge>
@@ -497,7 +495,7 @@ const UserManagement = () => {
                       <Badge variant="outline" className="text-xs">
                         Asset: {[
                           user.can_read_asset && 'R',
-                          user.can_edit_asset && 'E', 
+                          user.can_edit_asset && 'E',
                           user.can_delete_asset && 'D'
                         ].filter(Boolean).join('/')}
                       </Badge>
@@ -518,9 +516,9 @@ const UserManagement = () => {
                     <Button variant="ghost" size="sm" onClick={() => openEditDialog(user)}>
                       <Edit3 className="h-4 w-4" />
                     </Button>
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
+                    <Button
+                      variant="ghost"
+                      size="sm"
                       className="text-destructive hover:text-destructive"
                       onClick={() => handleDelete(user.id)}
                       disabled={loading}
@@ -555,13 +553,10 @@ const UserManagement = () => {
           <h1 className="text-3xl font-bold text-foreground">Users</h1>
           <p className="text-muted-foreground">Manage system users and permissions</p>
         </div>
-        <div className="flex items-center space-x-3">
-          <ViewToggle view={viewMode} onViewChange={setViewMode} />
-          <Button onClick={openAddDialog}>
-            <Plus className="h-4 w-4 mr-2" />
-            Add User
-          </Button>
-        </div>
+        <Button onClick={openAddDialog}>
+          <Plus className="h-4 w-4 mr-2" />
+          Add User
+        </Button>
       </div>
 
       {error && (
@@ -604,107 +599,115 @@ const UserManagement = () => {
         </Select>
       </div>
 
-      {/* Users Display */}
-      {viewMode === 'grid' ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredUsers.map(user => (
-          <Card key={user.id} className="hover:shadow-lg transition-shadow">
-            <CardHeader className="pb-4">
-              <div className="flex items-start justify-between">
-                <div className="p-2 bg-blue-500/10 rounded-lg">
-                  <User className="h-6 w-6 text-blue-500" />
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Button variant="ghost" size="sm" onClick={() => openEditDialog(user)}>
-                    <Edit3 className="h-4 w-4" />
-                  </Button>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    className="text-destructive hover:text-destructive"
-                    onClick={() => handleDelete(user.id)}
-                    disabled={loading}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <h3 className="font-semibold text-lg">{user.full_name}</h3>
-                <div className="flex items-center space-x-1 text-sm text-muted-foreground">
-                  <Mail className="h-3 w-3" />
-                  <span>{user.email}</span>
-                </div>
-              </div>
-              
-              <div className="space-y-2">
-                <div className="flex items-center space-x-2">
-                  <Shield className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm">{getRoleName(user.role)}</span>
-                </div>
-                
-                <div className="flex gap-2 flex-wrap items-center">
-                  {/* Permission badges */}
-                  {(user.can_read_branch || user.can_edit_branch || user.can_delete_branch) && (
-                    <Badge variant="outline" className="text-xs">
-                      Branch: {[
-                        user.can_read_branch && 'R',
-                        user.can_edit_branch && 'E', 
-                        user.can_delete_branch && 'D'
-                      ].filter(Boolean).join('/')}
-                    </Badge>
-                  )}
-                  
-                  {(user.can_read_warehouse || user.can_edit_warehouse || user.can_delete_warehouse) && (
-                    <Badge variant="outline" className="text-xs">
-                      Warehouse: {[
-                        user.can_read_warehouse && 'R',
-                        user.can_edit_warehouse && 'E', 
-                        user.can_delete_warehouse && 'D'
-                      ].filter(Boolean).join('/')}
-                    </Badge>
-                  )}
-                  
-                  {(user.can_read_asset || user.can_edit_asset || user.can_delete_asset) && (
-                    <Badge variant="outline" className="text-xs">
-                      Asset: {[
-                        user.can_read_asset && 'R',
-                        user.can_edit_asset && 'E', 
-                        user.can_delete_asset && 'D'
-                      ].filter(Boolean).join('/')}
-                    </Badge>
-                  )}
-                  
-                  {user.can_print_barcode && (
-                    <Badge variant="outline" className="text-xs">Barcode</Badge>
-                  )}
-                  
-                  {user.can_make_report && (
-                    <Badge variant="outline" className="text-xs">Reports</Badge>
-                  )}
-                  
-                  {user.can_make_transaction && (
-                    <Badge variant="outline" className="text-xs">Transactions</Badge>
-                  )}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-        </div>
-      ) : (
-        <UserListView />
-      )}
+      {/* Users List View */}
+      <Card className="glass-card">
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>User</TableHead>
+                <TableHead>Email</TableHead>
+                <TableHead>Role</TableHead>
+                <TableHead>Permissions</TableHead>
+                <TableHead>Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {users.map(user => (
+                <TableRow key={user.id}>
+                  <TableCell>
+                    <div className="flex items-center space-x-3">
+                      <div className="p-2 bg-blue-500/10 rounded-lg">
+                        <User className="h-4 w-4 text-blue-500" />
+                      </div>
+                      <div>
+                        <div className="font-semibold">{user.full_name}</div>
+                        <div className="text-sm text-muted-foreground">ID: {user.id}</div>
+                      </div>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center space-x-1">
+                      <Mail className="h-3 w-3 text-muted-foreground" />
+                      <span className="text-sm">{user.email}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center space-x-2">
+                      <Shield className="h-4 w-4 text-muted-foreground" />
+                      <span>{getRoleName(user.role)}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex gap-1 flex-wrap">
+                      {(user.can_read_branch || user.can_edit_branch || user.can_delete_branch) && (
+                        <Badge variant="outline" className="text-xs">
+                          Branch: {[
+                            user.can_read_branch && 'R',
+                            user.can_edit_branch && 'E',
+                            user.can_delete_branch && 'D'
+                          ].filter(Boolean).join('/')}
+                        </Badge>
+                      )}
+                      {(user.can_read_warehouse || user.can_edit_warehouse || user.can_delete_warehouse) && (
+                        <Badge variant="outline" className="text-xs">
+                          Warehouse: {[
+                            user.can_read_warehouse && 'R',
+                            user.can_edit_warehouse && 'E',
+                            user.can_delete_warehouse && 'D'
+                          ].filter(Boolean).join('/')}
+                        </Badge>
+                      )}
+                      {(user.can_read_asset || user.can_edit_asset || user.can_delete_asset) && (
+                        <Badge variant="outline" className="text-xs">
+                          Asset: {[
+                            user.can_read_asset && 'R',
+                            user.can_edit_asset && 'E',
+                            user.can_delete_asset && 'D'
+                          ].filter(Boolean).join('/')}
+                        </Badge>
+                      )}
+                      {user.can_print_barcode && (
+                        <Badge variant="outline" className="text-xs">Barcode</Badge>
+                      )}
+                      {user.can_make_report && (
+                        <Badge variant="outline" className="text-xs">Reports</Badge>
+                      )}
+                      {user.can_make_transaction && (
+                        <Badge variant="outline" className="text-xs">Transactions</Badge>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center space-x-2">
+                      <Button variant="ghost" size="sm" onClick={() => openEditDialog(user)}>
+                        <Edit3 className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-destructive hover:text-destructive"
+                        onClick={() => handleDelete(user.id)}
+                        disabled={loading}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
 
-      {!loading && filteredUsers.length === 0 && (
+      {!loading && users.length === 0 && (
         <div className="text-center py-12">
           <Users className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
           <h3 className="text-xl font-semibold mb-2">No Users Found</h3>
           <p className="text-muted-foreground mb-6">
-            {users.length === 0 
-              ? 'Start by adding your first user.' 
+            {users.length === 0
+              ? 'Start by adding your first user.'
               : 'No users match your search criteria.'
             }
           </p>
@@ -716,7 +719,7 @@ const UserManagement = () => {
       )}
 
       {/* Pagination */}
-      {!loading && filteredUsers.length > 0 && totalPages > 1 && (
+      {!loading && users.length > 0 && totalPages > 1 && (
         <div className="flex items-center justify-between">
           <div className="text-sm text-muted-foreground">
             Showing {((currentPage - 1) * perPage) + 1} to {Math.min(currentPage * perPage, totalUsers)} of {totalUsers} users
@@ -724,16 +727,16 @@ const UserManagement = () => {
           <Pagination>
             <PaginationContent>
               <PaginationItem>
-                <PaginationPrevious 
+                <PaginationPrevious
                   onClick={() => currentPage > 1 && setCurrentPage(currentPage - 1)}
                   className={currentPage <= 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
                 />
               </PaginationItem>
-              
+
               {[...Array(Math.min(5, totalPages))].map((_, i) => {
                 const pageNum = Math.max(1, Math.min(totalPages - 4, currentPage - 2)) + i;
                 if (pageNum > totalPages) return null;
-                
+
                 return (
                   <PaginationItem key={pageNum}>
                     <PaginationLink
@@ -746,15 +749,15 @@ const UserManagement = () => {
                   </PaginationItem>
                 );
               })}
-              
+
               {totalPages > 5 && currentPage < totalPages - 2 && (
                 <PaginationItem>
                   <PaginationEllipsis />
                 </PaginationItem>
               )}
-              
+
               <PaginationItem>
-                <PaginationNext 
+                <PaginationNext
                   onClick={() => currentPage < totalPages && setCurrentPage(currentPage + 1)}
                   className={currentPage >= totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
                 />
@@ -840,7 +843,7 @@ const UserManagement = () => {
             {/* Permissions Section */}
             <div className="space-y-4">
               <Label className="text-base font-semibold">Permissions</Label>
-              
+
               {/* Branch Permissions */}
               <div>
                 <Label className="text-sm font-medium text-muted-foreground">Branch Permissions</Label>

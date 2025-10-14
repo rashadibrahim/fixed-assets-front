@@ -29,7 +29,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import apiClient from '../utils/api';
-import { ViewToggle } from '@/components/ui/view-toggle';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { downloadAssetTemplate, parseAssetExcelFile, validateExcelFile, exportBulkResults, downloadAssetUpdateTemplate, parseAssetUpdateExcelFile } from '../utils/excelUtils';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -47,7 +46,6 @@ const AssetManagement = () => {
   const [selectedAsset, setSelectedAsset] = useState(null);
   const [pagination, setPagination] = useState({ page: 1, pages: 1, total: 0 });
   const [currentPage, setCurrentPage] = useState(1);
-  const [viewMode, setViewMode] = useState('grid');
   const itemsPerPage = 10;
   const { handleError, handleSuccess } = useErrorHandler();
 
@@ -527,74 +525,6 @@ const AssetManagement = () => {
     }
   };
 
-  const AssetListView = () => (
-    <Card className="glass-card">
-      <CardContent className="p-0">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Asset</TableHead>
-              <TableHead>Category</TableHead>
-              <TableHead>Product Code</TableHead>
-              <TableHead>Quantity</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredAssets.map(asset => (
-              <TableRow key={asset.id}>
-                <TableCell>
-                  <div className="flex items-center space-x-3">
-                    <div className="p-2 bg-primary/10 rounded-lg">
-                      <Package className="h-4 w-4 text-primary" />
-                    </div>
-                    <div>
-                      <div className="font-semibold">{asset.name_en}</div>
-                      <div className="text-sm text-muted-foreground">{asset.name_ar}</div>
-                    </div>
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <div className="font-medium">{getCategoryName(asset.category_id)}</div>
-                </TableCell>
-                <TableCell>
-                  <span className="font-mono text-sm">{asset.product_code}</span>
-                </TableCell>
-                <TableCell>
-                  <span className="font-semibold">{asset.quantity}</span>
-                </TableCell>
-                <TableCell>
-                  <Badge variant={asset.is_active ? 'default' : 'secondary'}>
-                    {asset.is_active ? 'Active' : 'Inactive'}
-                  </Badge>
-                </TableCell>
-                <TableCell>
-                  <div className="flex items-center space-x-1">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleGenerateBarcode(asset)}
-                      title="Generate Barcode"
-                    >
-                      <QrCode className="h-4 w-4" />
-                    </Button>
-                    <Button variant="ghost" size="sm" onClick={() => handleEdit(asset)}>
-                      <Edit3 className="h-4 w-4" />
-                    </Button>
-                    <Button variant="ghost" size="sm" onClick={() => handleDelete(asset)}>
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </CardContent>
-    </Card>
-  );
-
   const resetForm = () => {
     setFormData({
       name_en: '',
@@ -1059,7 +989,6 @@ const AssetManagement = () => {
           <p className="text-muted-foreground">Manage your organization's fixed assets</p>
         </div>
         <div className="flex items-center space-x-3">
-          <ViewToggle view={viewMode} onViewChange={setViewMode} />
           <Button variant="outline" onClick={handleExportAssets} disabled={loading}>
             <Download className="h-4 w-4 mr-2" />
             Export to Excel
@@ -1148,35 +1077,6 @@ const AssetManagement = () => {
                     </div>
                   </div>
 
-                  {/* <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="product_code">Product Code (6-11 digits)</Label>
-                    <Input
-                      id="product_code"
-                      name="product_code"
-                      value={formData.product_code}
-                      onChange={handleProductCodeChange}
-                      placeholder="Enter 6-11 digit code"
-                      maxLength="11"
-                      pattern="[0-9]{6,11}"
-                    />
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Numbers only, 6-11 digits (will be auto-formatted for barcode)
-                    </p>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      id="is_active"
-                      name="is_active"
-                      checked={formData.is_active}
-                      onChange={handleInputChange}
-                      className="rounded"
-                    />
-                    <Label htmlFor="is_active">Active Asset</Label>
-                  </div>
-                </div> */}
-
                   <div className="flex justify-end space-x-3">
                     <Button type="button" variant="outline" onClick={handleCancel}>
                       Cancel
@@ -1220,67 +1120,72 @@ const AssetManagement = () => {
         </CardContent>
       </Card>
 
-      {/* Assets Display */}
-      {viewMode === 'grid' ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredAssets.map(asset => (
-            <Card key={asset.id} className="glass-card hover:shadow-primary transition-smooth">
-              <CardHeader className="pb-4">
-                <div className="flex items-start justify-between">
-                  <div className="p-2 bg-primary/10 rounded-lg">
-                    <Package className="h-6 w-6 text-primary" />
-                  </div>
-                  <Badge className={asset.is_active ? 'status-active' : 'status-inactive'}>
-                    {asset.is_active ? 'Active' : 'Inactive'}
-                  </Badge>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <h3 className="font-semibold text-foreground text-lg">{asset.name_en}</h3>
-                  <p className="text-sm text-muted-foreground">{asset.name_ar}</p>
-                </div>
-
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Category:</span>
-                    <span className="font-medium">{getCategoryName(asset.category_id)}</span>
-                  </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Quantity:</span>
-                    <span className="font-medium">{asset.quantity}</span>
-                  </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Product Code:</span>
-                    <span className="font-medium font-mono">{asset.product_code}</span>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between pt-4 border-t border-border">
-                  <div className="flex items-center space-x-2">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleGenerateBarcode(asset)}
-                      title="Generate Barcode"
-                    >
-                      <QrCode className="h-4 w-4" />
-                    </Button>
-                    <Button variant="ghost" size="sm" onClick={() => handleEdit(asset)}>
-                      <Edit3 className="h-4 w-4" />
-                    </Button>
-                    <Button variant="ghost" size="sm" onClick={() => handleDelete(asset)}>
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      ) : (
-        <AssetListView />
-      )}
+      {/* Assets Table View */}
+      <Card className="glass-card">
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Asset</TableHead>
+                <TableHead>Category</TableHead>
+                <TableHead>Product Code</TableHead>
+                <TableHead>Quantity</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredAssets.map(asset => (
+                <TableRow key={asset.id}>
+                  <TableCell>
+                    <div className="flex items-center space-x-3">
+                      <div className="p-2 bg-primary/10 rounded-lg">
+                        <Package className="h-4 w-4 text-primary" />
+                      </div>
+                      <div>
+                        <div className="font-semibold">{asset.name_en}</div>
+                        <div className="text-sm text-muted-foreground">{asset.name_ar}</div>
+                      </div>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="font-medium">{getCategoryName(asset.category_id)}</div>
+                  </TableCell>
+                  <TableCell>
+                    <span className="font-mono text-sm">{asset.product_code}</span>
+                  </TableCell>
+                  <TableCell>
+                    <span className="font-semibold">{asset.quantity}</span>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant={asset.is_active ? 'default' : 'secondary'}>
+                      {asset.is_active ? 'Active' : 'Inactive'}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center space-x-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleGenerateBarcode(asset)}
+                        title="Generate Barcode"
+                      >
+                        <QrCode className="h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="sm" onClick={() => handleEdit(asset)}>
+                        <Edit3 className="h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="sm" onClick={() => handleDelete(asset)}>
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
 
       {/* Pagination */}
       {totalPages > 1 && (

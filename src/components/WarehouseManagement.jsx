@@ -1,9 +1,9 @@
 ﻿import React, { useState, useEffect } from 'react';
-import { 
-  Warehouse, 
-  Plus, 
-  Edit3, 
-  Trash2, 
+import {
+  Warehouse,
+  Plus,
+  Edit3,
+  Trash2,
   MapPin,
   Package,
   Building,
@@ -20,7 +20,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { ViewToggle } from '@/components/ui/view-toggle';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { DynamicSearchableSelect } from '@/components/ui/dynamic-searchable-select';
 import apiClient from '../utils/api';
@@ -36,7 +35,6 @@ const WarehouseManagement = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedBranch, setSelectedBranch] = useState('all');
   const [error, setError] = useState(null);
-  const [viewMode, setViewMode] = useState('grid');
 
   const [formData, setFormData] = useState({
     name_en: '',
@@ -56,15 +54,15 @@ const WarehouseManagement = () => {
       setLoading(true);
       setError(null);
       console.log('Loading warehouses and branches from API...');
-      
+
       // Initialize with empty arrays to prevent undefined errors
       setWarehouses([]);
       setBranches([]);
-      
+
       // Load all data without search filtering (we'll filter on client side)
       const warehouseParams = { per_page: 100 };
       const branchParams = { per_page: 100 };
-      
+
       const [warehousesResponse, branchesResponse] = await Promise.all([
         apiClient.getWarehouses(warehouseParams).catch(err => {
           console.warn('Failed to load warehouses:', err);
@@ -75,25 +73,25 @@ const WarehouseManagement = () => {
           return { data: [] };
         })
       ]);
-      
+
       // Handle different response formats from API
       const warehousesData = warehousesResponse?.items || warehousesResponse?.data || warehousesResponse || [];
       const branchesData = branchesResponse?.items || branchesResponse?.data || branchesResponse || [];
-      
+
       setWarehouses(Array.isArray(warehousesData) ? warehousesData : []);
       setBranches(Array.isArray(branchesData) ? branchesData : []);
-      
+
       console.log('Successfully loaded warehouses:', warehousesData.length, 'branches:', branchesData.length);
     } catch (error) {
       console.error('Error loading warehouses and branches:', error);
-      
+
       // Provide more specific error messages
       if (error.message.includes('Cannot connect to server')) {
         setError('Cannot connect to the backend server. Please ensure the API server is running on http://localhost:5000');
       } else {
         setError(`Failed to load data: ${error.message}`);
       }
-      
+
       setWarehouses([]);
       setBranches([]);
     } finally {
@@ -135,7 +133,7 @@ const WarehouseManagement = () => {
     try {
       // Debug: Log current form data
       console.log('Current form data:', formData);
-      
+
       // Validate required fields according to API (name_ar is required)
       if (!formData.name_ar.trim()) {
         toast.error('Arabic name is required');
@@ -218,10 +216,10 @@ const WarehouseManagement = () => {
   // Filter warehouses on client side for both search and branch
   const filteredWarehouses = (warehouses || []).filter(warehouse => {
     if (!warehouse) return false;
-    
+
     // Branch filtering
     const matchesBranch = !selectedBranch || selectedBranch === 'all' || warehouse.branch_id === parseInt(selectedBranch);
-    
+
     // Search filtering
     const matchesSearch = !searchTerm || (
       (warehouse.name_en && warehouse.name_en.toLowerCase().includes(searchTerm.toLowerCase())) ||
@@ -229,7 +227,7 @@ const WarehouseManagement = () => {
       (warehouse.address_en && warehouse.address_en.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (warehouse.address_ar && warehouse.address_ar.includes(searchTerm))
     );
-    
+
     return matchesBranch && matchesSearch;
   });
 
@@ -238,83 +236,6 @@ const WarehouseManagement = () => {
     const branch = branches.find(b => b && b.id === branchId);
     return branch?.name_en || branch?.name_ar || 'Unknown Branch';
   };
-
-  const WarehouseListView = () => (
-    <Card className="glass-card">
-      <CardContent className="p-0">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Warehouse</TableHead>
-              <TableHead>Branch</TableHead>
-              <TableHead>Address</TableHead>
-              <TableHead>Description</TableHead>
-              <TableHead>Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredWarehouses.map(warehouse => (
-              <TableRow key={warehouse.id}>
-                <TableCell>
-                  <div className="flex items-center space-x-3">
-                    <div className="p-2 bg-green-500/10 rounded-lg">
-                      <Warehouse className="h-4 w-4 text-green-500" />
-                    </div>
-                    <div>
-                      <div className="font-semibold">
-                        {warehouse.name_en || warehouse.name_ar || 'Unnamed Warehouse'}
-                      </div>
-                      {warehouse.name_ar && warehouse.name_en && (
-                        <div className="text-sm text-muted-foreground" dir="rtl">{warehouse.name_ar}</div>
-                      )}
-                    </div>
-                  </div>
-                </TableCell>
-                <TableCell>
-                  {getBranchName(warehouse.branch_id)}
-                </TableCell>
-                <TableCell>
-                  <div className="space-y-1">
-                    {warehouse.address_en && (
-                      <div className="text-sm">{warehouse.address_en}</div>
-                    )}
-                    {warehouse.address_ar && (
-                      <div className="text-sm text-muted-foreground" dir="rtl">{warehouse.address_ar}</div>
-                    )}
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <div className="space-y-1">
-                    {warehouse.description_en && (
-                      <div className="text-sm">{warehouse.description_en}</div>
-                    )}
-                    {warehouse.description_ar && (
-                      <div className="text-sm text-muted-foreground" dir="rtl">{warehouse.description_ar}</div>
-                    )}
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <div className="flex gap-2">
-                    <Button variant="ghost" size="sm" onClick={() => openEditDialog(warehouse)}>
-                      <Edit3 className="h-4 w-4" />
-                    </Button>
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      className="text-destructive hover:text-destructive"
-                      onClick={() => handleDelete(warehouse.id, warehouse.name_en || warehouse.name_ar)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </CardContent>
-    </Card>
-  );
 
   if (loading) {
     return (
@@ -334,13 +255,10 @@ const WarehouseManagement = () => {
           <h1 className="text-3xl font-bold text-foreground">Warehouses</h1>
           <p className="text-muted-foreground">Manage storage locations and inventory</p>
         </div>
-        <div className="flex items-center space-x-3">
-          <ViewToggle view={viewMode} onViewChange={setViewMode} />
-          <Button onClick={openAddDialog}>
-            <Plus className="h-4 w-4 mr-2" />
-            Add Warehouse
-          </Button>
-        </div>
+        <Button onClick={openAddDialog}>
+          <Plus className="h-4 w-4 mr-2" />
+          Add Warehouse
+        </Button>
       </div>
 
       {error && (
@@ -380,95 +298,99 @@ const WarehouseManagement = () => {
       </div>
 
       {/* Warehouses Display */}
-      {viewMode === 'grid' ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredWarehouses.map(warehouse => (
-          <Card key={warehouse.id} className="hover:shadow-lg transition-shadow">
-            <CardHeader className="pb-4">
-              <div className="flex items-start justify-between">
-                <div className="p-2 bg-green-500/10 rounded-lg">
-                  <Warehouse className="h-6 w-6 text-green-500" />
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Button variant="ghost" size="sm" onClick={() => openEditDialog(warehouse)}>
-                    <Edit3 className="h-4 w-4" />
-                  </Button>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    className="text-destructive hover:text-destructive"
-                    onClick={() => handleDelete(warehouse.id)}
-                    disabled={loading}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <h3 className="font-semibold text-lg">
-                  {warehouse.name_en || warehouse.name_ar || 'Unnamed Warehouse'}
-                </h3>
-                {warehouse.name_ar && warehouse.name_en && (
-                  <p className="text-sm text-muted-foreground" dir="rtl">{warehouse.name_ar}</p>
-                )}
-              </div>
-              
-              <div className="space-y-2">
-                <div className="flex items-center space-x-2">
-                  <Building className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm">{getBranchName(warehouse.branch_id)}</span>
-                </div>
-                
-                {(warehouse.address_en || warehouse.address_ar) && (
-                  <div className="flex items-start space-x-2">
-                    <MapPin className="h-4 w-4 text-muted-foreground mt-1 flex-shrink-0" />
-                    <div className="text-sm">
-                      {warehouse.address_en && <p>{warehouse.address_en}</p>}
-                      {warehouse.address_ar && (
-                        <p dir="rtl" className="text-muted-foreground">{warehouse.address_ar}</p>
-                      )}
-                    </div>
-                  </div>
-                )}
-                
-                {(warehouse.description_en || warehouse.description_ar) && (
-                  <div className="flex items-start space-x-2">
-                    <Package className="h-4 w-4 text-muted-foreground mt-1 flex-shrink-0" />
-                    <div className="text-sm">
-                      {warehouse.description_en && <p>{warehouse.description_en}</p>}
-                      {warehouse.description_ar && (
-                        <p dir="rtl" className="text-muted-foreground">{warehouse.description_ar}</p>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-        </div>
-      ) : (
-        <WarehouseListView />
-      )}
-
-      {!loading && filteredWarehouses.length === 0 && (
-        <div className="text-center py-12">
-          <Warehouse className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-          <h3 className="text-xl font-semibold mb-2">No Warehouses Found</h3>
-          <p className="text-muted-foreground mb-6">
-            {warehouses.length === 0 
-              ? 'Start by adding your first warehouse.' 
-              : 'No warehouses match your search criteria.'
-            }
-          </p>
-          <Button onClick={openAddDialog}>
-            <Plus className="h-4 w-4 mr-2" />
-            Add Warehouse
-          </Button>
-        </div>
-      )}
+      <Card className="glass-card">
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Warehouse</TableHead>
+                <TableHead>Branch</TableHead>
+                <TableHead>Address</TableHead>
+                <TableHead>Description</TableHead>
+                <TableHead>Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredWarehouses.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center py-12">
+                    <Warehouse className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+                    <h3 className="text-xl font-semibold mb-2">No Warehouses Found</h3>
+                    <p className="text-muted-foreground mb-6">
+                      {warehouses.length === 0
+                        ? 'Start by adding your first warehouse.'
+                        : 'No warehouses match your search criteria.'
+                      }
+                    </p>
+                    <Button onClick={openAddDialog}>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add Warehouse
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ) : (
+                filteredWarehouses.map(warehouse => (
+                  <TableRow key={warehouse.id}>
+                    <TableCell>
+                      <div className="flex items-center space-x-3">
+                        <div className="p-2 bg-green-500/10 rounded-lg">
+                          <Warehouse className="h-4 w-4 text-green-500" />
+                        </div>
+                        <div>
+                          <div className="font-semibold">
+                            {warehouse.name_en || warehouse.name_ar || 'Unnamed Warehouse'}
+                          </div>
+                          {warehouse.name_ar && warehouse.name_en && (
+                            <div className="text-sm text-muted-foreground" dir="rtl">{warehouse.name_ar}</div>
+                          )}
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      {getBranchName(warehouse.branch_id)}
+                    </TableCell>
+                    <TableCell>
+                      <div className="space-y-1">
+                        {warehouse.address_en && (
+                          <div className="text-sm">{warehouse.address_en}</div>
+                        )}
+                        {warehouse.address_ar && (
+                          <div className="text-sm text-muted-foreground" dir="rtl">{warehouse.address_ar}</div>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="space-y-1">
+                        {warehouse.description_en && (
+                          <div className="text-sm">{warehouse.description_en}</div>
+                        )}
+                        {warehouse.description_ar && (
+                          <div className="text-sm text-muted-foreground" dir="rtl">{warehouse.description_ar}</div>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex gap-2">
+                        <Button variant="ghost" size="sm" onClick={() => openEditDialog(warehouse)}>
+                          <Edit3 className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-destructive hover:text-destructive"
+                          onClick={() => handleDelete(warehouse.id, warehouse.name_en || warehouse.name_ar)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
 
       {/* Add/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
