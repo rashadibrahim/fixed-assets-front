@@ -49,6 +49,8 @@ const CategoryManagement = () => {
   });
 
   const [existingMainCategories, setExistingMainCategories] = useState([]);
+  const [loadingMainCategories, setLoadingMainCategories] = useState(false);
+  const [categorySearchTerm, setCategorySearchTerm] = useState(''); // Add search state for dropdown
 
   // Bulk import states
   const [importDialogOpen, setImportDialogOpen] = useState(false);
@@ -94,10 +96,10 @@ const CategoryManagement = () => {
 
         setCategories(transformedCategories);
 
-        // Extract unique main categories for dropdown
+        // Extract unique categories for dropdown - use the category field from API response
         const uniqueMainCategories = [...new Set(
           data.items
-            .map(item => item.subcategory)
+            .map(item => item.category) // Changed from item.subcategory to item.category
             .filter(category => category && category.trim() !== '')
         )].sort();
         setExistingMainCategories(uniqueMainCategories);
@@ -119,6 +121,58 @@ const CategoryManagement = () => {
     }
   };
 
+  // New function to load main categories for dropdown
+  const loadMainCategoriesForDropdown = async (search = '') => {
+    try {
+      setLoadingMainCategories(true);
+
+      const token = localStorage.getItem('authToken');
+      if (!token) {
+        return;
+      }
+
+      // Prepare API parameters
+      const params = {
+        per_page: 100, // Get more categories for dropdown
+        page: 1
+      };
+      if (search.trim()) {
+        params.search = search.trim();
+      }
+
+      const response = await apiClient.getCategories(params);
+      const data = response;
+
+      if (data.items) {
+        // Extract unique categories for dropdown - use the category field from API response
+        const uniqueMainCategories = [...new Set(
+          data.items
+            .map(item => item.category) // Changed from item.subcategory to item.category
+            .filter(category => category && category.trim() !== '')
+        )].sort();
+
+        setExistingMainCategories(uniqueMainCategories);
+      } else {
+        setExistingMainCategories([]);
+      }
+    } catch (error) {
+      console.error('Error loading main categories for dropdown:', error);
+      setExistingMainCategories([]);
+    } finally {
+      setLoadingMainCategories(false);
+    }
+  };
+
+  // Add debounced search for dropdown
+  const handleCategorySearch = (searchValue) => {
+    setCategorySearchTerm(searchValue);
+    // Debounce the API call
+    clearTimeout(window.categorySearchTimeout);
+    window.categorySearchTimeout = setTimeout(() => {
+      loadMainCategoriesForDropdown(searchValue);
+    }, 300);
+  };
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
@@ -127,22 +181,26 @@ const CategoryManagement = () => {
   const openAddDialog = () => {
     setEditingCategory(null);
     setFormData({
-      category: '__none__', // Main Category (optional)
+      category: 'none', // Use 'none' instead of '__none__'
       subcategory: '', // Category Name (required)
       description: '',
       parent_id: ''
     });
+    // Load main categories when dialog opens
+    loadMainCategoriesForDropdown();
     setDialogOpen(true);
   };
 
   const openEditDialog = (category) => {
     setEditingCategory(category);
     setFormData({
-      category: category.category || '__none__', // Main Category
+      category: category.category || 'none', // Use 'none' instead of '__none__'
       subcategory: category.subcategory || '', // Category Name
       description: category.description || '',
       parent_id: category.parent_id || ''
     });
+    // Load main categories when dialog opens
+    loadMainCategoriesForDropdown();
     setDialogOpen(true);
   };
 
@@ -190,12 +248,8 @@ const CategoryManagement = () => {
 
       const requestBody = {
         category: formData.subcategory.trim() || null, // Category Name (required) - maps to backend category
-        subcategory: formData.category.trim() === '__none__' ? null : formData.category.trim() || null // Main Category (optional) - maps to backend subcategory
+        subcategory: formData.category === 'none' ? null : formData.category.trim() || null // Main Category (optional) - maps to backend subcategory
       };
-
-      if (!requestBody.category) {
-        requestBody.category = null;
-      }
 
       if (editingCategory) {
         await apiClient.updateCategory(editingCategory.id, requestBody);
@@ -205,7 +259,7 @@ const CategoryManagement = () => {
         handleSuccess('Category created successfully!');
       }
 
-      setFormData({ category: '__none__', subcategory: '', description: '', parent_id: '' });
+      setFormData({ category: 'none', subcategory: '', description: '', parent_id: '' }); // Update reset values
       setEditingCategory(null);
       setDialogOpen(false);
       loadCategories(pagination.page, searchTerm);
@@ -596,17 +650,51 @@ const CategoryManagement = () => {
                       <Select
                         value={formData.category}
                         onValueChange={(value) => setFormData(prev => ({ ...prev, category: value }))}
+                        onOpenChange={(isOpen) => {
+                          if (isOpen) {
+                            setCategorySearchTerm('');
+                            loadMainCategoriesForDropdown();
+                          }
+                        }}
                       >
                         <SelectTrigger>
                           <SelectValue placeholder="Select main category or leave empty" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="__none__">-- No Main Category --</SelectItem>
-                          {existingMainCategories.map(mainCat => (
-                            <SelectItem key={mainCat} value={mainCat}>
-                              {mainCat}
+                          {/* Search input in dropdown */}
+                          <div className="p-2 border-b">
+                            <div className="relative">
+                              <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-muted-foreground h-3 w-3" />
+                              <Input
+                                placeholder="Search categories..."
+                                value={categorySearchTerm}
+                                onChange={(e) => handleCategorySearch(e.target.value)}
+                                className="pl-7 h-8 text-sm"
+                                onClick={(e) => e.stopPropagation()}
+                                onKeyDown={(e) => e.stopPropagation()}
+                              />
+                            </div>
+                          </div>
+
+                          <SelectItem value="none">-- No Main Category --</SelectItem>
+                          {loadingMainCategories ? (
+                            <SelectItem value="loading" disabled>
+                              <div className="flex items-center gap-2">
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                                Loading categories...
+                              </div>
                             </SelectItem>
-                          ))}
+                          ) : existingMainCategories.length > 0 ? (
+                            existingMainCategories.map(mainCat => (
+                              <SelectItem key={mainCat} value={mainCat}>
+                                {mainCat}
+                              </SelectItem>
+                            ))
+                          ) : (
+                            <SelectItem value="no-data" disabled>
+                              {categorySearchTerm ? 'No categories found matching your search' : 'No main categories available'}
+                            </SelectItem>
+                          )}
                         </SelectContent>
                       </Select>
                     </div>
@@ -1127,12 +1215,13 @@ const CategoryManagement = () => {
             size="sm"
             onClick={() => handlePageChange(pagination.page + 1)}
             disabled={pagination.page >= pagination.pages}
-          >
-            Next
-          </Button>
+          ></Button>
+          Next
+
         </div>
-      )}
-    </div>
+      )
+      }
+    </div >
   );
 };
 

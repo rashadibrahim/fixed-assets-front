@@ -13,7 +13,8 @@ import {
   ArrowUpCircle,
   ArrowDownCircle,
   RefreshCw,
-  Download
+  Download,
+  FileDown
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '../contexts/AuthContext';
@@ -103,6 +104,409 @@ const ViewTransaction = ({ isOpen, onClose, transactionId }) => {
     return transaction.asset_transactions.reduce((total, item) => total + (item.total_value || 0), 0);
   };
 
+  const generatePDF = () => {
+    if (!transaction) {
+      toast.error('No transaction data to export');
+      return;
+    }
+
+    try {
+      const reportDate = new Date().toLocaleDateString();
+      const isInTransaction = transaction.transaction_type === true;
+
+      // Create the PDF window
+      const pdfWindow = window.open('', '_blank', 'width=1000,height=800');
+
+      // Prepare table data
+      const tableData = [];
+      let totalValue = 0;
+      let hasValues = false;
+
+      if (transaction.asset_transactions && transaction.asset_transactions.length > 0) {
+        // If transaction has assets, create a row for each asset
+        transaction.asset_transactions.forEach(assetTransaction => {
+          const asset = assetTransaction.asset || {};
+          const unitPrice = assetTransaction.unit_price || 0;
+          const quantity = assetTransaction.quantity || 0;
+          const lineTotal = unitPrice * quantity;
+          totalValue += lineTotal;
+          hasValues = true;
+
+          tableData.push({
+            id: transaction.custom_id || transaction.id,
+            date: new Date(transaction.date).toLocaleDateString(),
+            assetName: asset.name_en || asset.name_ar || 'N/A',
+            warehouse: transaction.warehouse?.name_en || transaction.warehouse?.name_ar || 'N/A',
+            assetCode: asset.asset_code || 'N/A',
+            quantity: quantity.toString(),
+            unitPrice: `$${unitPrice.toFixed(2)}`,
+            totalValue: `$${lineTotal.toFixed(2)}`
+          });
+        });
+      } else {
+        // If no assets, create a single row with transaction info
+        tableData.push({
+          id: transaction.custom_id || transaction.id,
+          date: new Date(transaction.date).toLocaleDateString(),
+          assetName: transaction.description || 'N/A',
+          warehouse: transaction.warehouse?.name_en || transaction.warehouse?.name_ar || 'N/A',
+          assetCode: 'N/A',
+          quantity: 'N/A',
+          unitPrice: 'N/A',
+          totalValue: 'N/A'
+        });
+      }
+
+      const themeColor = isInTransaction ? '#22c55e' : '#ef4444'; // Green for IN, Red for OUT
+      const transactionType = isInTransaction ? 'Incoming' : 'Outgoing';
+
+      // Generate the HTML content for PDF
+      const htmlContent = `
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <title>${transactionType} Transaction ${transaction.custom_id || transaction.id} - ${reportDate}</title>
+            <meta charset="UTF-8">
+            <style>
+              * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+              }
+              
+              body {
+                font-family: Arial, sans-serif;
+                font-size: 12px;
+                line-height: 1.4;
+                color: #333;
+                background: white;
+                padding: 20px;
+              }
+              
+              .container {
+                max-width: 1000px;
+                margin: 0 auto;
+                background: white;
+              }
+              
+              .report-title {
+                text-align: center;
+                margin-bottom: 30px;
+                padding-bottom: 20px;
+                border-bottom: 3px solid ${themeColor};
+              }
+              
+              .report-title h1 {
+                font-size: 24px;
+                color: #333;
+                margin-bottom: 8px;
+              }
+              
+              .report-title .transaction-id {
+                font-size: 18px;
+                color: ${themeColor};
+                font-weight: bold;
+                margin-bottom: 8px;
+              }
+              
+              .report-title p {
+                font-size: 12px;
+                color: #666;
+                margin: 3px 0;
+              }
+              
+              .transaction-info {
+                background: #f8f9fa;
+                padding: 20px;
+                border-radius: 8px;
+                margin-bottom: 30px;
+                border-left: 5px solid ${themeColor};
+              }
+              
+              .info-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+                gap: 15px;
+              }
+              
+              .info-item {
+                background: white;
+                padding: 12px;
+                border-radius: 6px;
+                border: 1px solid #e5e7eb;
+              }
+              
+              .info-label {
+                font-size: 10px;
+                color: #6b7280;
+                text-transform: uppercase;
+                margin-bottom: 4px;
+                font-weight: 600;
+              }
+              
+              .info-value {
+                font-size: 14px;
+                color: #111827;
+                font-weight: 600;
+              }
+              
+              .transaction-type {
+                display: inline-block;
+                padding: 6px 12px;
+                border-radius: 20px;
+                font-size: 12px;
+                font-weight: bold;
+                color: white;
+                background-color: ${themeColor};
+              }
+              
+              .table-container {
+                margin: 20px 0;
+                overflow-x: auto;
+                border-radius: 8px;
+                border: 1px solid #e5e7eb;
+              }
+              
+              table {
+                width: 100%;
+                border-collapse: collapse;
+                font-size: 11px;
+              }
+              
+              th, td {
+                padding: 12px 8px;
+                text-align: left;
+                border-bottom: 1px solid #e5e7eb;
+              }
+              
+              th {
+                background-color: ${themeColor};
+                color: white;
+                font-weight: bold;
+                text-align: center;
+                font-size: 12px;
+              }
+              
+              td {
+                background-color: white;
+              }
+              
+              tr:nth-child(even) td {
+                background-color: #f9fafb;
+              }
+              
+              .text-center { text-align: center; }
+              .text-right { text-align: right; }
+              
+              .summary-section {
+                margin-top: 30px;
+                background: #f8f9fa;
+                padding: 20px;
+                border-radius: 8px;
+                border-left: 5px solid ${themeColor};
+              }
+              
+              .summary-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+                gap: 15px;
+              }
+              
+              .summary-item {
+                background: white;
+                padding: 15px;
+                border-radius: 6px;
+                text-align: center;
+                border: 1px solid ${themeColor};
+              }
+              
+              .summary-value {
+                font-size: 20px;
+                font-weight: bold;
+                color: ${themeColor};
+                display: block;
+                margin-bottom: 5px;
+              }
+              
+              .summary-label {
+                font-size: 11px;
+                color: #6b7280;
+                text-transform: uppercase;
+                font-weight: 600;
+              }
+              
+              .print-controls {
+                position: fixed;
+                top: 10px;
+                right: 10px;
+                z-index: 1000;
+              }
+              
+              .btn {
+                background: ${themeColor};
+                color: white;
+                border: none;
+                padding: 10px 20px;
+                border-radius: 6px;
+                cursor: pointer;
+                margin: 0 5px;
+                font-size: 12px;
+                font-weight: 600;
+              }
+              
+              .btn:hover {
+                opacity: 0.9;
+              }
+              
+              .btn-secondary {
+                background: #6b7280;
+              }
+              
+              .btn-secondary:hover {
+                background: #4b5563;
+              }
+              
+              @media print {
+                .print-controls {
+                  display: none;
+                }
+                
+                body {
+                  padding: 0;
+                }
+                
+                .container {
+                  max-width: none;
+                }
+              }
+            </style>
+          </head>
+          <body>
+            <div class="print-controls">
+              <button class="btn" onclick="window.print()">Print PDF</button>
+              <button class="btn btn-secondary" onclick="window.close()">Close</button>
+            </div>
+            
+            <div class="container">
+              <!-- Report Title -->
+              <div class="report-title">
+                <h1>${transactionType} Transaction Details</h1>
+                <div class="transaction-id">Transaction ID: ${transaction.custom_id || transaction.id}</div>
+                <p>Generated on ${reportDate} at ${new Date().toLocaleTimeString()}</p>
+              </div>
+              
+              <!-- Transaction Info -->
+              <div class="transaction-info">
+                <div class="info-grid">
+                  <div class="info-item">
+                    <div class="info-label">Transaction Type</div>
+                    <div class="info-value">
+                      <span class="transaction-type">${transactionType.toUpperCase()}</span>
+                    </div>
+                  </div>
+                  
+                  <div class="info-item">
+                    <div class="info-label">Date</div>
+                    <div class="info-value">${new Date(transaction.date).toLocaleDateString()}</div>
+                  </div>
+                  
+                  <div class="info-item">
+                    <div class="info-label">Warehouse</div>
+                    <div class="info-value">${transaction.warehouse?.name_en || transaction.warehouse?.name_ar || 'N/A'}</div>
+                  </div>
+                  
+                  <div class="info-item">
+                    <div class="info-label">Reference Number</div>
+                    <div class="info-value">${transaction.reference_number || 'N/A'}</div>
+                  </div>
+                  
+                  <div class="info-item">
+                    <div class="info-label">Description</div>
+                    <div class="info-value">${transaction.description || 'N/A'}</div>
+                  </div>
+                  
+                  <div class="info-item">
+                    <div class="info-label">Created At</div>
+                    <div class="info-value">${new Date(transaction.created_at).toLocaleString()}</div>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- Assets Table -->
+              <div class="table-container">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Transaction ID</th>
+                      <th>Date</th>
+                      <th>Asset Name</th>
+                      <th>Warehouse</th>
+                      <th>Asset Code</th>
+                      <th>Quantity</th>
+                      <th>Unit Price</th>
+                      <th>Total Value</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${tableData.length === 0 ?
+          `<tr><td colspan="8" class="text-center">No assets found for this transaction.</td></tr>` :
+          tableData.map(row => `
+                        <tr>
+                          <td class="text-center">${row.id}</td>
+                          <td class="text-center">${row.date}</td>
+                          <td>${row.assetName}</td>
+                          <td>${row.warehouse}</td>
+                          <td class="text-center">${row.assetCode}</td>
+                          <td class="text-right">${row.quantity}</td>
+                          <td class="text-right">${row.unitPrice}</td>
+                          <td class="text-right">${row.totalValue}</td>
+                        </tr>
+                      `).join('')
+        }
+                  </tbody>
+                </table>
+              </div>
+              
+              <!-- Summary Section -->
+              ${hasValues ? `
+                <div class="summary-section">
+                  <h3 style="text-align: center; margin-bottom: 20px; color: #333;">Transaction Summary</h3>
+                  <div class="summary-grid">
+                    <div class="summary-item">
+                      <span class="summary-value">${transaction.asset_transactions?.length || 0}</span>
+                      <div class="summary-label">Total Assets</div>
+                    </div>
+                    
+                    <div class="summary-item">
+                      <span class="summary-value">$${totalValue.toLocaleString()}</span>
+                      <div class="summary-label">Total Value</div>
+                    </div>
+                    
+                    <div class="summary-item">
+                      <span class="summary-value">$${(totalValue / (transaction.asset_transactions?.length || 1)).toFixed(2)}</span>
+                      <div class="summary-label">Average Value per Asset</div>
+                    </div>
+                  </div>
+                </div>
+              ` : ''}
+            </div>
+          </body>
+        </html>
+      `;
+
+      pdfWindow.document.write(htmlContent);
+      pdfWindow.document.close();
+
+      // Auto-focus the window for better user experience
+      pdfWindow.focus();
+
+      toast.success('PDF report opened successfully! Use your browser\'s print function to save as PDF.');
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      toast.error('Failed to generate PDF report');
+    }
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -126,12 +530,22 @@ const ViewTransaction = ({ isOpen, onClose, transactionId }) => {
                 </p>
               </div>
             </div>
-            <button
-              onClick={onClose}
-              className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
-            >
-              <X className="w-4 h-4" />
-            </button>
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={generatePDF}
+                disabled={!transaction || loading}
+                className="flex items-center px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium transition-colors"
+              >
+                <FileDown className="w-4 h-4 mr-1" />
+                Export PDF
+              </button>
+              <button
+                onClick={onClose}
+                className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         </div>
 
