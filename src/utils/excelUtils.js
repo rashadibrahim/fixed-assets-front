@@ -412,8 +412,10 @@ export const parseAssetExcelFile = (file) => {
           const nameAr = row[nameArIndex] ? String(row[nameArIndex]).trim() : '';
           const categoryName = row[categoryNameIndex] ? String(row[categoryNameIndex]).trim() : '';
           const productCode = row[productCodeIndex] ? String(row[productCodeIndex]).trim() : '';
-          const isActive = isActiveIndex !== -1 ?
-            (row[isActiveIndex] ? String(row[isActiveIndex]).toLowerCase().trim() : 'true') : 'true';
+          // Handle is_active field - convert various formats to string first, then normalize
+          let isActiveRaw = isActiveIndex !== -1 ? row[isActiveIndex] : 'true';
+          const isActive = isActiveRaw !== null && isActiveRaw !== undefined ? 
+            String(isActiveRaw).toLowerCase().trim() : 'true';
 
           // Validate required fields
           if (!nameEn) {
@@ -442,9 +444,21 @@ export const parseAssetExcelFile = (file) => {
             throw new Error(`Row ${rowNumber}: Category Name too long (maximum 255 characters)`);
           }
 
-          // Validate is_active field
-          const activeValue = ['true', '1', 'yes', 'active'].includes(isActive) ? true :
-            ['false', '0', 'no', 'inactive'].includes(isActive) ? false : true;
+          // Convert is_active field to boolean
+          // Handle various formats: true/false, 1/0, yes/no, active/inactive
+          let activeValue = true; // Default to true
+          
+          if (isActive === '1' || isActive === 1) {
+            activeValue = true;
+          } else if (isActive === '0' || isActive === 0) {
+            activeValue = false;
+          } else if (['true', 'yes', 'active', 'enabled'].includes(isActive)) {
+            activeValue = true;
+          } else if (['false', 'no', 'inactive', 'disabled'].includes(isActive)) {
+            activeValue = false;
+          }
+          
+          console.log(`Row ${rowNumber}: is_active parsing - raw: "${row[isActiveIndex]}" -> normalized: "${isActive}" -> boolean: ${activeValue}`);
 
           // Basic validation for special characters
           const invalidCharsRegex = /[<>\"\'&]/;
@@ -643,7 +657,10 @@ export const parseAssetUpdateExcelFile = (file) => {
           const nameAr = row[nameArIndex] ? String(row[nameArIndex]).trim() : '';
           const categoryName = row[categoryNameIndex] ? String(row[categoryNameIndex]).trim() : '';
           const productCode = row[productCodeIndex] ? String(row[productCodeIndex]).trim() : '';
-          const isActiveValue = row[isActiveIndex] ? String(row[isActiveIndex]).toLowerCase().trim() : 'true';
+          // Handle is_active field - convert various formats to string first, then normalize
+          let isActiveRaw = isActiveIndex !== -1 ? row[isActiveIndex] : 'true';
+          const isActiveValue = isActiveRaw !== null && isActiveRaw !== undefined ? 
+            String(isActiveRaw).toLowerCase().trim() : 'true';
 
           // Validate required fields
           if (!id) {
@@ -662,8 +679,20 @@ export const parseAssetUpdateExcelFile = (file) => {
             throw new Error(`Row ${rowNumber}: Category Name is required`);
           }
 
-          // Parse is_active value
-          const isActive = ['true', '1', 'yes', 'active', 'enabled'].includes(isActiveValue);
+          // Convert is_active field to boolean - handle various formats
+          let isActive = true; // Default to true
+          
+          if (isActiveValue === '1' || isActiveValue === 1) {
+            isActive = true;
+          } else if (isActiveValue === '0' || isActiveValue === 0) {
+            isActive = false;
+          } else if (['true', 'yes', 'active', 'enabled'].includes(isActiveValue)) {
+            isActive = true;
+          } else if (['false', 'no', 'inactive', 'disabled'].includes(isActiveValue)) {
+            isActive = false;
+          }
+          
+          console.log(`Update Row ${rowNumber}: is_active parsing - raw: "${isActiveRaw}" -> normalized: "${isActiveValue}" -> boolean: ${isActive}`);
 
           // Create asset object for update
           const asset = {

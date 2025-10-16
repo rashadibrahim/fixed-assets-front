@@ -57,7 +57,7 @@ class ApiClient {
     const url = `${this.baseURL}${endpoint}`;
     const config = {
       headers: {
-        'Content-Type': 'application/json',
+        'Content-Type': 'application/json; charset=utf-8',
         'Accept': 'application/json',
         ...(this.token && { Authorization: `Bearer ${this.token}` }),
       },
@@ -82,6 +82,14 @@ class ApiClient {
         const error = new Error(errorMessage);
         error.status = response.status;
         error.data = errorData;
+        
+        // Log detailed error information for debugging
+        console.error('=== API ERROR DETAILS ===');
+        console.error('Status:', response.status);
+        console.error('Status Text:', response.statusText);
+        console.error('Response Text:', responseText);
+        console.error('Parsed Error Data:', errorData);
+        console.error('Final Error Message:', errorMessage);
 
         // Handle specific HTTP status codes
         if (response.status === 401) {
@@ -164,10 +172,33 @@ class ApiClient {
   }
 
   async createAsset(assetData) {
-    return this.request('/assets/', {
-      method: 'POST',
-      body: JSON.stringify(assetData),
+    console.log('=== CREATE ASSET DEBUG ===');
+    console.log('Request URL:', `${this.baseURL}/assets/`);
+    console.log('Asset data being sent:', assetData);
+    console.log('Auth token:', this.token ? 'Present' : 'Missing');
+    console.log('Request headers:', {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      ...(this.token && { Authorization: `Bearer ${this.token}` }),
     });
+    
+    try {
+      const response = await this.request('/assets/', {
+        method: 'POST',
+        body: JSON.stringify(assetData),
+      });
+      
+      console.log('✅ Create asset successful:', response);
+      return response;
+    } catch (error) {
+      console.error('❌ Create asset failed:', error);
+      console.error('Error details:', {
+        message: error.message,
+        status: error.status,
+        data: error.data
+      });
+      throw error;
+    }
   }
 
   async updateAsset(assetId, assetData) {
@@ -432,7 +463,14 @@ class ApiClient {
   // Categories API
   async getCategories(params = {}) {
     const queryString = new URLSearchParams(params).toString();
-    return this.request(`/categories/${queryString ? `?${queryString}` : ''}`);
+    const endpoint = `/categories/${queryString ? `?${queryString}` : ''}`;
+    try {
+      const response = await this.request(endpoint);
+      return response;
+    } catch (error) {
+      console.error('Get categories error:', error);
+      throw error;
+    }
   }
 
   async createCategory(categoryData) {
@@ -467,10 +505,54 @@ class ApiClient {
   }
 
   async bulkCreateAssets(assetsData) {
-    return this.request('/assets/bulk', {
-      method: 'POST',
-      body: JSON.stringify(assetsData),
-    });
+    console.log('=== BULK CREATE ASSETS ===');
+    console.log('Sending', assetsData.length, 'assets to backend');
+    console.log('Sample asset data:', assetsData[0]);
+    
+    try {
+      const response = await this.request('/assets/bulk', {
+        method: 'POST',
+        body: JSON.stringify(assetsData),
+      });
+      
+      console.log('✅ Bulk create successful');
+      console.log('Response:', response);
+      return response;
+    } catch (error) {
+      console.error('❌ Bulk create failed:', error.message);
+      console.log('🔄 Attempting fallback to individual asset creation...');
+      
+      // Fallback: Create assets individually
+      const results = {
+        created: [],
+        failed: []
+      };
+      
+      for (let i = 0; i < assetsData.length; i++) {
+        try {
+          console.log(`Creating asset ${i + 1}/${assetsData.length}: ${assetsData[i].name_en}`);
+          
+          const createdAsset = await this.createAsset(assetsData[i]);
+          results.created.push(createdAsset);
+          
+        } catch (individualError) {
+          console.error(`Failed to create asset ${i + 1}: ${individualError.message}`);
+          results.failed.push({
+            asset: assetsData[i],
+            error: individualError.message
+          });
+        }
+      }
+      
+      console.log(`🔄 Fallback completed: ${results.created.length} created, ${results.failed.length} failed`);
+      
+      // Return in a format similar to bulk response
+      return {
+        created: results.created,
+        failed: results.failed,
+        message: `Fallback completed: ${results.created.length} created, ${results.failed.length} failed`
+      };
+    }
   }
 
   async bulkUpdateAssets(assetsData) {

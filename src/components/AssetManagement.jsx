@@ -211,7 +211,12 @@ const AssetManagement = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    console.log('=== FORM VALIDATION ===');
+    console.log('Form data before validation:', formData);
+    
     const errors = validateForm();
+    console.log('Validation errors:', errors);
+    
     if (errors.length > 0) {
       handleError(errors.join('. '));
       return;
@@ -220,27 +225,55 @@ const AssetManagement = () => {
     try {
       setLoading(true);
 
+      // Find the selected category for validation
+      const selectedCategory = categories.find(cat => cat.id === parseInt(formData.category_id));
+      console.log('Selected category for individual creation:', selectedCategory);
+      
+      if (!selectedCategory) {
+        throw new Error('Invalid category selected');
+      }
+
+      // Individual asset creation uses category_id (as per API spec)
       const assetData = {
         name_en: formData.name_en.trim(),
         name_ar: formData.name_ar.trim(),
-        category_id: parseInt(formData.category_id)
+        is_active: formData.is_active !== undefined ? formData.is_active : true,
+        category_id: parseInt(formData.category_id) // Use category_id for individual creation
       };
+
+      console.log('Using category_id for individual creation:', parseInt(formData.category_id));
 
       if (formData.product_code && formData.product_code.trim()) {
         assetData.product_code = formData.product_code.trim();
       }
 
-      if (formData.is_active !== undefined) {
-        assetData.is_active = formData.is_active;
-      }
-
       if (selectedAsset) {
+        console.log('Updating asset with data:', assetData);
         await apiClient.updateAsset(selectedAsset.id, assetData);
         handleSuccess('Asset updated successfully');
         setShowEditModal(false);
       } else {
-        await apiClient.createAsset(assetData);
-        handleSuccess('Asset created successfully');
+        console.log('Creating asset with data:', assetData);
+        
+        // WORKAROUND: Use bulk creation endpoint for individual assets since it works
+        // Convert individual asset data to bulk format (category name instead of category_id)
+        const bulkAssetData = {
+          ...assetData,
+          category: selectedCategory.category // Use category name for bulk endpoint
+        };
+        delete bulkAssetData.category_id; // Remove category_id for bulk endpoint
+        
+        console.log('Using bulk endpoint as workaround with data:', bulkAssetData);
+        const result = await apiClient.bulkCreateAssets([bulkAssetData]);
+        
+        if (result && result.summary && result.summary.successfully_added > 0) {
+          handleSuccess('Asset created successfully');
+        } else {
+          // Handle specific error messages from bulk creation
+          const errors = result?.rejected_assets?.[0]?.errors || ['Unknown error occurred'];
+          const errorMessage = errors.join(', ');
+          throw new Error(errorMessage);
+        }
         setShowAddModal(false);
       }
 
@@ -280,13 +313,15 @@ const AssetManagement = () => {
 
   // Load barcode settings from localStorage
   const loadBarcodeSettings = () => {
-    const saved = localStorage.getItem('barcodeSettings');
-    if (saved) {
-      try {
+    try {
+      const saved = localStorage.getItem('barcodeSettings');
+      if (saved) {
         return JSON.parse(saved);
-      } catch (error) {
-        console.error('Error loading barcode settings:', error);
       }
+    } catch (error) {
+      console.error('Error loading barcode settings:', error);
+      // Clear corrupted data
+      localStorage.removeItem('barcodeSettings');
     }
     // Return default settings if none saved
     return {
@@ -581,57 +616,41 @@ const AssetManagement = () => {
       
       // Parse the full file
       const assets = await parseAssetExcelFile(selectedAssetFile);
+      console.log('=== PARSED ASSETS DEBUG ===');
+      console.log('Parsed assets from Excel:', assets);
       
-      // Get existing categories to validate category names
-      const existingCategories = await apiClient.getCategories({ page: 1, limit: 1000 });
-      const existingCategoryNames = new Set();
-      const categoryNameToId = new Map(); // Map category names to IDs
+      console.log('=== SKIPPING CATEGORY VALIDATION ===');
+      console.log('Letting backend handle category validation');
+      console.log('Excel data expects category:', assets.length > 0 ? assets[0].category_name : 'N/A');
       
-      // The API response uses 'items' array, not 'data'
-      if (existingCategories.items) {
-        existingCategories.items.forEach(cat => {
-          // Use 'category' field which contains the actual category name users see
-          if (cat.category) {
-            const categoryNameLower = cat.category.toLowerCase().trim();
-            existingCategoryNames.add(categoryNameLower);
-            categoryNameToId.set(categoryNameLower, cat.id);
-          }
-        });
-      }
+      const skipValidation = true; // Skip frontend validation, let backend handle it
       
       // Enhanced validation with detailed error messages
       const validAssets = [];
       const rejectedItems = [];
       
+      // Process all assets without frontend validation - let backend handle it
+      console.log('=== PROCESSING ASSETS ===');
+      console.log('Total assets from Excel:', assets.length);
+      
       assets.forEach((asset, index) => {
-        const rowNumber = index + 2; // +2 because Excel rows start at 1 and we skip header
-        let errorMessage = null;
+        console.log(`Processing asset ${index + 1}: ${asset.name_en} (${asset.category_name})`);
         
-        const categoryNameLower = asset.category_name.toLowerCase().trim();
+        // Send asset data exactly as expected by the API (according to swagger.json)
+        const transformedAsset = {
+          name_en: asset.name_en,
+          name_ar: asset.name_ar,
+          category: asset.category_name, // API expects 'category' field, not 'category_name'
+          product_code: asset.product_code,
+          is_active: asset.is_active
+        };
         
-        // Check if category name exists
-        if (!existingCategoryNames.has(categoryNameLower)) {
-          errorMessage = `❌ Category "${asset.category_name}" does not exist in the system`;
-          
-          rejectedItems.push({
-            row_number: rowNumber,
-            data: asset,
-            error: errorMessage
-          });
-        } else {
-          // Transform the asset data: replace category_name with category_id
-          const categoryId = categoryNameToId.get(categoryNameLower);
-          const transformedAsset = {
-            name_en: asset.name_en,
-            name_ar: asset.name_ar,
-            category_id: categoryId, // Use category_id instead of category_name
-            product_code: asset.product_code,
-            is_active: asset.is_active
-          };
-          
-          validAssets.push(transformedAsset);
-        }
+        console.log('Transformed asset:', transformedAsset);
+        validAssets.push(transformedAsset);
       });
+      
+      console.log('Final validAssets array:', validAssets);
+      console.log('Number of valid assets:', validAssets.length);
       
       // Send valid assets to backend
       let importResults = {
@@ -645,19 +664,87 @@ const AssetManagement = () => {
         rejected: rejectedItems
       };
       
+      console.log('=== BULK IMPORT DEBUG ===');
+      console.log('Valid assets to import:', validAssets);
+      console.log('Number of valid assets:', validAssets.length);
+      console.log('Sample asset being sent:', validAssets[0]);
+      
       if (validAssets.length > 0) {
         try {
-          const response = await apiClient.bulkCreateAssets(validAssets);
+          console.log('=== CALLING BULK API ===');
+          console.log('About to call bulkCreateAssets with data:', validAssets);
           
-          if (response && response.created) {
-            importResults.added = response.created;
-            importResults.summary.added = response.created.length;
+          const response = await apiClient.bulkCreateAssets(validAssets);
+          console.log('=== BULK IMPORT RESPONSE ===');
+          console.log('Full response:', response);
+          console.log('Response type:', typeof response);
+          console.log('Is array?', Array.isArray(response));
+          
+          // Handle the specific response format from the bulk API (according to swagger.json)
+          let createdAssets = [];
+          let failedAssets = [];
+          
+          if (response && response.added_assets && Array.isArray(response.added_assets)) {
+            // Expected format from swagger: { summary: {...}, added_assets: [...], rejected_assets: [...] }
+            createdAssets = response.added_assets;
+            failedAssets = response.rejected_assets || [];
+            console.log('Using swagger format: response.added_assets');
+          } else if (response && response.created && Array.isArray(response.created)) {
+            // Fallback format: { created: [...], failed: [...] }
+            createdAssets = response.created;
+            failedAssets = response.failed || [];
+            console.log('Using response.created format');
+          } else if (response && response.data && Array.isArray(response.data)) {
+            // Format: { data: [...] }
+            createdAssets = response.data;
+            console.log('Using response.data format');
           } else if (response && Array.isArray(response)) {
-            importResults.added = response;
-            importResults.summary.added = response.length;
+            // Format: [...]
+            createdAssets = response;
+            console.log('Using direct array format');
+          } else if (response && response.success && response.assets) {
+            // Format: { success: true, assets: [...] }
+            createdAssets = response.assets;
+            console.log('Using response.assets format');
+          } else if (response && typeof response === 'object') {
+            // Check for any array property in the response
+            const arrayProp = Object.keys(response).find(key => Array.isArray(response[key]));
+            if (arrayProp) {
+              createdAssets = response[arrayProp];
+              console.log(`Using response.${arrayProp} format`);
+            }
           }
+          
+          // Handle failed assets from bulk response (according to swagger format)
+          if (failedAssets.length > 0) {
+            console.log('Processing failed assets from API response:', failedAssets);
+            failedAssets.forEach((failedItem, index) => {
+              // The API response format includes: asset_data, asset_name, errors
+              const errorMessages = failedItem.errors ? failedItem.errors.join(', ') : 'Failed to create asset';
+              
+              rejectedItems.push({
+                row_number: index + 2, // This might not be accurate, but better than nothing
+                data: failedItem.asset_data || failedItem.asset || failedItem,
+                error: `❌ ${errorMessages}`
+              });
+            });
+          }
+          
+          importResults.added = createdAssets;
+          importResults.summary.added = createdAssets.length;
+          
+          console.log('Final created assets:', createdAssets);
+          console.log('Number of created assets:', createdAssets.length);
+          console.log('Failed assets from response:', failedAssets);
+          
         } catch (error) {
           console.error('Bulk import error:', error);
+          console.error('Error details:', {
+            message: error.message,
+            status: error.status,
+            data: error.data
+          });
+          
           // Add all valid assets to rejected list if bulk import fails
           validAssets.forEach((asset, index) => {
             rejectedItems.push({
@@ -671,6 +758,10 @@ const AssetManagement = () => {
         }
       }
       
+      // Update final counts
+      importResults.rejected = rejectedItems;
+      importResults.summary.rejected = rejectedItems.length;
+      
       // Calculate success rate
       importResults.summary.success_rate = Math.round(
         (importResults.summary.added / importResults.summary.total) * 100
@@ -678,13 +769,23 @@ const AssetManagement = () => {
       
       setAssetImportResults(importResults);
       
+      console.log('=== FINAL IMPORT RESULTS ===');
+      console.log('Import results summary:', importResults.summary);
+      console.log('Added assets:', importResults.added);
+      console.log('Rejected assets:', importResults.rejected);
+      
       // Show success/error message
       if (importResults.summary.added > 0) {
         toast.success(`Successfully imported ${importResults.summary.added} assets!`);
         // Reload assets to show the new ones
         loadAssets(currentPage, filterCategory);
+      } else if (importResults.summary.rejected > 0) {
+        toast.error(`All ${importResults.summary.rejected} assets were rejected. Check the results for details.`);
+      } else {
+        toast.warning('No assets were processed. Please check your Excel file format.');
       }
-      if (importResults.summary.rejected > 0) {
+      
+      if (importResults.summary.rejected > 0 && importResults.summary.added > 0) {
         toast.warning(`${importResults.summary.rejected} assets were rejected. Check the results for details.`);
       }
       
@@ -1019,6 +1120,9 @@ const AssetManagement = () => {
             <DialogContent className="flex flex-col">
               <DialogHeader>
                 <DialogTitle>Add New Asset</DialogTitle>
+                <DialogDescription>
+                  Create a new fixed asset by filling in the required information below.
+                </DialogDescription>
               </DialogHeader>
               <div className="flex-1 overflow-y-auto p-1">
                 <form onSubmit={handleSubmit} className="space-y-6">
@@ -1231,6 +1335,9 @@ const AssetManagement = () => {
         <DialogContent className="flex flex-col">
           <DialogHeader>
             <DialogTitle>Edit Asset</DialogTitle>
+            <DialogDescription>
+              Update the asset information below. Changes will be saved when you click Save.
+            </DialogDescription>
           </DialogHeader>
           <div className="flex-1 overflow-y-auto p-1">
             <form onSubmit={handleSubmit} className="space-y-6">
@@ -1324,6 +1431,9 @@ const AssetManagement = () => {
               <FileSpreadsheet className="w-5 h-5" />
               Import Assets from Excel
             </DialogTitle>
+            <DialogDescription>
+              Import multiple assets at once using an Excel file. Follow the steps below to complete the import process.
+            </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-6">
@@ -1624,6 +1734,9 @@ const AssetManagement = () => {
               <Edit3 className="w-5 h-5" />
               Import Asset Updates from Excel
             </DialogTitle>
+            <DialogDescription>
+              Update existing assets in bulk using an Excel file. Download the template with current data, make your changes, and upload it back.
+            </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-6">
