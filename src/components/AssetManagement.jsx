@@ -1052,12 +1052,12 @@ const AssetManagement = () => {
                       <DynamicSearchableSelect
                         value={formData.category_id}
                         onValueChange={handleCategoryChange}
-                        placeholder="Select a category"
+                        placeholder="Select from existing categories"
                         searchPlaceholder="Search categories..."
                         apiEndpoint="categories"
                       />
                       <p className="text-xs text-muted-foreground mt-1">
-                        Need a new category? Go to Category Management to add one.
+                        Choose from existing categories only. To add new categories, go to Category Management.
                       </p>
                     </div>
                     <div>
@@ -1264,10 +1264,13 @@ const AssetManagement = () => {
                   <DynamicSearchableSelect
                     value={formData.category_id}
                     onValueChange={handleCategoryChange}
-                    placeholder="Select a category"
+                    placeholder="Select from existing categories"
                     searchPlaceholder="Search categories..."
                     apiEndpoint="categories"
                   />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Choose from existing categories only. To add new categories, go to Category Management.
+                  </p>
                 </div>
               </div>
 
