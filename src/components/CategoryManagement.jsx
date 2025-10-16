@@ -42,15 +42,16 @@ const CategoryManagement = () => {
   const { handleError, handleSuccess } = useErrorHandler();
 
   const [formData, setFormData] = useState({
-    category: '', // Main Category (optional, from dropdown)
-    subcategory: '', // Category Name (what user sees as main)
-    description: '',
+    category: '', // Main Category (English)
+    category_ar: '', // Main Category (Arabic)
+    subcategory: '', // Category Name (English)
+    subcategory_ar: '', // Category Name (Arabic)
     parent_id: ''
   });
 
   const [existingMainCategories, setExistingMainCategories] = useState([]);
   const [loadingMainCategories, setLoadingMainCategories] = useState(false);
-  const [categorySearchTerm, setCategorySearchTerm] = useState(''); // Add search state for dropdown
+  const [categorySearchTerm, setCategorySearchTerm] = useState('');
 
   // Bulk import states
   const [importDialogOpen, setImportDialogOpen] = useState(false);
@@ -75,7 +76,6 @@ const CategoryManagement = () => {
         return;
       }
 
-      // Prepare API parameters with search
       const params = { per_page: 12, page };
       if (search.trim()) {
         params.search = search.trim();
@@ -88,20 +88,24 @@ const CategoryManagement = () => {
         // Transform the API response to match component expectations
         const transformedCategories = data.items.map(item => ({
           id: item.id,
-          category: item.subcategory, // Main Category (from backend subcategory)
-          subcategory: item.category, // Category Name (from backend category)
-          description: '', // API doesn't provide description
-          parent_id: null // API doesn't provide parent_id
+          category: item.subcategory, // Main Category (English)
+          category_ar: item.subcategory_ar, // Main Category (Arabic)
+          subcategory: item.category, // Category Name (English)
+          subcategory_ar: item.category_ar, // Category Name (Arabic)
+          parent_id: null
         }));
 
         setCategories(transformedCategories);
 
-        // Extract unique categories for dropdown - use the category field from API response
+        // Extract unique categories for dropdown
         const uniqueMainCategories = [...new Set(
           data.items
-            .map(item => item.category) // Changed from item.subcategory to item.category
-            .filter(category => category && category.trim() !== '')
-        )].sort();
+            .map(item => ({
+              en: item.category,
+              ar: item.category_ar
+            }))
+            .filter(category => category.en && category.en.trim() !== '')
+        )];
         setExistingMainCategories(uniqueMainCategories);
 
         setPagination({
@@ -121,7 +125,6 @@ const CategoryManagement = () => {
     }
   };
 
-  // New function to load main categories for dropdown
   const loadMainCategoriesForDropdown = async (search = '') => {
     try {
       setLoadingMainCategories(true);
@@ -131,9 +134,8 @@ const CategoryManagement = () => {
         return;
       }
 
-      // Prepare API parameters
       const params = {
-        per_page: 100, // Get more categories for dropdown
+        per_page: 100,
         page: 1
       };
       if (search.trim()) {
@@ -144,12 +146,14 @@ const CategoryManagement = () => {
       const data = response;
 
       if (data.items) {
-        // Extract unique categories for dropdown - use the category field from API response
         const uniqueMainCategories = [...new Set(
           data.items
-            .map(item => item.category) // Changed from item.subcategory to item.category
-            .filter(category => category && category.trim() !== '')
-        )].sort();
+            .map(item => ({
+              en: item.category,
+              ar: item.category_ar
+            }))
+            .filter(category => category.en && category.en.trim() !== '')
+        )];
 
         setExistingMainCategories(uniqueMainCategories);
       } else {
@@ -163,10 +167,8 @@ const CategoryManagement = () => {
     }
   };
 
-  // Add debounced search for dropdown
   const handleCategorySearch = (searchValue) => {
     setCategorySearchTerm(searchValue);
-    // Debounce the API call
     clearTimeout(window.categorySearchTimeout);
     window.categorySearchTimeout = setTimeout(() => {
       loadMainCategoriesForDropdown(searchValue);
@@ -181,12 +183,12 @@ const CategoryManagement = () => {
   const openAddDialog = () => {
     setEditingCategory(null);
     setFormData({
-      category: 'none', // Use 'none' instead of '__none__'
-      subcategory: '', // Category Name (required)
-      description: '',
+      category: 'none',
+      category_ar: '',
+      subcategory: '',
+      subcategory_ar: '',
       parent_id: ''
     });
-    // Load main categories when dialog opens
     loadMainCategoriesForDropdown();
     setDialogOpen(true);
   };
@@ -194,12 +196,12 @@ const CategoryManagement = () => {
   const openEditDialog = (category) => {
     setEditingCategory(category);
     setFormData({
-      category: category.category || 'none', // Use 'none' instead of '__none__'
-      subcategory: category.subcategory || '', // Category Name
-      description: category.description || '',
+      category: category.category || 'none',
+      category_ar: category.category_ar || '',
+      subcategory: category.subcategory || '',
+      subcategory_ar: category.subcategory_ar || '',
       parent_id: category.parent_id || ''
     });
-    // Load main categories when dialog opens
     loadMainCategoriesForDropdown();
     setDialogOpen(true);
   };
@@ -208,7 +210,7 @@ const CategoryManagement = () => {
     const errors = [];
 
     if (!formData.subcategory.trim()) {
-      errors.push('Category name is required');
+      errors.push('Category name (English) is required');
     }
 
     return errors;
@@ -246,9 +248,18 @@ const CategoryManagement = () => {
         }
       }
 
+      // Auto-populate Arabic main category from selected dropdown option
+      let selectedMainCategoryAr = null;
+      if (formData.category !== 'none' && formData.category) {
+        const selectedMainCat = existingMainCategories.find(cat => cat.en === formData.category);
+        selectedMainCategoryAr = selectedMainCat?.ar || null;
+      }
+
       const requestBody = {
-        category: formData.subcategory.trim() || null, // Category Name (required) - maps to backend category
-        subcategory: formData.category === 'none' ? null : formData.category.trim() || null // Main Category (optional) - maps to backend subcategory
+        category: formData.subcategory.trim() || null, // Category Name (English)
+        category_ar: formData.subcategory_ar.trim() || null, // Category Name (Arabic)
+        subcategory: formData.category === 'none' ? null : formData.category.trim() || null, // Main Category (English)
+        subcategory_ar: formData.category === 'none' ? null : selectedMainCategoryAr // Main Category (Arabic) - Auto-populated
       };
 
       if (editingCategory) {
@@ -259,7 +270,13 @@ const CategoryManagement = () => {
         handleSuccess('Category created successfully!');
       }
 
-      setFormData({ category: 'none', subcategory: '', description: '', parent_id: '' }); // Update reset values
+      setFormData({
+        category: 'none',
+        category_ar: '',
+        subcategory: '',
+        subcategory_ar: '',
+        parent_id: ''
+      });
       setEditingCategory(null);
       setDialogOpen(false);
       loadCategories(pagination.page, searchTerm);
@@ -284,7 +301,6 @@ const CategoryManagement = () => {
     } catch (error) {
       console.error('Error deleting category:', error);
 
-      // Extract and display the actual backend error message
       let errorMessage = 'Failed to delete category';
 
       if (error.response?.data?.message) {
@@ -303,14 +319,13 @@ const CategoryManagement = () => {
     }
   };
 
-  // Since search is now handled by API, use categories directly
   const filteredCategories = categories;
 
   const handlePageChange = (newPage) => {
     setPagination(prev => ({ ...prev, page: newPage }));
   };
 
-  // Bulk import functions
+  // Bulk import functions - Updated for new fields
   const handleDownloadTemplate = () => {
     try {
       downloadCategoryTemplate();
@@ -328,9 +343,8 @@ const CategoryManagement = () => {
       validateExcelFile(file);
       setSelectedFile(file);
 
-      // Parse and preview the file
       const categories = await parseExcelFile(file);
-      setPreviewData(categories.slice(0, 5)); // Show first 5 rows for preview
+      setPreviewData(categories.slice(0, 5));
       handleSuccess(`File loaded successfully! Found ${categories.length} categories.`);
     } catch (error) {
       handleError(error, 'Failed to parse Excel file');
@@ -348,10 +362,8 @@ const CategoryManagement = () => {
     try {
       setImportLoading(true);
 
-      // Parse the full file
       const categories = await parseExcelFile(selectedFile);
 
-      // Get existing categories to check for duplicates
       const existingCategories = await apiClient.getCategories({ page: 1, limit: 1000 });
       const existingCategoriesSet = new Set();
 
@@ -362,26 +374,21 @@ const CategoryManagement = () => {
         });
       }
 
-      // Enhanced validation with detailed error messages
       const validCategories = [];
       const rejectedItems = [];
 
       categories.forEach((category, index) => {
-        const rowNumber = index + 2; // +2 because Excel rows start at 1 and we skip header
+        const rowNumber = index + 2;
         let errorMessage = null;
 
-        // Check if category name (category field) is missing
         if (!category.category || category.category.trim() === '') {
-          errorMessage = '❌ Category name is required and cannot be empty';
-        }
-        // Check for duplicates in existing data
-        else {
+          errorMessage = '❌ Category name (English) is required and cannot be empty';
+        } else {
           const categoryKey = `${category.category || ''}|${category.subcategory}`.toLowerCase();
 
           if (existingCategoriesSet.has(categoryKey)) {
             errorMessage = '⚠️ Category already exists in database - skipped to avoid duplicates';
           } else {
-            // Check for duplicates within the current import batch
             const duplicateInBatch = validCategories.find(vc =>
               (vc.category || '').toLowerCase() === (category.category || '').toLowerCase() &&
               vc.subcategory.toLowerCase() === category.subcategory.toLowerCase()
@@ -404,13 +411,11 @@ const CategoryManagement = () => {
         }
       });
 
-      // If we have valid categories, send them to backend
       let backendResults = null;
       if (validCategories.length > 0) {
         try {
           backendResults = await apiClient.bulkCreateCategories(validCategories);
         } catch (error) {
-          // If backend fails, mark all valid categories as failed
           validCategories.forEach((category, index) => {
             const originalIndex = categories.findIndex(c => c === category);
             rejectedItems.push({
@@ -423,13 +428,12 @@ const CategoryManagement = () => {
         }
       }
 
-      // Handle case where backend says items were rejected but doesn't provide details
+      // Handle backend results...
       let backendRejectedItems = [];
       let backendSuccessItems = [];
       const actualRejectedItems = backendResults?.rejected_categories || backendResults?.rejected || [];
 
       if (actualRejectedItems && actualRejectedItems.length > 0) {
-        // Filter out backend bugs - categories rejected only for empty main category duplication
         actualRejectedItems.forEach(item => {
           const hasOnlyEmptyMainCategoryError = item.errors &&
             item.errors.length === 1 &&
@@ -437,40 +441,20 @@ const CategoryManagement = () => {
             item.errors[0].includes("is duplicated in this batch");
 
           if (hasOnlyEmptyMainCategoryError) {
-            // Treat this as a successful item since empty main categories should be allowed
             backendSuccessItems.push({
-              id: `temp-${Date.now()}-${Math.random()}`, // Temporary ID
+              id: `temp-${Date.now()}-${Math.random()}`,
               category: item.category_data?.category || '',
+              category_ar: item.category_data?.category_ar || '',
               subcategory: item.category_data?.subcategory || '',
+              subcategory_ar: item.category_data?.subcategory_ar || '',
               created_at: new Date().toISOString()
             });
           } else {
-            // This is a legitimate rejection
             backendRejectedItems.push(item);
           }
         });
-      } else if ((backendResults?.summary?.rejected || 0) > 0 && validCategories.length > 0) {
-        // Backend says items were rejected but didn't provide details
-        // Create synthetic rejected items for each category that wasn't added
-        const addedCount = backendResults?.added?.length || 0;
-        const shouldHaveBeenAdded = validCategories.length;
-        const actuallyRejected = shouldHaveBeenAdded - addedCount;
-
-        if (actuallyRejected > 0) {
-          // Create synthetic rejected items for categories that weren't added
-          for (let i = 0; i < actuallyRejected && i < validCategories.length; i++) {
-            const category = validCategories[i];
-            backendRejectedItems.push({
-              row_number: categories.findIndex(c => c === category) + 2,
-              data: category,
-              error: `❌ Server rejected "${category.subcategory}" without providing specific reason`,
-              reason: `The server processed this category but rejected it. This could be due to: duplicate detection, validation rules, or database constraints.`
-            });
-          }
-        }
       }
 
-      // Now calculate totals after arrays are populated
       const backendAddedItems = backendResults?.added_categories || backendResults?.added || [];
       const allSuccessfulItems = [...backendAddedItems, ...backendSuccessItems];
       const totalAdded = allSuccessfulItems.length;
@@ -487,22 +471,18 @@ const CategoryManagement = () => {
         rejected: [
           ...rejectedItems,
           ...backendRejectedItems.map((item, index) => {
-            // Parse the backend rejected item format
             let originalData = item.category_data || item.data;
             let errorMessage = '';
             let rowNumber = originalData?._rowNumber || (index + rejectedItems.length + 2);
 
-            // Extract error messages from backend response
             if (item.errors && Array.isArray(item.errors)) {
               const validErrors = item.errors.filter(err => !err.includes('_rowNumber: Unknown field'));
               if (validErrors.length > 0) {
-                // Translate backend error messages to frontend terminology
                 const categoryName = originalData?.subcategory || '';
                 const mainCategoryName = originalData?.category || '';
 
-                let translatedError = validErrors[0]; // Take the first error
+                let translatedError = validErrors[0];
 
-                // Translate common backend error patterns
                 if (translatedError.includes('already exists in database')) {
                   errorMessage = `⚠️ Category "${categoryName}"`;
                   if (mainCategoryName) {
@@ -511,7 +491,6 @@ const CategoryManagement = () => {
                   errorMessage += ` already exists in database - Skipped to avoid duplicates`;
                 } else if (translatedError.includes('is duplicated in this batch')) {
                   if (translatedError.includes("Category ''")) {
-                    // Backend incorrectly treats empty main categories as duplicates - this is a backend bug
                     errorMessage = `🐛 Backend validation error: Empty main categories incorrectly flagged as duplicates. Category "${categoryName}" should be valid.`;
                   } else {
                     errorMessage = `⚠️ Category "${categoryName}" is duplicated in this import batch - Only first occurrence will be processed`;
@@ -523,11 +502,9 @@ const CategoryManagement = () => {
                 } else if (translatedError.includes('invalid characters')) {
                   errorMessage = `❌ Category name contains invalid characters`;
                 } else {
-                  // Generic error message
                   errorMessage = `❌ ${translatedError}`;
                 }
               } else {
-                // All errors were about _rowNumber, so this is actually a valid category
                 const categoryName = originalData?.subcategory || '';
                 const mainCategoryName = originalData?.category || '';
                 errorMessage = `⚠️ Category "${categoryName}"`;
@@ -542,7 +519,7 @@ const CategoryManagement = () => {
 
             return {
               row_number: rowNumber,
-              data: originalData || { category: '', subcategory: 'Unknown item' },
+              data: originalData || { category: '', category_ar: '', subcategory: 'Unknown item', subcategory_ar: '' },
               error: errorMessage,
               reason: errorMessage
             };
@@ -550,13 +527,10 @@ const CategoryManagement = () => {
         ]
       };
 
-
-
       setImportResults(finalResults);
 
       handleSuccess(`Import completed! ${finalResults.summary.added} categories added, ${finalResults.summary.rejected} rejected.`);
 
-      // Refresh the categories list
       await loadCategories(pagination.page, searchTerm);
 
     } catch (error) {
@@ -622,30 +596,52 @@ const CategoryManagement = () => {
                 Add New Category
               </Button>
             </DialogTrigger>
-            <DialogContent className="flex flex-col">
+            <DialogContent className="max-w-none max-h-none w-screen h-screen m-0 rounded-none overflow-y-auto p-6">
               <DialogHeader>
                 <DialogTitle>
                   {editingCategory ? 'Edit Category' : 'Add New Category'}
                 </DialogTitle>
               </DialogHeader>
 
-              <div className="space-y-4">
+              <div className="space-y-4 max-w-2xl mx-auto">
                 <div className="grid grid-cols-1 gap-4">
+                  {/* Category Name (English) - Required */}
                   <div>
-                    <Label htmlFor="subcategory">Category Name *</Label>
+                    <Label htmlFor="subcategory">Category Name (English) *</Label>
                     <Input
                       id="subcategory"
                       name="subcategory"
                       value={formData.subcategory}
                       onChange={handleInputChange}
-                      placeholder="Enter category name"
+                      placeholder="Enter category name in English"
                       className="mt-1"
                       required
                     />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      This is the main category name and is required
+                    </p>
                   </div>
 
+                  {/* Category Name (Arabic) - Optional */}
                   <div>
-                    <Label htmlFor="category">Main Category (Optional)</Label>
+                    <Label htmlFor="subcategory_ar">Category Name (Arabic)</Label>
+                    <Input
+                      id="subcategory_ar"
+                      name="subcategory_ar"
+                      value={formData.subcategory_ar}
+                      onChange={handleInputChange}
+                      placeholder="Enter category name in Arabic"
+                      className="mt-1"
+                      dir="rtl"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Optional Arabic translation for the category name
+                    </p>
+                  </div>
+
+                  {/* Main Category (English) - Optional */}
+                  <div>
+                    <Label htmlFor="category">Main Category</Label>
                     <div className="mt-1">
                       <Select
                         value={formData.category}
@@ -661,7 +657,6 @@ const CategoryManagement = () => {
                           <SelectValue placeholder="Select main category or leave empty" />
                         </SelectTrigger>
                         <SelectContent>
-                          {/* Search input in dropdown */}
                           <div className="p-2 border-b">
                             <div className="relative">
                               <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-muted-foreground h-3 w-3" />
@@ -676,7 +671,13 @@ const CategoryManagement = () => {
                             </div>
                           </div>
 
-                          <SelectItem value="none">-- No Main Category --</SelectItem>
+                          <SelectItem value="none">
+                            <div className="flex flex-col">
+                              <span className="font-medium">-- No Main Category --</span>
+                              <span className="text-xs text-muted-foreground">This will be a top-level category</span>
+                            </div>
+                          </SelectItem>
+
                           {loadingMainCategories ? (
                             <SelectItem value="loading" disabled>
                               <div className="flex items-center gap-2">
@@ -685,23 +686,53 @@ const CategoryManagement = () => {
                               </div>
                             </SelectItem>
                           ) : existingMainCategories.length > 0 ? (
-                            existingMainCategories.map(mainCat => (
-                              <SelectItem key={mainCat} value={mainCat}>
-                                {mainCat}
+                            existingMainCategories.map((mainCat, index) => (
+                              <SelectItem key={index} value={mainCat.en}>
+                                <div className="flex flex-col">
+                                  <span className="font-medium">{mainCat.en}</span>
+                                  {mainCat.ar && (
+                                    <span className="text-sm text-muted-foreground" dir="rtl">{mainCat.ar}</span>
+                                  )}
+                                </div>
                               </SelectItem>
                             ))
                           ) : (
                             <SelectItem value="no-data" disabled>
-                              {categorySearchTerm ? 'No categories found matching your search' : 'No main categories available'}
+                              <span className="text-muted-foreground">
+                                {categorySearchTerm ? 'No categories found matching your search' : 'No main categories available'}
+                              </span>
                             </SelectItem>
                           )}
                         </SelectContent>
                       </Select>
                     </div>
                     <p className="text-xs text-muted-foreground mt-1">
-                      Select from existing main categories or leave empty
+                      Optional: Select an existing main category to create a subcategory. Arabic name will be automatically included if available.
                     </p>
                   </div>
+
+                  {/* Display selected main category info if applicable */}
+                  {formData.category !== 'none' && formData.category && (
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                      <h4 className="font-medium text-blue-900 mb-2">Selected Main Category:</h4>
+                      <div className="space-y-1">
+                        <div>
+                          <span className="text-sm font-medium">English:</span> {formData.category}
+                        </div>
+                        {(() => {
+                          const selectedCat = existingMainCategories.find(cat => cat.en === formData.category);
+                          return selectedCat?.ar ? (
+                            <div>
+                              <span className="text-sm font-medium">Arabic:</span>
+                              <span className="mr-2" dir="rtl">{selectedCat.ar}</span>
+                            </div>
+                          ) : (
+                            <div className="text-sm text-muted-foreground">No Arabic translation available</div>
+                          );
+                        })()}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex justify-end gap-3 pt-4 border-t">
@@ -726,7 +757,7 @@ const CategoryManagement = () => {
         </div>
       </div>
 
-      {/* Import from Excel Dialog */}
+      {/* Import Dialog - Updated for new fields */}
       <Dialog open={importDialogOpen} onOpenChange={resetImportDialog}>
         <DialogContent className="max-w-none max-h-none w-screen h-screen m-0 rounded-none overflow-y-auto p-6">
           <DialogHeader>
@@ -744,34 +775,38 @@ const CategoryManagement = () => {
                 Download Empty Template
               </h3>
               <p className="text-sm text-muted-foreground ml-8">
-                Download the empty Excel template, fill it with your category data, and save it.
+                Download the Excel template with the following columns:
                 <br />
-                <strong>Main Category:</strong> Optional (can be empty or select from existing)
+                <strong>Main Category (English/Arabic):</strong> Optional
                 <br />
-                <strong>Category:</strong> Required field
+                <strong>Category (English):</strong> Required field
+                <br />
+                <strong>Category (Arabic):</strong> Optional
               </p>
               <div className="ml-8">
                 <Button variant="outline" onClick={handleDownloadTemplate} className="flex items-center gap-2">
                   <Download className="w-4 h-4" />
-                  Download Empty Template
+                  Download Template
                 </Button>
               </div>
             </div>
 
-            {/* Instructions */}
+            {/* Updated Instructions */}
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-3">
               <h4 className="font-medium text-blue-900">📋 Instructions & Guidelines:</h4>
               <div className="space-y-3">
                 <ul className="text-sm text-blue-800 space-y-1 ml-4">
-                  <li>• <strong>Main Category:</strong> Optional field - you can leave it empty, enter a new main category, or use an existing one</li>
-                  <li>• <strong>Category:</strong> Required field - this is the specific category name</li>
+                  <li>• <strong>Main Category (English/Arabic):</strong> Optional fields for parent category</li>
+                  <li>• <strong>Category (English):</strong> Required field - main category name</li>
+                  <li>• <strong>Category (Arabic):</strong> Optional Arabic translation</li>
+                  <li>• Arabic fields support RTL text direction</li>
                   <li>• Save your Excel file after filling the data and upload it below</li>
                 </ul>
 
                 <div className="border-t border-blue-200 pt-3">
                   <div><strong className="text-red-700">⚠️ Categories will be rejected if:</strong></div>
                   <ul className="text-sm text-red-700 space-y-1 ml-4 mt-1">
-                    <li>• Category name is empty or missing</li>
+                    <li>• Category name (English) is empty or missing</li>
                     <li>• Category already exists (duplicates are automatically skipped)</li>
                     <li>• Text exceeds 255 characters</li>
                     <li>• Contains invalid characters like &lt; &gt; " ' &amp;</li>
@@ -782,7 +817,8 @@ const CategoryManagement = () => {
                 <div className="border-t border-blue-200 pt-3">
                   <div><strong className="text-green-700">✅ Tips for success:</strong></div>
                   <ul className="text-sm text-green-700 space-y-1 ml-4 mt-1">
-                    <li>• Main Category is optional - leave empty if not needed</li>
+                    <li>• Only Category (English) is required - all other fields are optional</li>
+                    <li>• Arabic fields can be left empty if not needed</li>
                     <li>• Remove empty rows before uploading</li>
                     <li>• Use simple text without special formatting</li>
                     <li>• Check for typos to avoid unintended duplicates</li>
@@ -799,7 +835,7 @@ const CategoryManagement = () => {
                 Upload Excel File
               </h3>
               <p className="text-sm text-muted-foreground ml-8">
-                Upload your completed Excel file. Only the Category column is required, Main Category is optional.
+                Upload your completed Excel file. Only the Category (English) column is required.
               </p>
               <div className="ml-8">
                 <input
@@ -812,7 +848,7 @@ const CategoryManagement = () => {
               </div>
             </div>
 
-            {/* Step 3: Preview Data */}
+            {/* Step 3: Preview Data - Updated for new fields */}
             {previewData.length > 0 && (
               <div className="space-y-3">
                 <h3 className="font-semibold flex items-center gap-2">
@@ -822,20 +858,24 @@ const CategoryManagement = () => {
                 <div className="ml-8">
                   <div className="bg-gray-50 rounded-lg p-4">
                     <p className="text-sm text-muted-foreground mb-3">
-                      Preview of first 5 rows (showing sample data):
+                      Preview of first 5 rows:
                     </p>
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Main Category</TableHead>
-                          <TableHead>Category</TableHead>
+                          <TableHead>Main Category (EN)</TableHead>
+                          <TableHead>Main Category (AR)</TableHead>
+                          <TableHead>Category (EN)</TableHead>
+                          <TableHead>Category (AR)</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {previewData.map((item, index) => (
                           <TableRow key={index}>
                             <TableCell>{item.subcategory || '(empty)'}</TableCell>
+                            <TableCell dir="rtl">{item.subcategory_ar || '(empty)'}</TableCell>
                             <TableCell>{item.category}</TableCell>
+                            <TableCell dir="rtl">{item.category_ar || '(empty)'}</TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
@@ -845,7 +885,7 @@ const CategoryManagement = () => {
               </div>
             )}
 
-            {/* Step 4: Import Results */}
+            {/* Results section remains the same but with updated field displays */}
             {importResults && (
               <div className="space-y-3">
                 <h3 className="font-semibold flex items-center gap-2">
@@ -855,7 +895,7 @@ const CategoryManagement = () => {
                   Import Results
                 </h3>
                 <div className="ml-8 space-y-4">
-                  {/* Summary */}
+                  {/* Summary remains the same */}
                   <div className="bg-gray-50 rounded-lg p-4">
                     <h4 className="font-medium mb-3">Summary</h4>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
@@ -880,46 +920,9 @@ const CategoryManagement = () => {
                         <div className="text-xs text-muted-foreground">Import efficiency</div>
                       </div>
                     </div>
-
-                    {/* Detailed Rejection Breakdown */}
-                    {importResults.rejected && importResults.rejected.length > 0 && (
-                      <div className="mt-4 pt-4 border-t">
-                        <h5 className="font-medium mb-2 text-sm">Rejection Breakdown</h5>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-xs">
-                          {(() => {
-                            const rejectionTypes = {};
-                            importResults.rejected.forEach(item => {
-                              const error = (item.error || 'Unknown error').toLowerCase();
-                              if (error.includes('already exists') || error.includes('duplicate')) {
-                                rejectionTypes['Already Exists'] = (rejectionTypes['Already Exists'] || 0) + 1;
-                              } else if (error.includes('required') || error.includes('missing') || error.includes('cannot be empty')) {
-                                rejectionTypes['Missing Required'] = (rejectionTypes['Missing Required'] || 0) + 1;
-                              } else if (error.includes('validation') || error.includes('invalid')) {
-                                rejectionTypes['Invalid Format'] = (rejectionTypes['Invalid Format'] || 0) + 1;
-                              } else if (error.includes('empty') || error.includes('blank')) {
-                                rejectionTypes['Empty Rows'] = (rejectionTypes['Empty Rows'] || 0) + 1;
-                              } else if (error.includes('too long') || error.includes('length')) {
-                                rejectionTypes['Too Long'] = (rejectionTypes['Too Long'] || 0) + 1;
-                              } else if (error.includes('special characters') || error.includes('invalid characters')) {
-                                rejectionTypes['Invalid Characters'] = (rejectionTypes['Invalid Characters'] || 0) + 1;
-                              } else {
-                                rejectionTypes['Other Errors'] = (rejectionTypes['Other Errors'] || 0) + 1;
-                              }
-                            });
-
-                            return Object.entries(rejectionTypes).map(([type, count]) => (
-                              <div key={type} className="flex justify-between items-center bg-white rounded px-2 py-1">
-                                <span className="text-muted-foreground">{type}</span>
-                                <span className="font-medium text-red-600">{count}</span>
-                              </div>
-                            ));
-                          })()}
-                        </div>
-                      </div>
-                    )}
                   </div>
 
-                  {/* Successfully Added Items */}
+                  {/* Successfully Added Items - Updated table */}
                   {importResults.added && importResults.added.length > 0 && (
                     <div className="bg-green-50 rounded-lg p-4 mb-4">
                       <h4 className="font-medium mb-3 text-green-800">Successfully Added Categories</h4>
@@ -928,9 +931,11 @@ const CategoryManagement = () => {
                           <TableHeader>
                             <TableRow>
                               <TableHead>ID</TableHead>
-                              <TableHead>Main Category</TableHead>
-                              <TableHead>Category</TableHead>
-                              <TableHead>Message</TableHead>
+                              <TableHead>Main Category (EN)</TableHead>
+                              <TableHead>Main Category (AR)</TableHead>
+                              <TableHead>Category (EN)</TableHead>
+                              <TableHead>Category (AR)</TableHead>
+                              <TableHead>Status</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
@@ -938,8 +943,10 @@ const CategoryManagement = () => {
                               <TableRow key={index}>
                                 <TableCell>#{item.id}</TableCell>
                                 <TableCell>{item.subcategory || '(no main category)'}</TableCell>
+                                <TableCell dir="rtl">{item.subcategory_ar || '(no main category)'}</TableCell>
                                 <TableCell>{item.category}</TableCell>
-                                <TableCell className="text-green-600 text-sm font-medium">✅ Successfully created in database</TableCell>
+                                <TableCell dir="rtl">{item.category_ar || '(not provided)'}</TableCell>
+                                <TableCell className="text-green-600 text-sm font-medium">✅ Successfully created</TableCell>
                               </TableRow>
                             ))}
                           </TableBody>
@@ -948,7 +955,7 @@ const CategoryManagement = () => {
                     </div>
                   )}
 
-                  {/* Rejected Items */}
+                  {/* Rejected Items - Updated table */}
                   {importResults.rejected && importResults.rejected.length > 0 && (
                     <div className="bg-red-50 rounded-lg p-4">
                       <h4 className="font-medium mb-3 text-red-800">Rejected Categories</h4>
@@ -957,8 +964,10 @@ const CategoryManagement = () => {
                           <TableHeader>
                             <TableRow>
                               <TableHead>Row</TableHead>
-                              <TableHead>Main Category</TableHead>
-                              <TableHead>Category</TableHead>
+                              <TableHead>Main Category (EN)</TableHead>
+                              <TableHead>Main Category (AR)</TableHead>
+                              <TableHead>Category (EN)</TableHead>
+                              <TableHead>Category (AR)</TableHead>
                               <TableHead>Message</TableHead>
                             </TableRow>
                           </TableHeader>
@@ -968,65 +977,19 @@ const CategoryManagement = () => {
                               let statusColor = 'text-red-600';
                               let statusIcon = '❌';
 
-                              // Enhanced message customization based on error type and context
                               const errorLower = message.toLowerCase();
                               const categoryName = item.data?.subcategory || '';
-                              const mainCategoryName = item.data?.category || '';
 
                               if (errorLower.includes('already exists') || errorLower.includes('duplicate')) {
-                                message = `⚠️ Category "${categoryName}" already exists`;
-                                if (mainCategoryName) {
-                                  message += ` in main category "${mainCategoryName}"`;
-                                }
-                                message += ' - Skipped to avoid duplicates';
+                                message = `⚠️ Category "${categoryName}" already exists - Skipped to avoid duplicates`;
                                 statusColor = 'text-orange-600';
                                 statusIcon = '⚠️';
                               } else if (errorLower.includes('required') || errorLower.includes('missing') || errorLower.includes('cannot be empty')) {
                                 if (!categoryName || categoryName.trim() === '') {
-                                  message = '❌ Category name is required and cannot be empty';
+                                  message = '❌ Category name (English) is required and cannot be empty';
                                 } else {
                                   message = `❌ Required field missing: ${message}`;
                                 }
-                                statusColor = 'text-red-600';
-                                statusIcon = '❌';
-                              } else if (errorLower.includes('validation') || errorLower.includes('invalid')) {
-                                message = `❌ Invalid data format`;
-                                if (categoryName) {
-                                  message += ` for category "${categoryName}"`;
-                                }
-                                message += ` - ${message}`;
-                                statusColor = 'text-red-600';
-                                statusIcon = '❌';
-                              } else if (errorLower.includes('empty') || errorLower.includes('blank')) {
-                                message = '⚠️ Empty row detected - Skipped';
-                                statusColor = 'text-gray-600';
-                                statusIcon = '⚠️';
-                              } else if (errorLower.includes('too long') || errorLower.includes('length')) {
-                                message = `❌ Text too long`;
-                                if (categoryName) {
-                                  message += ` for category "${categoryName}"`;
-                                }
-                                message += ' - Maximum 255 characters allowed';
-                                statusColor = 'text-red-600';
-                                statusIcon = '❌';
-                              } else if (errorLower.includes('special characters') || errorLower.includes('invalid characters')) {
-                                message = `❌ Invalid characters detected`;
-                                if (categoryName) {
-                                  message += ` in category "${categoryName}"`;
-                                }
-                                message += ' - Only letters, numbers, spaces, and basic punctuation allowed';
-                                statusColor = 'text-red-600';
-                                statusIcon = '❌';
-                              } else if (errorLower.includes('network') || errorLower.includes('connection')) {
-                                message = '🌐 Network error - Please check your connection and try again';
-                                statusColor = 'text-blue-600';
-                                statusIcon = '🌐';
-                              } else if (errorLower.includes('server') || errorLower.includes('internal')) {
-                                message = '🔧 Server error - Please contact administrator';
-                                statusColor = 'text-purple-600';
-                                statusIcon = '🔧';
-                              } else {
-                                message = `❌ ${message}`;
                                 statusColor = 'text-red-600';
                                 statusIcon = '❌';
                               }
@@ -1038,12 +1001,26 @@ const CategoryManagement = () => {
                                     {item.data?.subcategory ? (
                                       <span className="font-medium">{item.data.subcategory}</span>
                                     ) : (
-                                      <span className="text-gray-400 italic">(no main category)</span>
+                                      <span className="text-gray-400 italic">(empty)</span>
+                                    )}
+                                  </TableCell>
+                                  <TableCell className="text-sm" dir="rtl">
+                                    {item.data?.subcategory_ar ? (
+                                      <span className="font-medium">{item.data.subcategory_ar}</span>
+                                    ) : (
+                                      <span className="text-gray-400 italic">(empty)</span>
                                     )}
                                   </TableCell>
                                   <TableCell className="text-sm">
                                     {item.data?.category ? (
                                       <span className="font-medium">{item.data.category}</span>
+                                    ) : (
+                                      <span className="text-gray-400 italic">(empty)</span>
+                                    )}
+                                  </TableCell>
+                                  <TableCell className="text-sm" dir="rtl">
+                                    {item.data?.category_ar ? (
+                                      <span className="font-medium">{item.data.category_ar}</span>
                                     ) : (
                                       <span className="text-gray-400 italic">(empty)</span>
                                     )}
@@ -1063,7 +1040,6 @@ const CategoryManagement = () => {
                     </div>
                   )}
 
-                  {/* Export Results Button */}
                   <Button variant="outline" onClick={handleExportResults} className="flex items-center gap-2">
                     <Download className="w-4 h-4" />
                     Export Detailed Results
@@ -1072,7 +1048,6 @@ const CategoryManagement = () => {
               </div>
             )}
 
-            {/* Action Buttons */}
             <div className="flex justify-between pt-4 border-t">
               <Button variant="outline" onClick={resetImportDialog}>
                 {importResults ? 'Close' : 'Cancel'}
@@ -1121,7 +1096,7 @@ const CategoryManagement = () => {
         </div>
       )}
 
-      {/* Categories Table View */}
+      {/* Categories Table View - Updated for new fields */}
       {!loading && (
         <Card className="glass-card">
           <CardContent className="p-0">
@@ -1130,14 +1105,16 @@ const CategoryManagement = () => {
                 <TableRow>
                   <TableHead>ID</TableHead>
                   <TableHead>Category Name</TableHead>
+                  <TableHead>Category (Arabic)</TableHead>
                   <TableHead>Main Category</TableHead>
+                  <TableHead>Main Category (Arabic)</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredCategories.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={4} className="text-center py-12">
+                    <TableCell colSpan={6} className="text-center py-12">
                       <FolderOpen className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
                       <h3 className="text-xl font-semibold mb-2">No Categories Found</h3>
                       <p className="text-muted-foreground mb-6">
@@ -1163,8 +1140,14 @@ const CategoryManagement = () => {
                           <div className="font-semibold">{category.subcategory}</div>
                         </div>
                       </TableCell>
+                      <TableCell dir="rtl">
+                        <span className="text-muted-foreground">{category.subcategory_ar || 'None'}</span>
+                      </TableCell>
                       <TableCell>
                         <span className="text-muted-foreground">{category.category || 'None'}</span>
+                      </TableCell>
+                      <TableCell dir="rtl">
+                        <span className="text-muted-foreground">{category.category_ar || 'None'}</span>
                       </TableCell>
                       <TableCell>
                         <div className="flex gap-2">
@@ -1215,12 +1198,11 @@ const CategoryManagement = () => {
             size="sm"
             onClick={() => handlePageChange(pagination.page + 1)}
             disabled={pagination.page >= pagination.pages}
-          ></Button>
-          Next
-
+          >
+            Next
+          </Button>
         </div>
-      )
-      }
+      )}
     </div >
   );
 };
