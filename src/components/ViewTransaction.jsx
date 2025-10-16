@@ -126,9 +126,10 @@ const ViewTransaction = ({ isOpen, onClose, transactionId }) => {
         // If transaction has assets, create a row for each asset
         transaction.asset_transactions.forEach(assetTransaction => {
           const asset = assetTransaction.asset || {};
-          const unitPrice = assetTransaction.unit_price || 0;
+          // Fix: Use the correct property names from the actual data structure
+          const unitPrice = assetTransaction.amount || 0; // Changed from unit_price to amount
           const quantity = assetTransaction.quantity || 0;
-          const lineTotal = unitPrice * quantity;
+          const lineTotal = assetTransaction.total_value || (unitPrice * quantity); // Use total_value directly
           totalValue += lineTotal;
           hasValues = true;
 
@@ -137,7 +138,8 @@ const ViewTransaction = ({ isOpen, onClose, transactionId }) => {
             date: new Date(transaction.date).toLocaleDateString(),
             assetName: asset.name_en || asset.name_ar || 'N/A',
             warehouse: transaction.warehouse?.name_en || transaction.warehouse?.name_ar || 'N/A',
-            assetCode: asset.asset_code || 'N/A',
+            // Fix: Use the correct asset code property
+            assetCode: asset.product_code || asset.asset_code || 'N/A', // Changed to product_code first
             quantity: quantity.toString(),
             unitPrice: `$${unitPrice.toFixed(2)}`,
             totalValue: `$${lineTotal.toFixed(2)}`
