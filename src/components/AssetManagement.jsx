@@ -178,21 +178,29 @@ const AssetManagement = ({ currentView = 'list', onViewChange, selectedItem = nu
       // Clear corrupted data
       localStorage.removeItem('barcodeSettings');
     }
-    // Return default settings if none saved
+    // Return default settings if none saved (values in mm)
     return {
-      width: 300,
-      height: 100,
-      fontSize: 16,
+      width: 80,  // mm
+      height: 25,  // mm
+      fontSize: 4,  // mm
       fontFamily: 'Courier New',
       showText: true,
       textPosition: 'bottom'
     };
   };
 
+  // Helper function to convert mm to px for rendering (96 DPI standard)
+  const mmToPx = (mm) => Math.round(mm * 3.7795275591);
+
   const handleGenerateBarcode = async (asset) => {
     try {
-      // Load current barcode settings from localStorage
+      // Load current barcode settings from localStorage (values in mm)
       const customOptions = loadBarcodeSettings();
+      
+      // Convert mm to px for rendering
+      const widthPx = mmToPx(customOptions.width);
+      const heightPx = mmToPx(customOptions.height);
+      const fontSizePx = mmToPx(customOptions.fontSize);
 
       // Ensure product_code is numeric only (6-11 digits)
       let numericCode = asset.product_code?.replace(/\D/g, '') || '';
@@ -209,10 +217,10 @@ const AssetManagement = ({ currentView = 'list', onViewChange, selectedItem = nu
       const response = await apiClient.getAssetBarcode(asset.id, {
         product_code: paddedCode,
         barcode_type: 'CODE128',
-        width: customOptions.width,
-        height: customOptions.height,
+        width: widthPx,  // Send px to API
+        height: heightPx,  // Send px to API
         color: '000000',
-        font_size: customOptions.fontSize
+        font_size: fontSizePx  // Send px to API
       });
 
       // Create a new window to display the barcode with custom styling
@@ -231,7 +239,7 @@ const AssetManagement = ({ currentView = 'list', onViewChange, selectedItem = nu
                 background: #ffffff;
               }
               .barcode-container {
-                max-width: ${customOptions.width + 100}px;
+                max-width: ${widthPx + 100}px;
                 margin: 0 auto;
                 border: 2px solid #333;
                 padding: 30px;
@@ -240,7 +248,7 @@ const AssetManagement = ({ currentView = 'list', onViewChange, selectedItem = nu
               }
               .asset-name {
                 margin-bottom: 20px;
-                font-size: ${customOptions.fontSize + 2}px;
+                font-size: ${fontSizePx + 2}px;
                 font-weight: bold;
                 color: #000000;
                 text-transform: uppercase;
@@ -257,14 +265,14 @@ const AssetManagement = ({ currentView = 'list', onViewChange, selectedItem = nu
                 align-items: center;
               }
               .barcode-image img {
-                width: ${customOptions.width}px;
-                height: ${customOptions.height}px;
-                max-width: ${customOptions.width}px;
-                max-height: ${customOptions.height}px;
+                width: ${widthPx}px;
+                height: ${heightPx}px;
+                max-width: ${widthPx}px;
+                max-height: ${heightPx}px;
               }
               .barcode-number {
                 font-family: '${customOptions.fontFamily}', monospace;
-                font-size: ${customOptions.fontSize}px;
+                font-size: ${fontSizePx}px;
                 font-weight: bold;
                 color: #000000;
                 margin-top: 10px;
@@ -273,7 +281,7 @@ const AssetManagement = ({ currentView = 'list', onViewChange, selectedItem = nu
               }
               .barcode-number-top {
                 font-family: '${customOptions.fontFamily}', monospace;
-                font-size: ${customOptions.fontSize}px;
+                font-size: ${fontSizePx}px;
                 font-weight: bold;
                 color: #000000;
                 margin-bottom: 10px;
@@ -313,7 +321,7 @@ const AssetManagement = ({ currentView = 'list', onViewChange, selectedItem = nu
                 .no-print { display: none; }
                 .barcode-container { 
                   border: 2px solid #333 !important;
-                  max-width: ${customOptions.width + 100}px !important;
+                  max-width: ${widthPx + 100}px !important;
                   padding: 30px !important;
                   background: #ffffff !important;
                   background-color: #ffffff !important;
@@ -333,7 +341,7 @@ const AssetManagement = ({ currentView = 'list', onViewChange, selectedItem = nu
                   margin: 0.5in !important;
                 }
                 .asset-name {
-                  font-size: ${customOptions.fontSize + 2}px !important;
+                  font-size: ${fontSizePx + 2}px !important;
                   font-family: '${customOptions.fontFamily}', monospace !important;
                   color: #000000 !important;
                   margin-bottom: 20px !important;
@@ -351,14 +359,14 @@ const AssetManagement = ({ currentView = 'list', onViewChange, selectedItem = nu
                   align-items: center !important;
                 }
                 .barcode-image img {
-                  width: ${customOptions.width}px !important;
-                  height: ${customOptions.height}px !important;
-                  max-width: ${customOptions.width}px !important;
-                  max-height: ${customOptions.height}px !important;
+                  width: ${widthPx}px !important;
+                  height: ${heightPx}px !important;
+                  max-width: ${widthPx}px !important;
+                  max-height: ${heightPx}px !important;
                 }
                 .barcode-number {
                   font-family: '${customOptions.fontFamily}', monospace !important;
-                  font-size: ${customOptions.fontSize}px !important;
+                  font-size: ${fontSizePx}px !important;
                   font-weight: bold !important;
                   color: #000000 !important;
                   margin-top: 10px !important;
@@ -367,7 +375,7 @@ const AssetManagement = ({ currentView = 'list', onViewChange, selectedItem = nu
                 }
                 .barcode-number-top {
                   font-family: '${customOptions.fontFamily}', monospace !important;
-                  font-size: ${customOptions.fontSize}px !important;
+                  font-size: ${fontSizePx}px !important;
                   font-weight: bold !important;
                   color: #000000 !important;
                   margin-bottom: 10px !important;

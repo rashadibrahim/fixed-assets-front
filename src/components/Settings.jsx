@@ -34,13 +34,16 @@ const Settings = () => {
   const hasSettingsAccess = () => canPrintBarcode() || canMakeReport();
 
   const [barcodeSettings, setBarcodeSettings] = useState({
-    width: 300,
-    height: 100,
-    fontSize: 16,
+    width: 80,  // mm (approximately 80mm ≈ 300px at 96 DPI)
+    height: 25,  // mm (approximately 25mm ≈ 100px at 96 DPI)
+    fontSize: 4,  // mm (approximately 4mm ≈ 16px at 96 DPI)
     fontFamily: 'Courier New',
     showText: true,
     textPosition: 'bottom'
   });
+
+  // Helper function to convert mm to px for rendering (96 DPI standard)
+  const mmToPx = (mm) => Math.round(mm * 3.7795275591);
 
   const [reportSettings, setReportSettings] = useState({
     header: {
@@ -123,9 +126,9 @@ const Settings = () => {
 
   const resetBarcodeToDefaults = () => {
     setBarcodeSettings({
-      width: 300,
-      height: 100,
-      fontSize: 16,
+      width: 80,  // mm
+      height: 25,  // mm
+      fontSize: 4,  // mm
       fontFamily: 'Courier New',
       showText: true,
       textPosition: 'bottom'
@@ -163,6 +166,11 @@ const Settings = () => {
 
   const generatePreviewBarcode = async () => {
     try {
+      // Convert mm to px for rendering
+      const widthPx = mmToPx(barcodeSettings.width);
+      const heightPx = mmToPx(barcodeSettings.height);
+      const fontSizePx = mmToPx(barcodeSettings.fontSize);
+      
       const previewWindow = window.open('', '_blank', 'width=700,height=600');
       previewWindow.document.write(`
         <!DOCTYPE html>
@@ -178,7 +186,7 @@ const Settings = () => {
                 background: #ffffff;
               }
               .barcode-container {
-                max-width: ${barcodeSettings.width + 100}px;
+                max-width: ${widthPx + 100}px;
                 margin: 0 auto;
                 border: 2px solid #333;
                 padding: 30px;
@@ -187,7 +195,7 @@ const Settings = () => {
               }
               .asset-name {
                 margin-bottom: 20px;
-                font-size: ${barcodeSettings.fontSize + 2}px;
+                font-size: ${fontSizePx + 2}px;
                 font-weight: bold;
                 color: #000000;
                 text-transform: uppercase;
@@ -201,8 +209,8 @@ const Settings = () => {
                 display: flex;
                 justify-content: center;
                 align-items: center;
-                width: ${barcodeSettings.width}px;
-                height: ${barcodeSettings.height}px;
+                width: ${widthPx}px;
+                height: ${heightPx}px;
                 background-color: #000000;
                 position: relative;
                 margin: 0 auto;
@@ -220,7 +228,7 @@ const Settings = () => {
               }
               .barcode-number {
                 font-family: '${barcodeSettings.fontFamily}', monospace;
-                font-size: ${barcodeSettings.fontSize}px;
+                font-size: ${fontSizePx}px;
                 font-weight: bold;
                 color: #000000;
                 margin-top: 10px;
@@ -229,7 +237,7 @@ const Settings = () => {
               }
               .barcode-number-top {
                 font-family: '${barcodeSettings.fontFamily}', monospace;
-                font-size: ${barcodeSettings.fontSize}px;
+                font-size: ${fontSizePx}px;
                 font-weight: bold;
                 color: #000000;
                 margin-bottom: 10px;
@@ -479,32 +487,40 @@ const Settings = () => {
                   </h3>
                   <div className="grid grid-cols-4 gap-3">
                     <div>
-                      <Label htmlFor="barcode-width">Width (px)</Label>
+                      <Label htmlFor="barcode-width">Width (mm)</Label>
                       <Input
                         id="barcode-width"
                         type="number"
                         value={barcodeSettings.width}
                         onChange={(e) => setBarcodeSettings(prev => ({
                           ...prev,
-                          width: parseInt(e.target.value) || 300
+                          width: parseInt(e.target.value) || 80
                         }))}
-                        min="100"
-                        max="800"
+                        min="25"
+                        max="210"
+                        step="1"
                       />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Real: {barcodeSettings.width}mm
+                      </p>
                     </div>
                     <div>
-                      <Label htmlFor="barcode-height">Height (px)</Label>
+                      <Label htmlFor="barcode-height">Height (mm)</Label>
                       <Input
                         id="barcode-height"
                         type="number"
                         value={barcodeSettings.height}
                         onChange={(e) => setBarcodeSettings(prev => ({
                           ...prev,
-                          height: parseInt(e.target.value) || 100
+                          height: parseInt(e.target.value) || 25
                         }))}
-                        min="50"
-                        max="300"
+                        min="10"
+                        max="80"
+                        step="1"
                       />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Real: {barcodeSettings.height}mm
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -517,18 +533,22 @@ const Settings = () => {
                   </h3>
                   <div className="grid grid-cols-4 gap-3">
                     <div>
-                      <Label htmlFor="font-size">Font Size (px)</Label>
+                      <Label htmlFor="font-size">Font Size (mm)</Label>
                       <Input
                         id="font-size"
                         type="number"
                         value={barcodeSettings.fontSize}
                         onChange={(e) => setBarcodeSettings(prev => ({
                           ...prev,
-                          fontSize: parseInt(e.target.value) || 16
+                          fontSize: parseInt(e.target.value) || 4
                         }))}
-                        min="8"
-                        max="48"
+                        min="2"
+                        max="12"
+                        step="0.5"
                       />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Real: {barcodeSettings.fontSize}mm
+                      </p>
                     </div>
                     <div className="col-span-2">
                       <Label htmlFor="font-family">Font Family</Label>
