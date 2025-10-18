@@ -184,9 +184,6 @@ const AssetManagement = ({ currentView = 'list', onViewChange, selectedItem = nu
       height: 100,
       fontSize: 16,
       fontFamily: 'Courier New',
-      textColor: '#000000',
-      barcodeColor: '#000000',
-      backgroundColor: '#ffffff',
       showText: true,
       textPosition: 'bottom'
     };
@@ -214,7 +211,7 @@ const AssetManagement = ({ currentView = 'list', onViewChange, selectedItem = nu
         barcode_type: 'CODE128',
         width: customOptions.width,
         height: customOptions.height,
-        color: customOptions.barcodeColor.replace('#', ''),
+        color: '000000',
         font_size: customOptions.fontSize
       });
 
@@ -231,7 +228,7 @@ const AssetManagement = ({ currentView = 'list', onViewChange, selectedItem = nu
                 text-align: center;
                 padding: 20px;
                 margin: 0;
-                background: ${customOptions.backgroundColor};
+                background: #ffffff;
               }
               .barcode-container {
                 max-width: ${customOptions.width + 100}px;
@@ -239,20 +236,20 @@ const AssetManagement = ({ currentView = 'list', onViewChange, selectedItem = nu
                 border: 2px solid #333;
                 padding: 30px;
                 border-radius: 8px;
-                background: ${customOptions.backgroundColor};
+                background: #ffffff;
               }
               .asset-name {
                 margin-bottom: 20px;
                 font-size: ${customOptions.fontSize + 2}px;
                 font-weight: bold;
-                color: ${customOptions.textColor};
+                color: #000000;
                 text-transform: uppercase;
                 word-wrap: break-word;
                 font-family: '${customOptions.fontFamily}', monospace;
               }
               .barcode-image {
                 margin: 20px 0;
-                background: ${customOptions.backgroundColor};
+                background: #ffffff;
                 padding: 10px;
                 border: 1px solid #ddd;
                 display: flex;
@@ -269,7 +266,7 @@ const AssetManagement = ({ currentView = 'list', onViewChange, selectedItem = nu
                 font-family: '${customOptions.fontFamily}', monospace;
                 font-size: ${customOptions.fontSize}px;
                 font-weight: bold;
-                color: ${customOptions.textColor};
+                color: #000000;
                 margin-top: 10px;
                 letter-spacing: 2px;
                 ${!customOptions.showText || customOptions.textPosition !== 'bottom' ? 'display: none;' : ''}
@@ -278,7 +275,7 @@ const AssetManagement = ({ currentView = 'list', onViewChange, selectedItem = nu
                 font-family: '${customOptions.fontFamily}', monospace;
                 font-size: ${customOptions.fontSize}px;
                 font-weight: bold;
-                color: ${customOptions.textColor};
+                color: #000000;
                 margin-bottom: 10px;
                 letter-spacing: 2px;
                 ${!customOptions.showText || customOptions.textPosition !== 'top' ? 'display: none;' : ''}
@@ -318,35 +315,35 @@ const AssetManagement = ({ currentView = 'list', onViewChange, selectedItem = nu
                   border: 2px solid #333 !important;
                   max-width: ${customOptions.width + 100}px !important;
                   padding: 30px !important;
-                  background: ${customOptions.backgroundColor} !important;
-                  background-color: ${customOptions.backgroundColor} !important;
+                  background: #ffffff !important;
+                  background-color: #ffffff !important;
                   border-radius: 8px !important;
                   page-break-inside: avoid !important;
-                  box-shadow: inset 0 0 0 1000px ${customOptions.backgroundColor} !important;
+                  box-shadow: inset 0 0 0 1000px #ffffff !important;
                 }
                 body { 
                   padding: 0 !important;
                   margin: 0 !important;
-                  background: ${customOptions.backgroundColor} !important;
-                  background-color: ${customOptions.backgroundColor} !important;
+                  background: #ffffff !important;
+                  background-color: #ffffff !important;
                   font-family: '${customOptions.fontFamily}', monospace !important;
                 }
                 @page {
-                  background: ${customOptions.backgroundColor} !important;
+                  background: #ffffff !important;
                   margin: 0.5in !important;
                 }
                 .asset-name {
                   font-size: ${customOptions.fontSize + 2}px !important;
                   font-family: '${customOptions.fontFamily}', monospace !important;
-                  color: ${customOptions.textColor} !important;
+                  color: #000000 !important;
                   margin-bottom: 20px !important;
                   font-weight: bold !important;
                   text-transform: uppercase !important;
                 }
                 .barcode-image {
                   margin: 20px 0 !important;
-                  background: ${customOptions.backgroundColor} !important;
-                  background-color: ${customOptions.backgroundColor} !important;
+                  background: #ffffff !important;
+                  background-color: #ffffff !important;
                   padding: 10px !important;
                   border: 1px solid #ddd !important;
                   display: flex !important;
@@ -363,7 +360,7 @@ const AssetManagement = ({ currentView = 'list', onViewChange, selectedItem = nu
                   font-family: '${customOptions.fontFamily}', monospace !important;
                   font-size: ${customOptions.fontSize}px !important;
                   font-weight: bold !important;
-                  color: ${customOptions.textColor} !important;
+                  color: #000000 !important;
                   margin-top: 10px !important;
                   letter-spacing: 2px !important;
                   ${!customOptions.showText || customOptions.textPosition !== 'bottom' ? 'display: none !important;' : ''}
@@ -372,7 +369,7 @@ const AssetManagement = ({ currentView = 'list', onViewChange, selectedItem = nu
                   font-family: '${customOptions.fontFamily}', monospace !important;
                   font-size: ${customOptions.fontSize}px !important;
                   font-weight: bold !important;
-                  color: ${customOptions.textColor} !important;
+                  color: #000000 !important;
                   margin-bottom: 10px !important;
                   letter-spacing: 2px !important;
                   ${!customOptions.showText || customOptions.textPosition !== 'top' ? 'display: none !important;' : ''}

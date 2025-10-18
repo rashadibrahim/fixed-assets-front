@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import {
   Settings as SettingsIcon,
   QrCode,
-  Palette,
   Type,
   Maximize2,
   Save,
@@ -39,9 +38,6 @@ const Settings = () => {
     height: 100,
     fontSize: 16,
     fontFamily: 'Courier New',
-    textColor: '#000000',
-    barcodeColor: '#000000',
-    backgroundColor: '#ffffff',
     showText: true,
     textPosition: 'bottom'
   });
@@ -131,9 +127,6 @@ const Settings = () => {
       height: 100,
       fontSize: 16,
       fontFamily: 'Courier New',
-      textColor: '#000000',
-      barcodeColor: '#000000',
-      backgroundColor: '#ffffff',
       showText: true,
       textPosition: 'bottom'
     });
@@ -182,7 +175,7 @@ const Settings = () => {
                 text-align: center;
                 padding: 20px;
                 margin: 0;
-                background: ${barcodeSettings.backgroundColor};
+                background: #ffffff;
               }
               .barcode-container {
                 max-width: ${barcodeSettings.width + 100}px;
@@ -190,19 +183,19 @@ const Settings = () => {
                 border: 2px solid #333;
                 padding: 30px;
                 border-radius: 8px;
-                background: ${barcodeSettings.backgroundColor};
+                background: #ffffff;
               }
               .asset-name {
                 margin-bottom: 20px;
                 font-size: ${barcodeSettings.fontSize + 2}px;
                 font-weight: bold;
-                color: ${barcodeSettings.textColor};
+                color: #000000;
                 text-transform: uppercase;
                 font-family: '${barcodeSettings.fontFamily}', monospace;
               }
               .barcode-image {
                 margin: 20px 0;
-                background: ${barcodeSettings.backgroundColor};
+                background: #ffffff;
                 padding: 10px;
                 border: 1px solid #ddd;
                 display: flex;
@@ -210,7 +203,7 @@ const Settings = () => {
                 align-items: center;
                 width: ${barcodeSettings.width}px;
                 height: ${barcodeSettings.height}px;
-                background-color: ${barcodeSettings.barcodeColor};
+                background-color: #000000;
                 position: relative;
                 margin: 0 auto;
               }
@@ -219,17 +212,17 @@ const Settings = () => {
                 height: 100%;
                 background: repeating-linear-gradient(
                   90deg,
-                  ${barcodeSettings.barcodeColor} 0px,
-                  ${barcodeSettings.barcodeColor} 2px,
-                  ${barcodeSettings.backgroundColor} 2px,
-                  ${barcodeSettings.backgroundColor} 4px
+                  #000000 0px,
+                  #000000 2px,
+                  #ffffff 2px,
+                  #ffffff 4px
                 );
               }
               .barcode-number {
                 font-family: '${barcodeSettings.fontFamily}', monospace;
                 font-size: ${barcodeSettings.fontSize}px;
                 font-weight: bold;
-                color: ${barcodeSettings.textColor};
+                color: #000000;
                 margin-top: 10px;
                 letter-spacing: 2px;
                 ${!barcodeSettings.showText ? 'display: none;' : ''}
@@ -238,7 +231,7 @@ const Settings = () => {
                 font-family: '${barcodeSettings.fontFamily}', monospace;
                 font-size: ${barcodeSettings.fontSize}px;
                 font-weight: bold;
-                color: ${barcodeSettings.textColor};
+                color: #000000;
                 margin-bottom: 10px;
                 letter-spacing: 2px;
                 ${barcodeSettings.textPosition !== 'top' ? 'display: none;' : ''}
@@ -558,52 +551,6 @@ const Settings = () => {
                           <SelectItem value="Georgia">Georgia</SelectItem>
                         </SelectContent>
                       </Select>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Color Settings */}
-                <div className="space-y-3">
-                  <h3 className="text-sm font-semibold flex items-center gap-2">
-                    <Palette className="w-3 h-3" />
-                    Color Settings
-                  </h3>
-                  <div className="grid grid-cols-6 gap-3">
-                    <div className="col-span-2">
-                      <Label htmlFor="text-color">Text Color</Label>
-                      <Input
-                        id="text-color"
-                        type="color"
-                        value={barcodeSettings.textColor}
-                        onChange={(e) => setBarcodeSettings(prev => ({
-                          ...prev,
-                          textColor: e.target.value
-                        }))}
-                      />
-                    </div>
-                    <div className="col-span-2">
-                      <Label htmlFor="barcode-color">Barcode Color</Label>
-                      <Input
-                        id="barcode-color"
-                        type="color"
-                        value={barcodeSettings.barcodeColor}
-                        onChange={(e) => setBarcodeSettings(prev => ({
-                          ...prev,
-                          barcodeColor: e.target.value
-                        }))}
-                      />
-                    </div>
-                    <div className="col-span-2">
-                      <Label htmlFor="bg-color">Background</Label>
-                      <Input
-                        id="bg-color"
-                        type="color"
-                        value={barcodeSettings.backgroundColor}
-                        onChange={(e) => setBarcodeSettings(prev => ({
-                          ...prev,
-                          backgroundColor: e.target.value
-                        }))}
-                      />
                     </div>
                   </div>
                 </div>
