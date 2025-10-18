@@ -24,8 +24,9 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import apiClient from '../utils/api';
 import { useErrorHandler } from '../hooks/useErrorHandler';
+import UserFormView from './UserFormView';
 
-const UserManagement = () => {
+const UserManagement = ({ currentView, onViewChange, selectedItem }) => {
   const { handleError, handleSuccess } = useErrorHandler();
   const [users, setUsers] = useState([]);
   const [allUsers, setAllUsers] = useState([]); // Store all users for filtering
@@ -164,6 +165,44 @@ const UserManagement = () => {
       setLoading(false);
     }
   };
+
+  // Handle view changes
+  const handleAdd = () => {
+    if (onViewChange) {
+      onViewChange('add');
+    } else {
+      openAddDialog();
+    }
+  };
+
+  const handleEdit = (user) => {
+    if (onViewChange) {
+      onViewChange('edit', user);
+    } else {
+      openEditDialog(user);
+    }
+  };
+
+  const handleBack = () => {
+    if (onViewChange) {
+      onViewChange('list');
+    }
+  };
+
+  const handleUserSaved = () => {
+    loadData();
+  };
+
+  // If we're in add or edit view, show the form view
+  if (currentView === 'add' || currentView === 'edit') {
+    return (
+      <UserFormView
+        onBack={handleBack}
+        selectedUser={currentView === 'edit' ? selectedItem : null}
+        onUserSaved={handleUserSaved}
+      />
+    );
+  }
 
   const openAddDialog = () => {
     setEditingUser(null);
@@ -513,7 +552,7 @@ const UserManagement = () => {
                 </TableCell>
                 <TableCell>
                   <div className="flex items-center space-x-2">
-                    <Button variant="ghost" size="sm" onClick={() => openEditDialog(user)}>
+                    <Button variant="ghost" size="sm" onClick={() => handleEdit(user)}>
                       <Edit3 className="h-4 w-4" />
                     </Button>
                     <Button
@@ -553,7 +592,7 @@ const UserManagement = () => {
           <h1 className="text-3xl font-bold text-foreground">Users</h1>
           <p className="text-muted-foreground">Manage system users and permissions</p>
         </div>
-        <Button onClick={openAddDialog}>
+        <Button onClick={handleAdd}>
           <Plus className="h-4 w-4 mr-2" />
           Add User
         </Button>
@@ -680,7 +719,7 @@ const UserManagement = () => {
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center space-x-2">
-                      <Button variant="ghost" size="sm" onClick={() => openEditDialog(user)}>
+                      <Button variant="ghost" size="sm" onClick={() => handleEdit(user)}>
                         <Edit3 className="h-4 w-4" />
                       </Button>
                       <Button
@@ -711,7 +750,7 @@ const UserManagement = () => {
               : 'No users match your search criteria.'
             }
           </p>
-          <Button onClick={openAddDialog}>
+          <Button onClick={handleAdd}>
             <Plus className="h-4 w-4 mr-2" />
             Add User
           </Button>

@@ -14,9 +14,6 @@ import {
   BarChart3,
   Settings as SettingsIcon,
   User,
-  LogOut,
-  Menu,
-  X,
   ChevronRight,
   Calendar,
   DollarSign,
@@ -50,12 +47,26 @@ import TransactionsIn from './TransactionsIn';
 import TransactionsOut from './TransactionsOut';
 import Settings from './Settings';
 
-const Dashboard = () => {
-  const { user, logout } = useAuth();
+const Dashboard = ({ activeTab = 'dashboard', onTabChange }) => {
+  const { user } = useAuth();
   const { handleError, handleSuccess } = useErrorHandler();
-  const [activeTab, setActiveTab] = useState('dashboard');
-  const [sidebarOpen, setSidebarOpen] = useState(true);
   const [loading, setLoading] = useState(true);
+  
+  // State for managing different views within each tab (list, add, edit, etc.)
+  const [currentView, setCurrentView] = useState('list');
+  const [selectedItem, setSelectedItem] = useState(null);
+
+  // Reset view when tab changes
+  useEffect(() => {
+    setCurrentView('list');
+    setSelectedItem(null);
+  }, [activeTab]);
+
+  // Handle view changes (list, add, edit, etc.)
+  const handleViewChange = (view, item = null) => {
+    setCurrentView(view);
+    setSelectedItem(item);
+  };
 
   // Permission helper functions
   const isAdmin = () => user?.role?.toLowerCase() === 'admin';
@@ -240,30 +251,7 @@ const Dashboard = () => {
     }
   };
 
-  const menuItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
-    // Only show assets if user can read assets
-    ...(canReadAssets() ? [{ id: 'assets', label: 'Fixed Assets', icon: Package }] : []),
-    // Show separated transaction screens for users who can read assets
-    ...(canReadAssets() ? [
-      { id: 'transactions-in', label: 'Transactions IN', icon: ArrowUpCircle },
-      { id: 'transactions-out', label: 'Transactions OUT', icon: ArrowDownCircle },
-    ] : []),
-    // Only show reports if user can make reports - REMOVED comingSoon: true
-    ...(canMakeReports() ? [{ id: 'reports', label: 'Reports', icon: FileText }] : []),
-    // Only show warehouses if user can read warehouses
-    ...(canReadWarehouses() ? [{ id: 'warehouses', label: 'Warehouses', icon: Warehouse }] : []),
-    // Only show branches if user can read branches
-    ...(canReadBranches() ? [{ id: 'branches', label: 'Branches', icon: Building2 }] : []),
-    // Only show categories, users, and job roles for admin users
-    ...(isAdmin() ? [
-      { id: 'categories', label: 'Categories', icon: FolderOpen },
-      { id: 'users', label: 'Users', icon: Users },
-      { id: 'jobroles', label: 'Job Roles', icon: Shield },
-    ] : []),
-    // Show settings for admin users or users with barcode permissions
-    ...(canAccessSettings() ? [{ id: 'settings', label: 'Settings', icon: SettingsIcon }] : []),
-  ];
+
 
   const StatCard = ({ title, value, icon: Icon, color, subtitle, trend }) => (
     <Card className="glass-card hover:shadow-primary transition-smooth">
@@ -311,13 +299,13 @@ const Dashboard = () => {
             </Button>
           )}
           {canMakeReports() && (
-            <Button variant="outline" size="sm" onClick={() => setActiveTab('reports')}>
+            <Button variant="outline" size="sm" onClick={() => onTabChange('reports')}>
               <Download className="h-4 w-4 mr-2" />
               Export Report
             </Button>
           )}
           {canEditAssets() && (
-            <Button className="btn-primary" onClick={() => setActiveTab('assets')}>
+            <Button className="btn-primary" onClick={() => onTabChange('assets')}>
               <Plus className="h-4 w-4 mr-2" />
               Add Asset
             </Button>
@@ -537,28 +525,28 @@ const Dashboard = () => {
               // Quick Actions for Admin
               <>
                 {canEditAssets() && (
-                  <Button className="w-full btn-primary" onClick={() => setActiveTab('assets')}>
+                  <Button className="w-full btn-primary" onClick={() => onTabChange('assets')}>
                     <Plus className="h-4 w-4 mr-2" />
                     Add New Asset
                   </Button>
                 )}
                 {canEditWarehouses() && (
-                  <Button className="w-full btn-secondary" onClick={() => setActiveTab('warehouses')}>
+                  <Button className="w-full btn-secondary" onClick={() => onTabChange('warehouses')}>
                     <Warehouse className="h-4 w-4 mr-2" />
                     Manage Warehouses
                   </Button>
                 )}
                 {canEditBranches() && (
-                  <Button className="w-full btn-secondary" onClick={() => setActiveTab('branches')}>
+                  <Button className="w-full btn-secondary" onClick={() => onTabChange('branches')}>
                     <Building2 className="h-4 w-4 mr-2" />
                     Manage Branches
                   </Button>
                 )}
-                <Button variant="outline" className="w-full" onClick={() => setActiveTab('transactions-in')}>
+                <Button variant="outline" className="w-full" onClick={() => onTabChange('transactions-in')}>
                   <ArrowUpCircle className="h-4 w-4 mr-2" />
                   View Transactions
                 </Button>
-                <Button variant="outline" className="w-full" onClick={() => setActiveTab('reports')}>
+                <Button variant="outline" className="w-full" onClick={() => onTabChange('reports')}>
                   <Download className="h-4 w-4 mr-2" />
                   Generate Report
                 </Button>
@@ -640,7 +628,7 @@ const Dashboard = () => {
                 </div>
 
                 <div className="pt-4">
-                  <Button variant="outline" className="w-full" onClick={() => setActiveTab('reports')}>
+                  <Button variant="outline" className="w-full" onClick={() => onTabChange('reports')}>
                     <FileText className="h-4 w-4 mr-2" />
                     View Reports
                   </Button>
@@ -654,121 +642,43 @@ const Dashboard = () => {
   );
 
   const renderContent = () => {
+    const commonProps = {
+      currentView,
+      onViewChange: handleViewChange,
+      selectedItem
+    };
+
     switch (activeTab) {
       case 'dashboard':
         return <DashboardView />;
       case 'transactions-in':
-        return <ErrorBoundary><TransactionsIn /></ErrorBoundary>;
+        return <ErrorBoundary><TransactionsIn {...commonProps} /></ErrorBoundary>;
       case 'transactions-out':
-        return <ErrorBoundary><TransactionsOut /></ErrorBoundary>;
+        return <ErrorBoundary><TransactionsOut {...commonProps} /></ErrorBoundary>;
       case 'assets':
-        return <ErrorBoundary><AssetManagement /></ErrorBoundary>;
+        return <ErrorBoundary><AssetManagement {...commonProps} /></ErrorBoundary>;
       case 'reports':
-        return <ErrorBoundary><Reports /></ErrorBoundary>;
+        return <ErrorBoundary><Reports {...commonProps} /></ErrorBoundary>;
       case 'warehouses':
-        return <ErrorBoundary><WarehouseManagement /></ErrorBoundary>;
+        return <ErrorBoundary><WarehouseManagement {...commonProps} /></ErrorBoundary>;
       case 'branches':
-        return <ErrorBoundary><BranchManagement /></ErrorBoundary>;
+        return <ErrorBoundary><BranchManagement {...commonProps} /></ErrorBoundary>;
       case 'categories':
-        return <ErrorBoundary><CategoryManagement /></ErrorBoundary>;
+        return <ErrorBoundary><CategoryManagement {...commonProps} /></ErrorBoundary>;
       case 'users':
-        return <ErrorBoundary><UserManagement /></ErrorBoundary>;
+        return <ErrorBoundary><UserManagement {...commonProps} /></ErrorBoundary>;
       case 'jobroles':
-        return <ErrorBoundary><JobRoleManagement /></ErrorBoundary>;
+        return <ErrorBoundary><JobRoleManagement {...commonProps} /></ErrorBoundary>;
       case 'settings':
-        return <ErrorBoundary><Settings /></ErrorBoundary>;
+        return <ErrorBoundary><Settings {...commonProps} /></ErrorBoundary>;
       default:
         return <DashboardView />;
     }
   };
 
   return (
-    <div className="flex h-screen bg-background">
-      {/* Sidebar */}
-      <div className={`${sidebarOpen ? 'w-64' : 'w-16'} transition-smooth bg-card border-r border-border flex flex-col`}>
-        <div className="p-4 border-b border-border">
-          <div className="flex items-center justify-between">
-            {sidebarOpen && (
-              <div>
-                <h2 className="text-lg font-bold text-foreground">Assets Pro</h2>
-                <p className="text-xs text-muted-foreground">Management System</p>
-              </div>
-            )}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setSidebarOpen(!sidebarOpen)}
-            >
-              <Menu className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
-
-        <nav className="flex-1 p-4 space-y-2">
-          {menuItems.map(item => {
-            const Icon = item.icon;
-            return (
-              <Button
-                key={item.id}
-                variant={activeTab === item.id ? "default" : "ghost"}
-                className={`w-full transition-smooth ${sidebarOpen
-                  ? 'justify-start'
-                  : 'justify-center px-0'
-                  } ${activeTab === item.id
-                    ? 'gradient-primary text-primary-foreground shadow-primary'
-                    : ''
-                  } ${item.comingSoon ? 'opacity-75' : ''}`}
-                onClick={() => setActiveTab(item.id)}
-              >
-                <Icon className={`h-4 w-4 ${sidebarOpen ? '' : 'mx-auto'}`} />
-                {sidebarOpen && (
-                  <div className="flex items-center justify-between w-full ml-3">
-                    <span>{item.label}</span>
-                    {item.comingSoon && (
-                      <Badge variant="secondary" className="text-xs">Soon</Badge>
-                    )}
-                  </div>
-                )}
-                {!sidebarOpen && item.comingSoon && (
-                  <div className="absolute -top-1 -right-1">
-                    <div className="h-2 w-2 bg-orange-500 rounded-full"></div>
-                  </div>
-                )}
-              </Button>
-            );
-          })}
-        </nav>
-
-        <div className="p-4 border-t border-border">
-          <div className={`flex items-center ${sidebarOpen ? 'space-x-3' : 'justify-center'}`}>
-            <div className={`p-2 bg-primary/10 rounded-lg ${!sidebarOpen ? 'mx-auto' : ''}`}>
-              <User className="h-4 w-4 text-primary" />
-            </div>
-            {sidebarOpen && (
-              <div className="flex-1">
-                <p className="text-sm font-medium text-foreground">{user?.full_name || user?.name}</p>
-                <p className="text-xs text-muted-foreground">{user?.email}</p>
-              </div>
-            )}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={logout}
-              title="Logout"
-              className={!sidebarOpen ? 'absolute bottom-4 right-2' : ''}
-            >
-              <LogOut className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <main className="flex-1 overflow-y-auto p-6">
-          {renderContent()}
-        </main>
-      </div>
+    <div className="p-6 max-w-full overflow-x-hidden">
+      {renderContent()}
     </div>
   );
 };

@@ -22,6 +22,7 @@ import { toast } from 'sonner';
 import { useAuth } from '../contexts/AuthContext';
 import AddTransaction from './AddTransaction';
 import ViewTransaction from './ViewTransaction';
+import TransactionInFormView from './TransactionInFormView';
 import apiClient from '../utils/api';
 import { useErrorHandler } from '../hooks/useErrorHandler';
 import { useTokenExpiry } from '../hooks/useTokenExpiry';
@@ -29,7 +30,7 @@ import { DynamicSearchableSelect } from '@/components/ui/dynamic-searchable-sele
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 
-const TransactionsIn = () => {
+const TransactionsIn = ({ currentView, onViewChange, selectedItem }) => {
   const { user, logout } = useAuth();
   const { handleError, handleSuccess } = useErrorHandler();
   useTokenExpiry(); // This will automatically handle token expiry warnings
@@ -123,6 +124,30 @@ const TransactionsIn = () => {
       return true;
     }
     return false;
+  };
+
+  // Handle view changes
+  const handleAdd = () => {
+    if (onViewChange) {
+      onViewChange('add');
+    } else {
+      setShowAddTransaction(true);
+    }
+  };
+
+  const handleEdit = (transaction) => {
+    if (onViewChange) {
+      onViewChange('edit', transaction);
+    } else {
+      setSelectedTransactionId(transaction.id);
+      setShowAddTransaction(true);
+    }
+  };
+
+  const handleBack = () => {
+    if (onViewChange) {
+      onViewChange('list');
+    }
   };
 
   const loadTransactions = async () => {
@@ -305,6 +330,21 @@ const TransactionsIn = () => {
     );
   }
 
+  const handleTransactionSaved = () => {
+    loadTransactions();
+  };
+
+  // If we're in add or edit view, show the form view
+  if (currentView === 'add' || currentView === 'edit') {
+    return (
+      <TransactionInFormView
+        onBack={handleBack}
+        selectedTransaction={currentView === 'edit' ? selectedItem : null}
+        onTransactionSaved={handleTransactionSaved}
+      />
+    );
+  }
+
   return (
     <div className="space-y-3">
       {/* Compact Header */}
@@ -316,7 +356,7 @@ const TransactionsIn = () => {
         <div className="flex items-center space-x-2">
           {canMakeTransactions() && (
             <button
-              onClick={() => setShowAddTransaction(true)}
+              onClick={handleAdd}
               className="flex items-center px-3 py-1.5 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm"
             >
               <Plus className="w-3 h-3 mr-1" />
@@ -475,7 +515,7 @@ const TransactionsIn = () => {
             <h3 className="text-sm font-medium text-gray-900 mb-2">No incoming transactions found</h3>
             {canMakeTransactions() && (
               <button
-                onClick={() => setShowAddTransaction(true)}
+                onClick={handleAdd}
                 className="inline-flex items-center px-3 py-1.5 bg-green-600 text-white font-medium rounded-lg hover:bg-green-700 transition-colors text-sm"
               >
                 <Plus className="w-3 h-3 mr-1" />

@@ -23,8 +23,9 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import apiClient from '../utils/api';
 import { useErrorHandler } from '../hooks/useErrorHandler';
+import JobRoleFormView from './JobRoleFormView';
 
-const JobRoleManagement = () => {
+const JobRoleManagement = ({ currentView = 'list', onViewChange, selectedItem = null }) => {
   const { handleError, handleSuccess } = useErrorHandler();
   const [jobRoles, setJobRoles] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -238,6 +239,44 @@ const JobRoleManagement = () => {
     }
   };
 
+  // Handle view changes
+  const handleAdd = () => {
+    if (onViewChange) {
+      onViewChange('add');
+    } else {
+      openAddDialog();
+    }
+  };
+
+  const handleEdit = (role) => {
+    if (onViewChange) {
+      onViewChange('edit', role);
+    } else {
+      openEditDialog(role);
+    }
+  };
+
+  const handleBack = () => {
+    if (onViewChange) {
+      onViewChange('list');
+    }
+  };
+
+  const handleRoleSaved = () => {
+    loadJobRoles();
+  };
+
+  // If we're in add or edit view, show the form view
+  if (currentView === 'add' || currentView === 'edit') {
+    return (
+      <JobRoleFormView
+        onBack={handleBack}
+        selectedRole={currentView === 'edit' ? selectedItem : null}
+        onRoleSaved={handleRoleSaved}
+      />
+    );
+  }
+
   const filteredRoles = jobRoles.filter(role =>
     role?.name?.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -302,7 +341,7 @@ const JobRoleManagement = () => {
 
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
-            <Button onClick={openAddDialog} className="bg-blue-600 hover:bg-blue-700">
+            <Button onClick={handleAdd} className="bg-blue-600 hover:bg-blue-700">
               <Plus className="w-4 h-4 mr-2" />
               Add New Role
             </Button>
@@ -424,7 +463,7 @@ const JobRoleManagement = () => {
                     <p className="text-gray-500 mb-6">
                       {searchTerm ? 'Try adjusting your search criteria' : 'Start by creating your first job role'}
                     </p>
-                    <Button onClick={openAddDialog}>
+                    <Button onClick={handleAdd}>
                       <Plus className="h-4 w-4 mr-2" />
                       Add Job Role
                     </Button>
@@ -467,7 +506,7 @@ const JobRoleManagement = () => {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => openEditDialog(role)}
+                          onClick={() => handleEdit(role)}
                         >
                           <Edit3 className="h-4 w-4" />
                         </Button>

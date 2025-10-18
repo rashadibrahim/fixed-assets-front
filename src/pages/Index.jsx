@@ -1,7 +1,22 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { AuthProvider, useAuth } from '../contexts/AuthContext';
 import Dashboard from '../components/Dashboard';
+import AppLayout from '../components/AppLayout';
 import Login from '../components/Login';
+
+const DashboardContainer = () => {
+  const [activeTab, setActiveTab] = useState('dashboard');
+
+  const handleTabChange = (tab) => {
+    setActiveTab(tab);
+  };
+
+  return (
+    <AppLayout activeTab={activeTab} onTabChange={handleTabChange}>
+      <Dashboard activeTab={activeTab} onTabChange={handleTabChange} />
+    </AppLayout>
+  );
+};
 
 const AppContent = () => {
   const { isAuthenticated, loading } = useAuth();
@@ -17,7 +32,7 @@ const AppContent = () => {
     );
   }
 
-  return isAuthenticated ? <Dashboard /> : <Login />;
+  return isAuthenticated ? <DashboardContainer /> : <Login />;
 };
 
 const Index = () => {

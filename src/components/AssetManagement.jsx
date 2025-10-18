@@ -23,40 +23,31 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
+
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import apiClient from '../utils/api';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { downloadAssetTemplate, parseAssetExcelFile, validateExcelFile, exportBulkResults, downloadAssetUpdateTemplate, parseAssetUpdateExcelFile } from '../utils/excelUtils';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { DynamicSearchableSelect } from '@/components/ui/dynamic-searchable-select';
+
 import { useErrorHandler } from '../hooks/useErrorHandler';
 
-const AssetManagement = () => {
+import AssetFormView from './AssetFormView';
+
+const AssetManagement = ({ currentView = 'list', onViewChange, selectedItem = null }) => {
   const [assets, setAssets] = useState([]);
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCategory, setFilterCategory] = useState('all');
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [selectedAsset, setSelectedAsset] = useState(null);
   const [pagination, setPagination] = useState({ page: 1, pages: 1, total: 0 });
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
   const { handleError, handleSuccess } = useErrorHandler();
 
-  // Form state matching API structure
-  const [formData, setFormData] = useState({
-    name_en: '',
-    name_ar: '',
-    category_id: '',
-    product_code: '',
-    is_active: true
-  });
+
 
   // Asset import states
   const [assetImportDialogOpen, setAssetImportDialogOpen] = useState(false);
@@ -109,7 +100,9 @@ const AssetManagement = () => {
   const loadCategories = async () => {
     try {
       const response = await apiClient.getCategories();
-      setCategories(response.items || response || []);
+      const categoriesData = response.items || response || [];
+      // Ensure it's always an array
+      setCategories(Array.isArray(categoriesData) ? categoriesData : []);
     } catch (error) {
       handleError(error, 'Failed to load categories');
       setCategories([]);
@@ -143,160 +136,22 @@ const AssetManagement = () => {
     }
   }, [filterCategory]);
 
-  const handleInputChange = useCallback((e) => {
-    const { name, value, type, checked } = e.target;
-    const newValue = type === 'checkbox' ? checked : value;
-    console.log('Input changed:', name, '=', newValue);
-    setFormData(prev => ({
-      ...prev,
-      [name]: newValue
-    }));
-  }, []);
 
-  const handleCategoryChange = (categoryId) => {
-    const selectedCategory = categories.find(cat => cat.id.toString() === categoryId);
-    console.log('Selected category:', selectedCategory);
-    setFormData(prev => ({
-      ...prev,
-      category_id: categoryId
-    }));
-  };
-
-  const handleCancel = useCallback(() => {
-    setShowAddModal(false);
-    setShowEditModal(false);
-    resetForm();
-  }, []);
-
-  const validateForm = () => {
-    const errors = [];
-
-    if (!formData.name_en.trim()) {
-      errors.push('English name is required');
-    }
-    if (!formData.name_ar.trim()) {
-      errors.push('Arabic name is required');
-    }
-    if (!formData.category_id) {
-      errors.push('Category is required');
-    }
-    if (formData.product_code && (formData.product_code.length < 6 || formData.product_code.length > 11)) {
-      errors.push('Product code must be 6-11 digits');
-    }
-
-    return errors;
-  };
-
-  const validateProductCode = (code) => {
-    const numericCode = code.replace(/\D/g, '');
-    if (numericCode.length < 6 || numericCode.length > 11) {
-      toast.error('Product code must be 6-11 digits only');
-      return false;
-    }
-    return numericCode;
-  };
-
-  const handleProductCodeChange = (e) => {
-    const { value } = e.target;
-    // Only allow numeric input
-    const numericValue = value.replace(/\D/g, '');
-    if (numericValue.length <= 11) {
-      setFormData(prev => ({
-        ...prev,
-        product_code: numericValue
-      }));
-    }
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-
-    console.log('=== FORM VALIDATION ===');
-    console.log('Form data before validation:', formData);
-    
-    const errors = validateForm();
-    console.log('Validation errors:', errors);
-    
-    if (errors.length > 0) {
-      handleError(errors.join('. '));
-      return;
-    }
-
-    try {
-      setLoading(true);
-
-      // Find the selected category for validation
-      const selectedCategory = categories.find(cat => cat.id === parseInt(formData.category_id));
-      console.log('Selected category for individual creation:', selectedCategory);
-      
-      if (!selectedCategory) {
-        throw new Error('Invalid category selected');
-      }
-
-      // Individual asset creation uses category_id (as per API spec)
-      const assetData = {
-        name_en: formData.name_en.trim(),
-        name_ar: formData.name_ar.trim(),
-        is_active: formData.is_active !== undefined ? formData.is_active : true,
-        category_id: parseInt(formData.category_id) // Use category_id for individual creation
-      };
-
-      console.log('Using category_id for individual creation:', parseInt(formData.category_id));
-
-      if (formData.product_code && formData.product_code.trim()) {
-        assetData.product_code = formData.product_code.trim();
-      }
-
-      if (selectedAsset) {
-        console.log('Updating asset with data:', assetData);
-        await apiClient.updateAsset(selectedAsset.id, assetData);
-        handleSuccess('Asset updated successfully');
-        setShowEditModal(false);
-      } else {
-        console.log('Creating asset with data:', assetData);
-        
-        // WORKAROUND: Use bulk creation endpoint for individual assets since it works
-        // Convert individual asset data to bulk format (category name instead of category_id)
-        const bulkAssetData = {
-          ...assetData,
-          category: selectedCategory.category // Use category name for bulk endpoint
-        };
-        delete bulkAssetData.category_id; // Remove category_id for bulk endpoint
-        
-        console.log('Using bulk endpoint as workaround with data:', bulkAssetData);
-        const result = await apiClient.bulkCreateAssets([bulkAssetData]);
-        
-        if (result && result.summary && result.summary.successfully_added > 0) {
-          handleSuccess('Asset created successfully');
-        } else {
-          // Handle specific error messages from bulk creation
-          const errors = result?.rejected_assets?.[0]?.errors || ['Unknown error occurred'];
-          const errorMessage = errors.join(', ');
-          throw new Error(errorMessage);
-        }
-        setShowAddModal(false);
-      }
-
-      loadAssets(currentPage, filterCategory);
-      resetForm();
-    } catch (error) {
-      handleError(error, 'Failed to save asset');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleEdit = (asset) => {
-    setSelectedAsset(asset);
-    setFormData({
-      name_en: asset.name_en || '',
-      name_ar: asset.name_ar || '',
-      category_id: asset.category_id?.toString() || '',
-      product_code: asset.product_code || '',
-      is_active: asset.is_active !== undefined ? asset.is_active : true
-    });
+    onViewChange('edit', asset);
+  };
 
-    setShowEditModal(true);
+  const handleAdd = () => {
+    onViewChange('add');
+  };
+
+  const handleBack = () => {
+    onViewChange('list');
+  };
+
+  const handleAssetSaved = () => {
+    loadAssets(currentPage, filterCategory);
   };
 
   const handleDelete = async (asset) => {
@@ -560,16 +415,7 @@ const AssetManagement = () => {
     }
   };
 
-  const resetForm = () => {
-    setFormData({
-      name_en: '',
-      name_ar: '',
-      category_id: '',
-      product_code: '',
-      is_active: true
-    });
-    setSelectedAsset(null);
-  };
+
 
   // Asset import functions
   const handleAssetDownloadTemplate = () => {
@@ -1071,6 +917,26 @@ const AssetManagement = () => {
     }
   };
 
+  // Handle different views
+  if (currentView === 'add') {
+    return (
+      <AssetFormView 
+        onBack={handleBack} 
+        onAssetSaved={handleAssetSaved}
+      />
+    );
+  }
+
+  if (currentView === 'edit' && selectedItem) {
+    return (
+      <AssetFormView 
+        onBack={handleBack} 
+        selectedAsset={selectedItem}
+        onAssetSaved={handleAssetSaved}
+      />
+    );
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -1110,89 +976,10 @@ const AssetManagement = () => {
               </Button>
             </DialogTrigger>
           </Dialog>
-          <Dialog open={showAddModal} onOpenChange={setShowAddModal}>
-            <DialogTrigger asChild>
-              <Button className="btn-primary">
-                <Plus className="h-4 w-4 mr-2" />
-                Add Asset
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="flex flex-col">
-              <DialogHeader>
-                <DialogTitle>Add New Asset</DialogTitle>
-                <DialogDescription>
-                  Create a new fixed asset by filling in the required information below.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="flex-1 overflow-y-auto p-1">
-                <form onSubmit={handleSubmit} className="space-y-6">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="name_en">Name (English) *</Label>
-                      <Input
-                        id="name_en"
-                        name="name_en"
-                        value={formData.name_en}
-                        onChange={handleInputChange}
-                        required
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="name_ar">Name (Arabic) *</Label>
-                      <Input
-                        id="name_ar"
-                        name="name_ar"
-                        value={formData.name_ar}
-                        onChange={handleInputChange}
-                        dir="rtl"
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <Label htmlFor="category_id">Category *</Label>
-                      <DynamicSearchableSelect
-                        value={formData.category_id}
-                        onValueChange={handleCategoryChange}
-                        placeholder="Select from existing categories"
-                        searchPlaceholder="Search categories..."
-                        apiEndpoint="categories"
-                      />
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Choose from existing categories only. To add new categories, go to Category Management.
-                      </p>
-                    </div>
-                    <div>
-                      <Label htmlFor="product_code">Product Code (6-11 digits)</Label>
-                      <Input
-                        id="product_code"
-                        name="product_code"
-                        value={formData.product_code}
-                        onChange={handleProductCodeChange}
-                        placeholder="Enter 6-11 digit code"
-                        maxLength="11"
-                        pattern="[0-9]{6,11}"
-                      />
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Numbers only, 6-11 digits (will be auto-formatted for barcode)
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex justify-end space-x-3">
-                    <Button type="button" variant="outline" onClick={handleCancel}>
-                      Cancel
-                    </Button>
-                    <Button type="submit" className="btn-primary">
-                      {selectedAsset ? 'Update Asset' : 'Create Asset'}
-                    </Button>
-                  </div>
-                </form>
-              </div>
-            </DialogContent>
-          </Dialog>
+          <Button className="btn-primary" onClick={handleAdd}>
+            <Plus className="h-4 w-4 mr-2" />
+            Add Asset
+          </Button>
         </div>
       </div>
 
@@ -1210,15 +997,22 @@ const AssetManagement = () => {
               />
             </div>
             <div className="w-48">
-              <DynamicSearchableSelect
+              <Select
                 value={filterCategory}
                 onValueChange={setFilterCategory}
-                placeholder="All Categories"
-                searchPlaceholder="Search categories..."
-                apiEndpoint="categories"
-                className="w-full"
-                staticOptions={[{ value: "all", label: "All Categories" }]}
-              />
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="All Categories" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Categories</SelectItem>
+                  {Array.isArray(categories) && categories.map((category) => (
+                    <SelectItem key={category.id} value={category.id.toString()}>
+                      {category.category}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
         </CardContent>
@@ -1330,102 +1124,11 @@ const AssetManagement = () => {
         </div>
       )}
 
-      {/* Edit Modal */}
-      <Dialog open={showEditModal} onOpenChange={setShowEditModal}>
-        <DialogContent className="flex flex-col">
-          <DialogHeader>
-            <DialogTitle>Edit Asset</DialogTitle>
-            <DialogDescription>
-              Update the asset information below. Changes will be saved when you click Save.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex-1 overflow-y-auto p-1">
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="edit_name_en">Name (English) *</Label>
-                  <Input
-                    id="edit_name_en"
-                    name="name_en"
-                    value={formData.name_en}
-                    onChange={handleInputChange}
-                    required
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="edit_name_ar">Name (Arabic) *</Label>
-                  <Input
-                    id="edit_name_ar"
-                    name="name_ar"
-                    value={formData.name_ar}
-                    onChange={handleInputChange}
-                    dir="rtl"
-                    required
-                  />
-                </div>
-              </div>
 
-              <div className="grid grid-cols-1 gap-4">
-                <div>
-                  <Label htmlFor="edit_category_id">Category *</Label>
-                  <DynamicSearchableSelect
-                    value={formData.category_id}
-                    onValueChange={handleCategoryChange}
-                    placeholder="Select from existing categories"
-                    searchPlaceholder="Search categories..."
-                    apiEndpoint="categories"
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Choose from existing categories only. To add new categories, go to Category Management.
-                  </p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="edit_product_code">Product Code (6-11 digits)</Label>
-                  <Input
-                    id="edit_product_code"
-                    name="product_code"
-                    value={formData.product_code}
-                    onChange={handleProductCodeChange}
-                    placeholder="Enter 6-11 digit code"
-                    maxLength="11"
-                    pattern="[0-9]{6,11}"
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Numbers only, 6-11 digits (will be auto-formatted for barcode)
-                  </p>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
-                    id="edit_is_active"
-                    name="is_active"
-                    checked={formData.is_active}
-                    onChange={handleInputChange}
-                    className="rounded"
-                  />
-                  <Label htmlFor="edit_is_active">Active Asset</Label>
-                </div>
-              </div>
-
-              <div className="flex justify-end space-x-3">
-                <Button type="button" variant="outline" onClick={handleCancel}>
-                  Cancel
-                </Button>
-                <Button type="submit" className="btn-primary">
-                  {selectedAsset ? 'Update Asset' : 'Create Asset'}
-                </Button>
-              </div>
-            </form>
-          </div>
-        </DialogContent>
-      </Dialog>
 
       {/* Asset Import Dialog */}
       <Dialog open={assetImportDialogOpen} onOpenChange={resetAssetImportDialog}>
-        <DialogContent className="max-w-none max-h-none w-screen h-screen m-0 rounded-none overflow-y-auto p-6">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <FileSpreadsheet className="w-5 h-5" />
@@ -1728,7 +1431,7 @@ const AssetManagement = () => {
 
       {/* Asset Update Import Dialog */}
       <Dialog open={assetUpdateDialogOpen} onOpenChange={resetAssetUpdateDialog}>
-        <DialogContent className="max-w-none max-h-none w-screen h-screen m-0 rounded-none overflow-y-auto p-6">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Edit3 className="w-5 h-5" />

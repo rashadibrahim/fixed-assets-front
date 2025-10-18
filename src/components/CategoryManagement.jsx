@@ -26,8 +26,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import apiClient from '../utils/api';
 import { useErrorHandler } from '../hooks/useErrorHandler';
 import { downloadCategoryTemplate, parseExcelFile, validateExcelFile, exportBulkResults } from '../utils/excelUtils';
+import CategoryFormView from './CategoryFormView';
 
-const CategoryManagement = () => {
+const CategoryManagement = ({ currentView = 'list', onViewChange, selectedItem = null }) => {
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -561,6 +562,44 @@ const CategoryManagement = () => {
     }
   };
 
+  // Handle view changes
+  const handleAdd = () => {
+    if (onViewChange) {
+      onViewChange('add');
+    } else {
+      openAddDialog();
+    }
+  };
+
+  const handleEdit = (category) => {
+    if (onViewChange) {
+      onViewChange('edit', category);
+    } else {
+      openEditDialog(category);
+    }
+  };
+
+  const handleBack = () => {
+    if (onViewChange) {
+      onViewChange('list');
+    }
+  };
+
+  const handleCategorySaved = () => {
+    loadCategories(pagination.page, searchTerm);
+  };
+
+  // If we're in add or edit view, show the form view
+  if (currentView === 'add' || currentView === 'edit') {
+    return (
+      <CategoryFormView
+        onBack={handleBack}
+        selectedCategory={currentView === 'edit' ? selectedItem : null}
+        onCategorySaved={handleCategorySaved}
+      />
+    );
+  }
+
   return (
     <div className="container mx-auto p-6 space-y-6">
       {/* Header */}
@@ -591,12 +630,12 @@ const CategoryManagement = () => {
 
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogTrigger asChild>
-              <Button onClick={openAddDialog} className="bg-blue-600 hover:bg-blue-700">
+              <Button onClick={handleAdd} className="bg-blue-600 hover:bg-blue-700">
                 <Plus className="w-4 h-4 mr-2" />
                 Add New Category
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-none max-h-none w-screen h-screen m-0 rounded-none overflow-y-auto p-6">
+            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>
                   {editingCategory ? 'Edit Category' : 'Add New Category'}
@@ -759,7 +798,7 @@ const CategoryManagement = () => {
 
       {/* Import Dialog - Updated for new fields */}
       <Dialog open={importDialogOpen} onOpenChange={resetImportDialog}>
-        <DialogContent className="max-w-none max-h-none w-screen h-screen m-0 rounded-none overflow-y-auto p-6">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <FileSpreadsheet className="w-5 h-5" />
@@ -1154,7 +1193,7 @@ const CategoryManagement = () => {
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => openEditDialog(category)}
+                            onClick={() => handleEdit(category)}
                           >
                             <Edit3 className="h-4 w-4" />
                           </Button>

@@ -14,7 +14,7 @@ import {
   Search
 } from 'lucide-react';
 
-const AddTransaction = ({ isOpen, onClose, onTransactionAdded, defaultTransactionType = 'IN', editTransactionId = null }) => {
+const AddTransaction = ({ isOpen, onClose, onTransactionAdded, defaultTransactionType = 'IN', editTransactionId = null, asContentView = false }) => {
   const { handleError, handleSuccess } = useErrorHandler();
   const [isEditMode, setIsEditMode] = useState(false);
   const [formData, setFormData] = useState({
@@ -340,30 +340,31 @@ const AddTransaction = ({ isOpen, onClose, onTransactionAdded, defaultTransactio
 
   if (!isOpen) return null;
 
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-60 flex items-start justify-center z-50 p-2">
-      <div className="bg-white w-full max-w-7xl h-[calc(100vh-16px)] rounded-lg shadow-2xl overflow-y-auto">
-        <div className="sticky top-0 bg-white border-b border-gray-200 px-4 py-3 z-10">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-xl font-semibold text-gray-900">
-                {isEditMode ? 'Edit' : 'Add New'} {transactionType ? 'In' : 'Out'} Transaction
-              </h1>
-              <p className="text-sm text-gray-600">
-                {isEditMode ? 'Update the' : 'Create a new'} asset {transactionType ? 'incoming' : 'outgoing'} transaction record
-              </p>
-            </div>
+  const formContent = (
+    <div className={asContentView ? "bg-white" : "bg-white w-full max-w-4xl max-h-[90vh] rounded-lg shadow-2xl overflow-y-auto"}>
+      <div className={asContentView ? "bg-white border-b border-gray-200 px-4 py-3" : "sticky top-0 bg-white border-b border-gray-200 px-4 py-3 z-10"}>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-xl font-semibold text-gray-900">
+              {isEditMode ? 'Edit' : 'Add New'} {transactionType ? 'In' : 'Out'} Transaction
+            </h1>
+            <p className="text-sm text-gray-600">
+              {isEditMode ? 'Update the' : 'Create a new'} asset {transactionType ? 'incoming' : 'outgoing'} transaction record
+            </p>
+          </div>
+          {!asContentView && (
             <button
               onClick={onClose}
               className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
             >
               <X className="w-5 h-5" />
             </button>
-          </div>
+          )}
         </div>
+      </div>
 
-        <div className="p-4">
-          <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="p-4">
+        <form onSubmit={handleSubmit} className="space-y-4">
             {/* Transaction Details */}
             <div className="bg-white border border-gray-200 rounded-lg p-3">
               <div className="flex items-center mb-3">
@@ -703,6 +704,11 @@ const AddTransaction = ({ isOpen, onClose, onTransactionAdded, defaultTransactio
           </form>
         </div>
       </div>
+  );
+
+  return asContentView ? formContent : (
+    <div className="fixed inset-0 bg-black bg-opacity-60 flex items-start justify-center z-50 p-2">
+      {formContent}
     </div>
   );
 };

@@ -20,8 +20,9 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import apiClient from '../utils/api';
 import { useErrorHandler } from '../hooks/useErrorHandler';
+import BranchFormView from './BranchFormView';
 
-const BranchManagement = () => {
+const BranchManagement = ({ currentView = 'list', onViewChange, selectedItem = null }) => {
   const { handleError, handleSuccess } = useErrorHandler();
   const [branches, setBranches] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -138,6 +139,44 @@ const BranchManagement = () => {
     }
   };
 
+  // Handle view changes
+  const handleAdd = () => {
+    if (onViewChange) {
+      onViewChange('add');
+    } else {
+      openAddDialog();
+    }
+  };
+
+  const handleEdit = (branch) => {
+    if (onViewChange) {
+      onViewChange('edit', branch);
+    } else {
+      openEditDialog(branch);
+    }
+  };
+
+  const handleBack = () => {
+    if (onViewChange) {
+      onViewChange('list');
+    }
+  };
+
+  const handleBranchSaved = () => {
+    loadBranches();
+  };
+
+  // If we're in add or edit view, show the form view
+  if (currentView === 'add' || currentView === 'edit') {
+    return (
+      <BranchFormView
+        onBack={handleBack}
+        selectedBranch={currentView === 'edit' ? selectedItem : null}
+        onBranchSaved={handleBranchSaved}
+      />
+    );
+  }
+
   const filteredBranches = branches.filter(branch =>
     (branch.name_en && branch.name_en.toLowerCase().includes(searchTerm.toLowerCase())) ||
     (branch.name_ar && branch.name_ar.includes(searchTerm)) ||
@@ -163,7 +202,7 @@ const BranchManagement = () => {
           <h1 className="text-3xl font-bold text-foreground">Branches</h1>
           <p className="text-muted-foreground">Manage your organization branches</p>
         </div>
-        <Button onClick={openAddDialog}>
+        <Button onClick={handleAdd}>
           <Plus className="h-4 w-4 mr-2" />
           Add Branch
         </Button>
@@ -235,7 +274,7 @@ const BranchManagement = () => {
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => openEditDialog(branch)}
+                        onClick={() => handleEdit(branch)}
                       >
                         <Edit3 className="h-4 w-4" />
                       </Button>

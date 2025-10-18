@@ -24,8 +24,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { DynamicSearchableSelect } from '@/components/ui/dynamic-searchable-select';
 import apiClient from '../utils/api';
 import { useErrorHandler } from '../hooks/useErrorHandler';
+import WarehouseFormView from './WarehouseFormView';
 
-const WarehouseManagement = () => {
+const WarehouseManagement = ({ currentView = 'list', onViewChange, selectedItem = null }) => {
   const { handleError, handleSuccess } = useErrorHandler();
   const [warehouses, setWarehouses] = useState([]);
   const [branches, setBranches] = useState([]);
@@ -213,6 +214,44 @@ const WarehouseManagement = () => {
     }
   };
 
+  // Handle view changes
+  const handleAdd = () => {
+    if (onViewChange) {
+      onViewChange('add');
+    } else {
+      openAddDialog();
+    }
+  };
+
+  const handleEdit = (warehouse) => {
+    if (onViewChange) {
+      onViewChange('edit', warehouse);
+    } else {
+      openEditDialog(warehouse);
+    }
+  };
+
+  const handleBack = () => {
+    if (onViewChange) {
+      onViewChange('list');
+    }
+  };
+
+  const handleWarehouseSaved = () => {
+    loadData();
+  };
+
+  // If we're in add or edit view, show the form view
+  if (currentView === 'add' || currentView === 'edit') {
+    return (
+      <WarehouseFormView
+        onBack={handleBack}
+        selectedWarehouse={currentView === 'edit' ? selectedItem : null}
+        onWarehouseSaved={handleWarehouseSaved}
+      />
+    );
+  }
+
   // Filter warehouses on client side for both search and branch
   const filteredWarehouses = (warehouses || []).filter(warehouse => {
     if (!warehouse) return false;
@@ -255,7 +294,7 @@ const WarehouseManagement = () => {
           <h1 className="text-3xl font-bold text-foreground">Warehouses</h1>
           <p className="text-muted-foreground">Manage storage locations and inventory</p>
         </div>
-        <Button onClick={openAddDialog}>
+        <Button onClick={handleAdd}>
           <Plus className="h-4 w-4 mr-2" />
           Add Warehouse
         </Button>
@@ -371,7 +410,7 @@ const WarehouseManagement = () => {
                     </TableCell>
                     <TableCell>
                       <div className="flex gap-2">
-                        <Button variant="ghost" size="sm" onClick={() => openEditDialog(warehouse)}>
+                        <Button variant="ghost" size="sm" onClick={() => handleEdit(warehouse)}>
                           <Edit3 className="h-4 w-4" />
                         </Button>
                         <Button

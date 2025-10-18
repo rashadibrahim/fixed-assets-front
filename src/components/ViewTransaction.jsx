@@ -513,7 +513,7 @@ const ViewTransaction = ({ isOpen, onClose, transactionId }) => {
 
   return (
     <div className="fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-[60]">
-      <div className="bg-white w-full h-full flex flex-col shadow-xl">
+      <div className="bg-white w-full max-w-6xl max-h-[95vh] flex flex-col shadow-xl rounded-lg">
         <div className="flex-shrink-0 bg-white border-b border-gray-200 px-4 py-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
