@@ -154,7 +154,7 @@ const Login = () => {
                 )}
               </CardHeader>
               <CardContent className="px-8 pb-8">
-                <form onSubmit={handleSubmit} className="space-y-6">
+                <form onSubmit={handleSubmit} className="space-y-6" autoComplete="off">
                   <div className="space-y-2">
                     <Label htmlFor="email">Email Address</Label>
                     <div className="relative">
@@ -168,7 +168,6 @@ const Login = () => {
                         placeholder="Enter your email address"
                         className="pl-10 transition-smooth"
                         required
-                        autoComplete="email"
                       />
                     </div>
                   </div>
@@ -186,7 +185,6 @@ const Login = () => {
                         placeholder="Enter your password"
                         className="pl-10 pr-10 transition-smooth"
                         required
-                        autoComplete="current-password"
                       />
                       <button
                         type="button"
