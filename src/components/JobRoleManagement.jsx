@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Users,
   Plus,
@@ -7,17 +7,12 @@ import {
   Shield,
   Search,
   Loader2,
-  AlertCircle,
-  Check,
-  X
+  AlertCircle
 } from 'lucide-react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
-import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -30,23 +25,7 @@ const JobRoleManagement = ({ currentView = 'list', onViewChange, selectedItem = 
   const [jobRoles, setJobRoles] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingRole, setEditingRole] = useState(null);
   const [error, setError] = useState(null);
-
-  const [formData, setFormData] = useState({
-    name: '',
-    can_read_branch: false,
-    can_edit_branch: false,
-    can_delete_branch: false,
-    can_read_warehouse: false,
-    can_edit_warehouse: false,
-    can_delete_warehouse: false,
-    can_read_asset: false,
-    can_edit_asset: false,
-    can_delete_asset: false,
-    can_print_barcode: false
-  });
 
   useEffect(() => {
     loadJobRoles();
@@ -62,160 +41,6 @@ const JobRoleManagement = ({ currentView = 'list', onViewChange, selectedItem = 
       console.error('Error loading job roles:', error);
       setError('Failed to load job roles. Please try again.');
       setJobRoles([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleInputChange = useCallback((e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-  }, []);
-
-  const handleCheckboxChange = useCallback((permission) => {
-    setFormData(prev => {
-      const newFormData = { ...prev };
-
-      // If unchecking a read permission, also uncheck corresponding edit/delete
-      if (permission === 'can_read_branch' && prev[permission]) {
-        newFormData.can_edit_branch = false;
-        newFormData.can_delete_branch = false;
-      } else if (permission === 'can_read_warehouse' && prev[permission]) {
-        newFormData.can_edit_warehouse = false;
-        newFormData.can_delete_warehouse = false;
-      } else if (permission === 'can_read_asset' && prev[permission]) {
-        newFormData.can_edit_asset = false;
-        newFormData.can_delete_asset = false;
-      }
-
-      // If enabling edit/delete, automatically enable read
-      if (permission === 'can_edit_branch' || permission === 'can_delete_branch') {
-        newFormData.can_read_branch = true;
-      } else if (permission === 'can_edit_warehouse' || permission === 'can_delete_warehouse') {
-        newFormData.can_read_warehouse = true;
-      } else if (permission === 'can_edit_asset' || permission === 'can_delete_asset') {
-        newFormData.can_read_asset = true;
-      }
-
-      // Toggle the clicked permission
-      newFormData[permission] = !prev[permission];
-
-      return newFormData;
-    });
-  }, []);
-
-  const openAddDialog = useCallback(() => {
-    setEditingRole(null);
-    setFormData({
-      name: '',
-      can_read_branch: false,
-      can_edit_branch: false,
-      can_delete_branch: false,
-      can_read_warehouse: false,
-      can_edit_warehouse: false,
-      can_delete_warehouse: false,
-      can_read_asset: false,
-      can_edit_asset: false,
-      can_delete_asset: false,
-      can_print_barcode: false,
-      can_make_report: false,
-      can_make_transaction: false
-    });
-    setDialogOpen(true);
-  }, []);
-
-  const openEditDialog = useCallback((role) => {
-    setEditingRole(role);
-    setFormData({
-      name: role.name || '',
-      can_read_branch: role.can_read_branch || false,
-      can_edit_branch: role.can_edit_branch || false,
-      can_delete_branch: role.can_delete_branch || false,
-      can_read_warehouse: role.can_read_warehouse || false,
-      can_edit_warehouse: role.can_edit_warehouse || false,
-      can_delete_warehouse: role.can_delete_warehouse || false,
-      can_read_asset: role.can_read_asset || false,
-      can_edit_asset: role.can_edit_asset || false,
-      can_delete_asset: role.can_delete_asset || false,
-      can_print_barcode: role.can_print_barcode || false,
-      can_make_report: role.can_make_report || false,
-      can_make_transaction: role.can_make_transaction || false
-    });
-    setDialogOpen(true);
-  }, []);
-
-  const validatePermissions = () => {
-    const errors = [];
-
-    // Check branch permissions
-    if ((formData.can_edit_branch || formData.can_delete_branch) && !formData.can_read_branch) {
-      errors.push('Read branch permission is required for edit/delete branch permissions');
-    }
-
-    // Check warehouse permissions
-    if ((formData.can_edit_warehouse || formData.can_delete_warehouse) && !formData.can_read_warehouse) {
-      errors.push('Read warehouse permission is required for edit/delete warehouse permissions');
-    }
-
-    // Check asset permissions
-    if ((formData.can_edit_asset || formData.can_delete_asset) && !formData.can_read_asset) {
-      errors.push('Read asset permission is required for edit/delete asset permissions');
-    }
-
-    return errors;
-  };
-
-  const handleSubmit = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      // Validate required fields
-      if (!formData.name.trim()) {
-        toast.error('Please provide a job role name');
-        return;
-      }
-
-      // Validate permissions logic
-      const validationErrors = validatePermissions();
-      if (validationErrors.length > 0) {
-        toast.error(validationErrors[0]);
-        return;
-      }
-
-      const roleData = {
-        name: formData.name.trim(),
-        can_read_branch: formData.can_read_branch,
-        can_edit_branch: formData.can_edit_branch,
-        can_delete_branch: formData.can_delete_branch,
-        can_read_warehouse: formData.can_read_warehouse,
-        can_edit_warehouse: formData.can_edit_warehouse,
-        can_delete_warehouse: formData.can_delete_warehouse,
-        can_read_asset: formData.can_read_asset,
-        can_edit_asset: formData.can_edit_asset,
-        can_delete_asset: formData.can_delete_asset,
-        can_print_barcode: formData.can_print_barcode,
-        can_make_report: formData.can_make_report,
-        can_make_transaction: formData.can_make_transaction
-      };
-
-      console.log('Submitting role data:', roleData);
-
-      if (editingRole) {
-        await apiClient.updateJobRole(editingRole.id, roleData);
-        handleSuccess('Job role updated successfully');
-      } else {
-        await apiClient.createJobRole(roleData);
-        handleSuccess('Job role created successfully');
-      }
-
-      setDialogOpen(false);
-      await loadJobRoles();
-    } catch (error) {
-      console.error('Error saving job role:', error);
-      const defaultMessage = editingRole ? 'Failed to update job role' : 'Failed to create job role';
-      handleError(error, defaultMessage);
-      setError(`${defaultMessage}: ${error.message}`);
     } finally {
       setLoading(false);
     }
@@ -243,16 +68,12 @@ const JobRoleManagement = ({ currentView = 'list', onViewChange, selectedItem = 
   const handleAdd = () => {
     if (onViewChange) {
       onViewChange('add');
-    } else {
-      openAddDialog();
     }
   };
 
   const handleEdit = (role) => {
     if (onViewChange) {
       onViewChange('edit', role);
-    } else {
-      openEditDialog(role);
     }
   };
 
@@ -281,41 +102,6 @@ const JobRoleManagement = ({ currentView = 'list', onViewChange, selectedItem = 
     role?.name?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const permissionGroups = [
-    {
-      title: "Branch Permissions",
-      permissions: [
-        { key: 'can_read_branch', label: 'Read Branches', required: false },
-        { key: 'can_edit_branch', label: 'Edit Branches', required: 'can_read_branch' },
-        { key: 'can_delete_branch', label: 'Delete Branches', required: 'can_read_branch' }
-      ]
-    },
-    {
-      title: "Warehouse Permissions",
-      permissions: [
-        { key: 'can_read_warehouse', label: 'Read Warehouses', required: false },
-        { key: 'can_edit_warehouse', label: 'Edit Warehouses', required: 'can_read_warehouse' },
-        { key: 'can_delete_warehouse', label: 'Delete Warehouses', required: 'can_read_warehouse' }
-      ]
-    },
-    {
-      title: "Asset Permissions",
-      permissions: [
-        { key: 'can_read_asset', label: 'Read Assets', required: false },
-        { key: 'can_edit_asset', label: 'Edit Assets', required: 'can_read_asset' },
-        { key: 'can_delete_asset', label: 'Delete Assets', required: 'can_read_asset' }
-      ]
-    },
-    {
-      title: "Other Permissions",
-      permissions: [
-        { key: 'can_print_barcode', label: 'Print Barcodes', required: false },
-        { key: 'can_make_report', label: 'Make Reports', required: false },
-        { key: 'can_make_transaction', label: 'Make Transactions', required: false }
-      ]
-    }
-  ];
-
   if (loading && jobRoles.length === 0) {
     return (
       <div className="flex items-center justify-center min-h-96">
@@ -339,89 +125,10 @@ const JobRoleManagement = ({ currentView = 'list', onViewChange, selectedItem = 
           <p className="text-gray-600 mt-1">Manage user roles and permissions</p>
         </div>
 
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogTrigger asChild>
-            <Button onClick={handleAdd} className="bg-blue-600 hover:bg-blue-700">
-              <Plus className="w-4 h-4 mr-2" />
-              Add New Role
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="flex flex-col">
-            <DialogHeader>
-              <DialogTitle>
-                {editingRole ? 'Edit Job Role' : 'Add New Job Role'}
-              </DialogTitle>
-            </DialogHeader>
-
-            <div className="space-y-6 overflow-y-auto p-1">
-              {/* Basic Information */}
-              <div className="space-y-4">
-                <div>
-                  <Label htmlFor="name">Role Name *</Label>
-                  <Input
-                    id="name"
-                    name="name"
-                    value={formData.name}
-                    onChange={handleInputChange}
-                    placeholder="Enter role name"
-                    className="mt-1"
-                  />
-                </div>
-              </div>
-
-              {/* Permissions */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-gray-900">Permissions</h3>
-                {permissionGroups.map((group) => (
-                  <div key={group.title} className="space-y-3">
-                    <h4 className="text-md font-medium text-gray-700">{group.title}</h4>
-                    <div className="grid grid-cols-1 gap-3 pl-4">
-                      {group.permissions.map((permission) => (
-                        <div key={permission.key} className="flex items-center space-x-2">
-                          <Checkbox
-                            id={permission.key}
-                            checked={formData[permission.key]}
-                            onCheckedChange={() => handleCheckboxChange(permission.key)}
-                            disabled={permission.required && !formData[permission.required]}
-                          />
-                          <Label
-                            htmlFor={permission.key}
-                            className={`text-sm ${permission.required && !formData[permission.required] ? 'text-muted-foreground' : ''}`}
-                          >
-                            {permission.label}
-                            {permission.required && (
-                              <span className="text-xs text-muted-foreground ml-1">
-                                (requires {permission.required.replace('can_', '').replace('_', ' ')})
-                              </span>
-                            )}
-                          </Label>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Action Buttons */}
-              <div className="flex justify-end gap-3 pt-4 border-t">
-                <Button
-                  variant="outline"
-                  onClick={() => setDialogOpen(false)}
-                  disabled={loading}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  onClick={handleSubmit}
-                  disabled={loading}
-                >
-                  {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                  {editingRole ? 'Update Role' : 'Create Role'}
-                </Button>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
+        <Button onClick={handleAdd} className="bg-blue-600 hover:bg-blue-700">
+          <Plus className="w-4 h-4 mr-2" />
+          Add New Role
+        </Button>
       </div>
 
       {/* Search */}

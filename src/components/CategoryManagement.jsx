@@ -17,9 +17,7 @@ import {
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -32,8 +30,6 @@ const CategoryManagement = ({ currentView = 'list', onViewChange, selectedItem =
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingCategory, setEditingCategory] = useState(null);
   const [error, setError] = useState(null);
   const [pagination, setPagination] = useState({
     page: 1,
@@ -41,18 +37,6 @@ const CategoryManagement = ({ currentView = 'list', onViewChange, selectedItem =
     total: 0
   });
   const { handleError, handleSuccess } = useErrorHandler();
-
-  const [formData, setFormData] = useState({
-    category: '', // Main Category (English)
-    category_ar: '', // Main Category (Arabic)
-    subcategory: '', // Category Name (English)
-    subcategory_ar: '', // Category Name (Arabic)
-    parent_id: ''
-  });
-
-  const [existingMainCategories, setExistingMainCategories] = useState([]);
-  const [loadingMainCategories, setLoadingMainCategories] = useState(false);
-  const [categorySearchTerm, setCategorySearchTerm] = useState('');
 
   // Bulk import states
   const [importDialogOpen, setImportDialogOpen] = useState(false);
@@ -98,17 +82,6 @@ const CategoryManagement = ({ currentView = 'list', onViewChange, selectedItem =
 
         setCategories(transformedCategories);
 
-        // Extract unique categories for dropdown
-        const uniqueMainCategories = [...new Set(
-          data.items
-            .map(item => ({
-              en: item.category,
-              ar: item.category_ar
-            }))
-            .filter(category => category.en && category.en.trim() !== '')
-        )];
-        setExistingMainCategories(uniqueMainCategories);
-
         setPagination({
           page: data.page || 1,
           pages: data.pages || 1,
@@ -116,174 +89,10 @@ const CategoryManagement = ({ currentView = 'list', onViewChange, selectedItem =
         });
       } else {
         setCategories([]);
-        setExistingMainCategories([]);
       }
     } catch (error) {
       handleError(error, 'Failed to load categories');
       setCategories([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadMainCategoriesForDropdown = async (search = '') => {
-    try {
-      setLoadingMainCategories(true);
-
-      const token = localStorage.getItem('authToken');
-      if (!token) {
-        return;
-      }
-
-      const params = {
-        per_page: 100,
-        page: 1
-      };
-      if (search.trim()) {
-        params.search = search.trim();
-      }
-
-      const response = await apiClient.getCategories(params);
-      const data = response;
-
-      if (data.items) {
-        const uniqueMainCategories = [...new Set(
-          data.items
-            .map(item => ({
-              en: item.category,
-              ar: item.category_ar
-            }))
-            .filter(category => category.en && category.en.trim() !== '')
-        )];
-
-        setExistingMainCategories(uniqueMainCategories);
-      } else {
-        setExistingMainCategories([]);
-      }
-    } catch (error) {
-      console.error('Error loading main categories for dropdown:', error);
-      setExistingMainCategories([]);
-    } finally {
-      setLoadingMainCategories(false);
-    }
-  };
-
-  const handleCategorySearch = (searchValue) => {
-    setCategorySearchTerm(searchValue);
-    clearTimeout(window.categorySearchTimeout);
-    window.categorySearchTimeout = setTimeout(() => {
-      loadMainCategoriesForDropdown(searchValue);
-    }, 300);
-  };
-
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-  };
-
-  const openAddDialog = () => {
-    setEditingCategory(null);
-    setFormData({
-      category: 'none',
-      category_ar: '',
-      subcategory: '',
-      subcategory_ar: '',
-      parent_id: ''
-    });
-    loadMainCategoriesForDropdown();
-    setDialogOpen(true);
-  };
-
-  const openEditDialog = (category) => {
-    setEditingCategory(category);
-    setFormData({
-      category: category.category || 'none',
-      category_ar: category.category_ar || '',
-      subcategory: category.subcategory || '',
-      subcategory_ar: category.subcategory_ar || '',
-      parent_id: category.parent_id || ''
-    });
-    loadMainCategoriesForDropdown();
-    setDialogOpen(true);
-  };
-
-  const validateForm = () => {
-    const errors = [];
-
-    if (!formData.subcategory.trim()) {
-      errors.push('Category name (English) is required');
-    }
-
-    return errors;
-  };
-
-  const handleSubmit = async () => {
-    if (loading) return;
-
-    try {
-      setLoading(true);
-      setError(null);
-
-      const token = localStorage.getItem('authToken');
-      if (!token) {
-        handleError('Authentication required');
-        return;
-      }
-
-      const errors = validateForm();
-      if (errors.length > 0) {
-        setError(errors.join('. '));
-        return;
-      }
-
-      // Check for duplicate names
-      if (formData.subcategory.trim()) {
-        const duplicateCategory = categories.find(cat =>
-          cat.subcategory?.toLowerCase() === formData.subcategory.trim().toLowerCase() &&
-          (!editingCategory || cat.id !== editingCategory.id)
-        );
-
-        if (duplicateCategory) {
-          handleError(`Category name "${formData.subcategory}" already exists`);
-          return;
-        }
-      }
-
-      // Auto-populate Arabic main category from selected dropdown option
-      let selectedMainCategoryAr = null;
-      if (formData.category !== 'none' && formData.category) {
-        const selectedMainCat = existingMainCategories.find(cat => cat.en === formData.category);
-        selectedMainCategoryAr = selectedMainCat?.ar || null;
-      }
-
-      const requestBody = {
-        category: formData.subcategory.trim() || null, // Category Name (English)
-        category_ar: formData.subcategory_ar.trim() || null, // Category Name (Arabic)
-        subcategory: formData.category === 'none' ? null : formData.category.trim() || null, // Main Category (English)
-        subcategory_ar: formData.category === 'none' ? null : selectedMainCategoryAr // Main Category (Arabic) - Auto-populated
-      };
-
-      if (editingCategory) {
-        await apiClient.updateCategory(editingCategory.id, requestBody);
-        handleSuccess('Category updated successfully!');
-      } else {
-        await apiClient.createCategory(requestBody);
-        handleSuccess('Category created successfully!');
-      }
-
-      setFormData({
-        category: 'none',
-        category_ar: '',
-        subcategory: '',
-        subcategory_ar: '',
-        parent_id: ''
-      });
-      setEditingCategory(null);
-      setDialogOpen(false);
-      loadCategories(pagination.page, searchTerm);
-
-    } catch (error) {
-      handleError(error);
     } finally {
       setLoading(false);
     }
@@ -566,16 +375,12 @@ const CategoryManagement = ({ currentView = 'list', onViewChange, selectedItem =
   const handleAdd = () => {
     if (onViewChange) {
       onViewChange('add');
-    } else {
-      openAddDialog();
     }
   };
 
   const handleEdit = (category) => {
     if (onViewChange) {
       onViewChange('edit', category);
-    } else {
-      openEditDialog(category);
     }
   };
 
@@ -628,171 +433,10 @@ const CategoryManagement = ({ currentView = 'list', onViewChange, selectedItem =
             </DialogTrigger>
           </Dialog>
 
-          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-            <DialogTrigger asChild>
-              <Button onClick={handleAdd} className="bg-blue-600 hover:bg-blue-700">
-                <Plus className="w-4 h-4 mr-2" />
-                Add New Category
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>
-                  {editingCategory ? 'Edit Category' : 'Add New Category'}
-                </DialogTitle>
-              </DialogHeader>
-
-              <div className="space-y-4 max-w-2xl mx-auto">
-                <div className="grid grid-cols-1 gap-4">
-                  {/* Category Name (English) - Required */}
-                  <div>
-                    <Label htmlFor="subcategory">Category Name (English) *</Label>
-                    <Input
-                      id="subcategory"
-                      name="subcategory"
-                      value={formData.subcategory}
-                      onChange={handleInputChange}
-                      placeholder="Enter category name in English"
-                      className="mt-1"
-                      required
-                    />
-                    <p className="text-xs text-muted-foreground mt-1">
-                      This is the main category name and is required
-                    </p>
-                  </div>
-
-                  {/* Category Name (Arabic) - Optional */}
-                  <div>
-                    <Label htmlFor="subcategory_ar">Category Name (Arabic)</Label>
-                    <Input
-                      id="subcategory_ar"
-                      name="subcategory_ar"
-                      value={formData.subcategory_ar}
-                      onChange={handleInputChange}
-                      placeholder="Enter category name in Arabic"
-                      className="mt-1"
-                      dir="rtl"
-                    />
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Optional Arabic translation for the category name
-                    </p>
-                  </div>
-
-                  {/* Main Category (English) - Optional */}
-                  <div>
-                    <Label htmlFor="category">Main Category</Label>
-                    <div className="mt-1">
-                      <Select
-                        value={formData.category}
-                        onValueChange={(value) => setFormData(prev => ({ ...prev, category: value }))}
-                        onOpenChange={(isOpen) => {
-                          if (isOpen) {
-                            setCategorySearchTerm('');
-                            loadMainCategoriesForDropdown();
-                          }
-                        }}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select main category or leave empty" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <div className="p-2 border-b">
-                            <div className="relative">
-                              <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-muted-foreground h-3 w-3" />
-                              <Input
-                                placeholder="Search categories..."
-                                value={categorySearchTerm}
-                                onChange={(e) => handleCategorySearch(e.target.value)}
-                                className="pl-7 h-8 text-sm"
-                                onClick={(e) => e.stopPropagation()}
-                                onKeyDown={(e) => e.stopPropagation()}
-                              />
-                            </div>
-                          </div>
-
-                          <SelectItem value="none">
-                            <div className="flex flex-col">
-                              <span className="font-medium">-- No Main Category --</span>
-                              <span className="text-xs text-muted-foreground">This will be a top-level category</span>
-                            </div>
-                          </SelectItem>
-
-                          {loadingMainCategories ? (
-                            <SelectItem value="loading" disabled>
-                              <div className="flex items-center gap-2">
-                                <Loader2 className="w-4 h-4 animate-spin" />
-                                Loading categories...
-                              </div>
-                            </SelectItem>
-                          ) : existingMainCategories.length > 0 ? (
-                            existingMainCategories.map((mainCat, index) => (
-                              <SelectItem key={index} value={mainCat.en}>
-                                <div className="flex flex-col">
-                                  <span className="font-medium">{mainCat.en}</span>
-                                  {mainCat.ar && (
-                                    <span className="text-sm text-muted-foreground" dir="rtl">{mainCat.ar}</span>
-                                  )}
-                                </div>
-                              </SelectItem>
-                            ))
-                          ) : (
-                            <SelectItem value="no-data" disabled>
-                              <span className="text-muted-foreground">
-                                {categorySearchTerm ? 'No categories found matching your search' : 'No main categories available'}
-                              </span>
-                            </SelectItem>
-                          )}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Optional: Select an existing main category to create a subcategory. Arabic name will be automatically included if available.
-                    </p>
-                  </div>
-
-                  {/* Display selected main category info if applicable */}
-                  {formData.category !== 'none' && formData.category && (
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                      <h4 className="font-medium text-blue-900 mb-2">Selected Main Category:</h4>
-                      <div className="space-y-1">
-                        <div>
-                          <span className="text-sm font-medium">English:</span> {formData.category}
-                        </div>
-                        {(() => {
-                          const selectedCat = existingMainCategories.find(cat => cat.en === formData.category);
-                          return selectedCat?.ar ? (
-                            <div>
-                              <span className="text-sm font-medium">Arabic:</span>
-                              <span className="mr-2" dir="rtl">{selectedCat.ar}</span>
-                            </div>
-                          ) : (
-                            <div className="text-sm text-muted-foreground">No Arabic translation available</div>
-                          );
-                        })()}
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                <div className="flex justify-end gap-3 pt-4 border-t">
-                  <Button
-                    variant="outline"
-                    onClick={() => setDialogOpen(false)}
-                    disabled={loading}
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    onClick={handleSubmit}
-                    disabled={loading}
-                  >
-                    {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                    {editingCategory ? 'Update Category' : 'Create Category'}
-                  </Button>
-                </div>
-              </div>
-            </DialogContent>
-          </Dialog>
+          <Button onClick={handleAdd} className="bg-blue-600 hover:bg-blue-700">
+            <Plus className="w-4 h-4 mr-2" />
+            Add New Category
+          </Button>
         </div>
       </div>
 
@@ -1129,7 +773,7 @@ const CategoryManagement = ({ currentView = 'list', onViewChange, selectedItem =
       </div>
 
       {/* Loading */}
-      {loading && !dialogOpen && (
+      {loading && (
         <div className="flex justify-center items-center py-12">
           <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
         </div>
@@ -1159,7 +803,7 @@ const CategoryManagement = ({ currentView = 'list', onViewChange, selectedItem =
                       <p className="text-muted-foreground mb-6">
                         {searchTerm ? 'No categories match your search criteria.' : 'Start by adding your first category.'}
                       </p>
-                      <Button onClick={openAddDialog}>
+                      <Button onClick={handleAdd}>
                         <Plus className="h-4 w-4 mr-2" />
                         Add Category
                       </Button>
