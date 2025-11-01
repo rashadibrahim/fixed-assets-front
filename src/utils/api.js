@@ -1,6 +1,6 @@
 // API utility functions for the Fixed Assets Management System
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://web-production-6879.up.railway.app';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://web-production-e7ee7.up.railway.app';
 
 class ApiClient {
   constructor() {
