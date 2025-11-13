@@ -10,6 +10,7 @@ import apiClient from '../utils/api';
 const AssetFormView = ({ onBack, selectedAsset = null, onAssetSaved }) => {
   const { handleError, handleSuccess } = useErrorHandler();
   const [loading, setLoading] = useState(false);
+  const [categoriesLoaded, setCategoriesLoaded] = useState(false);
   const [categories, setCategories] = useState([]);
   const [formData, setFormData] = useState({
     name_en: '',
@@ -26,26 +27,45 @@ const AssetFormView = ({ onBack, selectedAsset = null, onAssetSaved }) => {
       const response = await apiClient.getCategories();
       const categoriesData = response.items || response || [];
       // Ensure it's always an array
-      setCategories(Array.isArray(categoriesData) ? categoriesData : []);
+      const categoriesArray = Array.isArray(categoriesData) ? categoriesData : [];
+      setCategories(categoriesArray);
+      setCategoriesLoaded(true);
+      return categoriesArray;
     } catch (error) {
       console.error('Error loading categories:', error);
       handleError('Failed to load categories');
       setCategories([]);
+      setCategoriesLoaded(true);
+      return [];
     }
   };
 
   useEffect(() => {
-    loadCategories();
+    const initializeForm = async () => {
+      // Load categories first
+      const loadedCategories = await loadCategories();
+      
+      // Then set form data if editing
+      if (selectedAsset) {
+        const categoryId = selectedAsset.category_id?.toString() || '';
+        
+        // Verify the category exists in loaded categories
+        if (categoryId && loadedCategories.length > 0) {
+          const categoryExists = loadedCategories.some(cat => cat.id.toString() === categoryId);
+          console.log('Setting category_id:', categoryId, 'Exists:', categoryExists);
+        }
+        
+        setFormData({
+          name_en: selectedAsset.name_en || '',
+          name_ar: selectedAsset.name_ar || '',
+          category_id: categoryId,
+          product_code: selectedAsset.product_code || '',
+          is_active: selectedAsset.is_active !== undefined ? selectedAsset.is_active : true
+        });
+      }
+    };
     
-    if (selectedAsset) {
-      setFormData({
-        name_en: selectedAsset.name_en || '',
-        name_ar: selectedAsset.name_ar || '',
-        category_id: selectedAsset.category_id?.toString() || '',
-        product_code: selectedAsset.product_code || '',
-        is_active: selectedAsset.is_active !== undefined ? selectedAsset.is_active : true
-      });
-    }
+    initializeForm();
   }, [selectedAsset]);
 
   const handleInputChange = (e) => {
@@ -267,21 +287,33 @@ const AssetFormView = ({ onBack, selectedAsset = null, onAssetSaved }) => {
                       <Label htmlFor="category_id" className="text-sm font-medium">
                         Category <span className="text-destructive">*</span>
                       </Label>
-                      <Select
-                        value={formData.category_id}
-                        onValueChange={handleCategoryChange}
-                      >
-                        <SelectTrigger className="h-10">
-                          <SelectValue placeholder="Select category" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {Array.isArray(categories) && categories.map((category) => (
-                            <SelectItem key={category.id} value={category.id.toString()}>
-                              {category.category}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      {!categoriesLoaded ? (
+                        <div className="h-10 flex items-center justify-center border border-input rounded-md bg-muted">
+                          <span className="text-sm text-muted-foreground">Loading categories...</span>
+                        </div>
+                      ) : (
+                        <Select
+                          value={formData.category_id}
+                          onValueChange={handleCategoryChange}
+                        >
+                          <SelectTrigger className="h-10">
+                            <SelectValue placeholder="Select category" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {categories.length > 0 ? (
+                              categories.map((category) => (
+                                <SelectItem key={category.id} value={category.id.toString()}>
+                                  {category.category}
+                                </SelectItem>
+                              ))
+                            ) : (
+                              <SelectItem value="no-categories" disabled>
+                                No categories available
+                              </SelectItem>
+                            )}
+                          </SelectContent>
+                        </Select>
+                      )}
                       <p className="text-xs text-muted-foreground">
                         Choose from existing categories
                       </p>
